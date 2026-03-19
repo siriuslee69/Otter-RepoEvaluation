@@ -15,6 +15,9 @@ bin/
 *.ilk
 *.exp
 *.log
+tests/test_smoke
+tests/test_child_enabled
+tests/build/
 *.tmp
 *.swp
 *.bak
@@ -26,4 +29,3 @@ nimble.develop
 nimble.paths
 .iron/.local*
 !.iron/.local*.template
-
