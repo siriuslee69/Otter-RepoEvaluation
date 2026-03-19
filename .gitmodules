@@ -1,0 +1,3 @@
+[submodule "submodules/sigma"]
+	path = submodules/sigma
+	url = https://github.com/siriuslee69/Sigma-BenchAndEval.git
