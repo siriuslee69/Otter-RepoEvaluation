@@ -6,20 +6,20 @@
 import ../.iron/metaPragmas
 import otter_repo_evaluation
 
-otterTimed:
-  proc childLeaf*(a: int): int {.role: helper, metaTags: {tagTesting}.} =
-    ## a: input value.
-    var
-      t: int = 0
-    t = a + 2
-    result = t
+proc childLeaf*(a: int): int {.otterTimed, role: helper, metaTags: {tagTesting}.} =
+  ## a: input value.
+  var
+    t: int = 0
+  t = a + 2
+  result = t
 
-  proc childBranch*(a: int): int {.role: helper, metaTags: {tagTesting}.} =
-    ## a: input value.
-    var
-      t: int = 0
-    t = childLeaf(a)
-    result = t * 2
+
+proc childBranch*(a: int): int {.otterBench, role: helper, metaTags: {tagTesting}.} =
+  ## a: input value.
+  var
+    t: int = 0
+  t = childLeaf(a)
+  result = t * 2
 
 
 when isMainModule:

@@ -7,7 +7,7 @@ Compile-time timing instrumentation for Nim repos.
 - Inject start and end timing capture around wrapped parent-repo routines.
 - Store captured data in an in-memory object that holds tuples of `functionName`, `startTick`, and `endTick`.
 - Flush that timing state to a log file when the test process exits.
-- Reuse the benchmark layer vendored from `Sigma-BenchAndEval`.
+- Reuse the benchmark layer from the `Sigma-BenchAndEval` and `Fylgia-Utils` submodules.
 
 ## Repo Boundary
 - Owns compile-time instrumentation macros and the in-memory timing store.
@@ -18,7 +18,7 @@ Compile-time timing instrumentation for Nim repos.
 ## Parent Repo Flow
 1. Add `Otter-RepoEvaluation` as a dependency or submodule.
 2. Import `otter_repo_evaluation`.
-3. Wrap the routines you want to instrument with `otterInstrument:` or `otterTimed:`.
+3. Wrap the routines you want to instrument with `otterInstrument:` or `otterTimed:`, or attach `.otterTimed.`, `.otterInstrument.`, or `.otterBench.` directly to a routine.
 4. Run the parent repo tests with `-d:otterTiming`.
 5. Otter writes `build/otter_timings.log` on process exit unless the parent test code overrides the path with `setLogPath(...)`.
 
@@ -38,6 +38,18 @@ otterInstrument:
       t: int = 0
     t = parseInput(s)
     result = t + 1
+```
+
+For direct routine pragmas, you can also write:
+
+```nim
+import otter_repo_evaluation
+
+proc parseInput*(s: string): int {.otterBench.} =
+  var
+    t: int = 0
+  t = s.len
+  result = t
 ```
 
 Run the parent test binary with:
@@ -64,21 +76,25 @@ setLogPath("build/my_repo_otter.log")
 - `flushTimingLog`
   - write the full timing object to the log file.
 - `otterInstrument`
-  - compile-time macro that wraps procs and funcs in a statement list.
+  - compile-time macro that wraps procs and funcs in a statement list or through direct routine pragmas.
 - `otterTimed`
   - alias macro for the same instrumentation flow.
+- `otterBench`
+  - bench-named alias for the same instrumentation flow.
 
 ## Repo Layout
 - `src/otter_repo_evaluation.nim`
   - public library surface.
-- `src/otter_repo_evaluation/types.nim`
+- `src/protocols/types.nim`
   - timing tuple and memory types.
-- `src/otter_repo_evaluation/state.nim`
+- `src/protocols/state.nim`
   - timing store, exit-hook registration, and log flushing.
-- `src/otter_repo_evaluation/instrumentation.nim`
+- `src/protocols/instrumentation.nim`
   - compile-time injection macros.
-- `src/otter_repo_evaluation/sigma_bridge.nim`
+- `src/protocols/sigma_bridge.nim`
   - Sigma benchmark wrappers and shared monotonic clock helpers.
+- `submodules/Fylgia-Utils/`
+  - direct Fylgia dependency checkout; no vendored `src/fylgia_utils` shim remains.
 - `tests/test_smoke.nim`
   - smoke coverage plus an end-of-run log verification.
 

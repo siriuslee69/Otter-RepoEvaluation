@@ -3,10 +3,10 @@
 # | -> Re-export instrumentation, timing state, and Sigma   |
 # ============================================================
 
-import ./otter_repo_evaluation/types
-import ./otter_repo_evaluation/sigma_bridge
-import ./otter_repo_evaluation/state
-import ./otter_repo_evaluation/instrumentation
+import ./protocols/types
+import ./protocols/sigma_bridge
+import ./protocols/state
+import ./protocols/instrumentation
 
 export types
 export sigma_bridge

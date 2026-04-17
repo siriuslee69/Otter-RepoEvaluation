@@ -24,10 +24,19 @@ otterInstrument:
     result = t + 1
 
 
+proc pragmaLeaf*(a: int): int {.otterBench, role: helper, metaTags: {tagTesting}.} =
+  ## a: input value.
+  var
+    t: int = 0
+  t = a * 2
+  result = t
+
+
 suite "otter smoke":
   test "flag off keeps local timing store empty":
     clearTimings()
     check localBranch(4) == 6
+    check pragmaLeaf(4) == 8
     check timingCount() == 0
     check snapshotTimings().len == 0
 
@@ -51,7 +60,7 @@ suite "otter smoke":
     createDir("tests/build")
     if fileExists(logPath):
       removeFile(logPath)
-    cmd = "nim c --path:src -d:otterTiming -r tests/test_child_enabled.nim"
+    cmd = "nim c --path:src --nimcache:build/nimcache_child -d:otterTiming -r tests/test_child_enabled.nim"
     r = execCmdEx(cmd)
     check r.exitCode == 0
     check fileExists(logPath)

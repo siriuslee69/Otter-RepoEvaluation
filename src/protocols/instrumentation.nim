@@ -83,3 +83,9 @@ macro otterTimed*(body: untyped): untyped {.role: helper, metaTags: {tagInstrume
 macro otterInstrument*(body: untyped): untyped {.role: helper, metaTags: {tagInstrumentation, tagParentIntegration}.} =
   ## body: statement list or single routine definition.
   result = otterInstrumentNode(body)
+
+
+macro otterBench*(body: untyped): untyped {.role: helper, metaTags: {tagInstrumentation, tagParentIntegration}.} =
+  ## body: statement list or single routine definition.
+  ## Supports both block-macro use and direct routine pragmas.
+  result = otterInstrumentNode(body)

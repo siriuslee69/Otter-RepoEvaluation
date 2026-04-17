@@ -6,11 +6,11 @@
 import std/[monotimes, times]
 
 import ../../.iron/metaPragmas
-import ../../submodules/sigma/src/sigma_bench_and_eval/benchmarks
+import sigma_bench_and_eval as sigma
 
 type
-  BenchAlgo* {.role: helper, metaTags: {tagSigma, tagTiming}.} = benchmarks.BenchAlgo
-  BenchResult* {.role: helper, metaTags: {tagSigma, tagTiming}.} = benchmarks.BenchResult
+  BenchAlgo* {.role: helper, metaTags: {tagSigma, tagTiming}.} = sigma.BenchAlgo
+  BenchResult* {.role: helper, metaTags: {tagSigma, tagTiming}.} = sigma.BenchResult
 
 
 proc compareAlgorithms*(A: openArray[BenchAlgo], loops: int = 10000,
@@ -20,7 +20,7 @@ proc compareAlgorithms*(A: openArray[BenchAlgo], loops: int = 10000,
   ## warmup: untimed warmup loop count.
   var
     t: seq[BenchResult] = @[]
-  t = benchmarks.compareAlgorithms(A, loops, warmup)
+  t = sigma.compareAlgorithms(A, loops, warmup)
   result = t
 
 
@@ -28,7 +28,7 @@ proc formatBenchResults*(R: openArray[BenchResult]): string {.role: helper, meta
   ## R: benchmark result list.
   var
     t: string = ""
-  t = benchmarks.formatBenchResults(R)
+  t = sigma.formatBenchResults(R)
   result = t
 
 
