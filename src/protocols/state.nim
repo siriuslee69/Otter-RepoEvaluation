@@ -30,7 +30,18 @@ proc ensureOtterLock() {.role: helper, metaTags: {tagState, tagTiming}.} =
 
 
 proc ensureOtterDefaults() {.role: helper, metaTags: {tagState, tagLogging}.} =
+  var
+    envPath: string = ""
   if gOtterMemory.logPath.len != 0:
+    return
+  envPath = getEnv("TYR_OTTER_TIMING_LOG_PATH")
+  if envPath.len == 0:
+    envPath = getEnv("OTTER_TIMING_LOG_PATH")
+  if envPath.len > 0:
+    gOtterMemory.logPath = envPath
+    return
+  if dirExists("/data/local/tmp"):
+    gOtterMemory.logPath = "/data/local/tmp/otter_timings.log"
     return
   gOtterMemory.logPath = DefaultOtterLogPath
 
