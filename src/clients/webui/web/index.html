@@ -96,6 +96,12 @@
         </div>
       </section>
 
+      <section class="path-layout" aria-label="Active node path">
+        <div class="menu-shell path-shell">
+          <div id="breadcrumbs" class="active-path">active: none</div>
+        </div>
+      </section>
+
       <section class="utility-layout" aria-label="Utility menus">
         <div class="menu-shell utility-shell">
           <div class="utility-inner">
@@ -307,6 +313,7 @@
         </div>
       </div>
       <div class="canvas-search-panel">
+        <span class="canvas-search-label">Filter</span>
         <select id="canvas-search-filter" class="canvas-search-filter" aria-label="Canvas search filter">
           <option value="functions">Functions</option>
           <option value="parameters">Parameters</option>
@@ -314,12 +321,66 @@
           <option value="results">Results</option>
           <option value="types">Types</option>
         </select>
-        <input id="canvas-search" class="canvas-search" type="search" spellcheck="false" placeholder="Search">
+        <input id="canvas-search" class="canvas-search" type="search" spellcheck="false" placeholder="Search nodes on canvas">
       </div>
       <div id="minimap" class="minimap hidden">
         <div id="minimap-content" class="minimap-content"></div>
         <div id="minimap-viewport" class="minimap-viewport"></div>
       </div>
+
+      <aside id="layer-panel" class="layer-panel" aria-label="Reference layers panel">
+        <button id="layer-panel-toggle" class="layer-panel-toggle" type="button" aria-label="Toggle references panel">
+          <span class="layer-panel-toggle-text">Refs</span>
+        </button>
+        <div class="layer-panel-body">
+          <div class="layer-panel-header">
+            <span class="panel-title">Refs</span>
+            <div class="layer-panel-actions">
+              <button id="layer-add-selected-btn" class="action tiny" type="button">Ref</button>
+              <button id="layer-add-group-btn" class="action tiny" type="button">Group</button>
+              <button id="layer-info-btn" class="action tiny" type="button">Node</button>
+              <button id="layer-run-btn" class="action tiny" type="button">Run</button>
+              <button id="layer-notes-btn" class="action tiny" type="button">Notes</button>
+            </div>
+          </div>
+          <div id="layer-dropzone" class="layer-dropzone">
+            <div id="layer-tree" class="layer-tree"></div>
+          </div>
+          <div id="layer-resize-handle" class="layer-resize-handle" aria-hidden="true"></div>
+        </div>
+      </aside>
+
+      <div id="selection-float" class="floating-panel hidden" aria-label="Selected node details">
+        <div class="floating-panel-header">
+          <span class="panel-title">Node</span>
+          <div class="floating-panel-actions">
+            <button id="selection-float-add-ref-btn" class="action tiny" type="button">Ref</button>
+            <button id="selection-float-note-btn" class="action tiny" type="button">Note</button>
+            <button id="selection-float-run-btn" class="action tiny" type="button">Run</button>
+          </div>
+        </div>
+        <pre id="selection-float-meta" class="floating-panel-body"></pre>
+      </div>
+
+      <div id="run-float" class="floating-panel hidden" aria-label="Run output">
+        <div class="floating-panel-header">
+          <span class="panel-title">Run</span>
+        </div>
+        <pre id="run-float-output" class="floating-panel-body"></pre>
+      </div>
+
+      <div id="notes-float" class="floating-panel hidden" aria-label="Queued notes">
+        <div class="floating-panel-header">
+          <span class="panel-title">Notes</span>
+          <div class="floating-panel-actions">
+            <button id="notes-float-send-btn" class="action tiny" type="button">Send</button>
+            <button id="notes-float-clear-btn" class="action tiny" type="button">Clear</button>
+          </div>
+        </div>
+        <div id="notes-float-list" class="floating-panel-list"></div>
+      </div>
+
+      <div id="annotation-preview" class="annotation-preview hidden"></div>
     </main>
 
     <footer class="bottom-panel" data-panel-id="bottom" tabindex="0">
@@ -360,6 +421,19 @@
         </section>
       </div>
     </footer>
+  </div>
+
+  <div id="annotation-editor" class="annotation-editor hidden" aria-label="Annotation editor">
+    <div class="annotation-editor-card">
+      <div class="floating-panel-header">
+        <span id="annotation-editor-title" class="panel-title">Annotation</span>
+        <button id="annotation-editor-cancel-btn" class="action tiny" type="button">Close</button>
+      </div>
+      <textarea id="annotation-editor-input" class="annotation-editor-input" rows="8" placeholder="Annotation"></textarea>
+      <div class="floating-panel-actions">
+        <button id="annotation-editor-save-btn" class="action primary" type="button">Save</button>
+      </div>
+    </div>
   </div>
 
   <div id="tooltip" class="tooltip hidden"></div>
