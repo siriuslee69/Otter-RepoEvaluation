@@ -778,11 +778,7 @@
     window.requestAnimationFrame(() => {
       const pos = state.currentView?.positions.get(nodeId);
       if (!pos) return;
-      els.graphShell.scrollTo({
-        left: Math.max(0, (pos.x + pos.width / 2) * state.zoom - els.graphShell.clientWidth / 2),
-        top: Math.max(0, (pos.y + pos.height / 2) * state.zoom - els.graphShell.clientHeight / 2),
-        behavior: 'smooth'
-      });
+      scrollToWorldCenter(pos.x + pos.width / 2, pos.y + pos.height / 2);
     });
   }
 
@@ -1194,10 +1190,66 @@
     if (state.minimapFrame) {
       window.cancelAnimationFrame(state.minimapFrame);
     }
-    state.minimapFrame = window.requestAnimationFrame(() => {
-      state.minimapFrame = 0;
-      void renderMinimapNow(view, token);
+    state.minimapFrame = 0;
+    void renderMinimapNow(view, token);
+  }
+
+  function graphScale() {
+    return Math.max(state.zoom, 0.01);
+  }
+
+  function surfaceX(worldX) {
+    return worldX + (state.surfaceOffsetX || 0);
+  }
+
+  function surfaceY(worldY) {
+    return worldY + (state.surfaceOffsetY || 0);
+  }
+
+  function visibleWorldCenter() {
+    const scale = graphScale();
+    return {
+      x: (els.graphShell.scrollLeft + els.graphShell.clientWidth / 2) / scale - (state.surfaceOffsetX || 0),
+      y: (els.graphShell.scrollTop + els.graphShell.clientHeight / 2) / scale - (state.surfaceOffsetY || 0)
+    };
+  }
+
+  function scrollToWorldCenter(x, y, behavior = 'smooth') {
+    const scale = graphScale();
+    els.graphShell.scrollTo({
+      left: Math.max(0, surfaceX(x) * scale - els.graphShell.clientWidth / 2),
+      top: Math.max(0, surfaceY(y) * scale - els.graphShell.clientHeight / 2),
+      behavior
     });
+    updateMinimapViewport();
+  }
+
+  function graphSurfacePadding(bounds) {
+    const scale = graphScale();
+    const viewportWidth = els.graphShell.clientWidth / scale;
+    const viewportHeight = els.graphShell.clientHeight / scale;
+    return {
+      x: Math.max(1600, viewportWidth * 2, (bounds?.width || 0) * 0.5, state.surfaceExtraPaddingX || 0),
+      y: Math.max(1600, viewportHeight * 2, (bounds?.height || 0) * 0.5, state.surfaceExtraPaddingY || 0)
+    };
+  }
+
+  function ensureInfiniteCanvasForScroll() {
+    if (!state.currentView || state.expandingSurface) return;
+    const edge = 280;
+    const scale = graphScale();
+    const maxLeft = Math.max(0, els.graphShell.scrollWidth - els.graphShell.clientWidth);
+    const maxTop = Math.max(0, els.graphShell.scrollHeight - els.graphShell.clientHeight);
+    let growX = false;
+    let growY = false;
+    if (els.graphShell.scrollLeft < edge || maxLeft - els.graphShell.scrollLeft < edge) growX = true;
+    if (els.graphShell.scrollTop < edge || maxTop - els.graphShell.scrollTop < edge) growY = true;
+    if (!growX && !growY) return;
+    if (growX) state.surfaceExtraPaddingX = (state.surfaceExtraPaddingX || 1600) + els.graphShell.clientWidth / scale;
+    if (growY) state.surfaceExtraPaddingY = (state.surfaceExtraPaddingY || 1600) + els.graphShell.clientHeight / scale;
+    state.expandingSurface = true;
+    syncGraphSurface(state.currentView);
+    state.expandingSurface = false;
   }
 
   function updateMinimapViewport(view = state.currentView) {
@@ -1206,10 +1258,11 @@
     const height = els.minimap.clientHeight || 120;
     const scaleX = width / Math.max(1, state.surfaceWidth);
     const scaleY = height / Math.max(1, state.surfaceHeight);
-    els.minimapViewport.style.left = `${(els.graphShell.scrollLeft / Math.max(state.zoom, 0.01)) * scaleX}px`;
-    els.minimapViewport.style.top = `${(els.graphShell.scrollTop / Math.max(state.zoom, 0.01)) * scaleY}px`;
-    els.minimapViewport.style.width = `${(els.graphShell.clientWidth / Math.max(state.zoom, 0.01)) * scaleX}px`;
-    els.minimapViewport.style.height = `${(els.graphShell.clientHeight / Math.max(state.zoom, 0.01)) * scaleY}px`;
+    const scale = graphScale();
+    els.minimapViewport.style.left = `${(els.graphShell.scrollLeft / scale) * scaleX}px`;
+    els.minimapViewport.style.top = `${(els.graphShell.scrollTop / scale) * scaleY}px`;
+    els.minimapViewport.style.width = `${(els.graphShell.clientWidth / scale) * scaleX}px`;
+    els.minimapViewport.style.height = `${(els.graphShell.clientHeight / scale) * scaleY}px`;
   }
 
   async function renderMinimapNow(view, token) {
@@ -1228,8 +1281,8 @@
       const scale = state.openNodes.has(nodeId) ? 2 : 1;
       const item = document.createElement('div');
       item.className = 'minimap-node';
-      item.style.left = `${pos.x * scaleX}px`;
-      item.style.top = `${pos.y * scaleY}px`;
+      item.style.left = `${surfaceX(pos.x) * scaleX}px`;
+      item.style.top = `${surfaceY(pos.y) * scaleY}px`;
       item.style.width = `${Math.max(2, pos.width * scale * scaleX)}px`;
       item.style.height = `${Math.max(2, pos.height * scale * scaleY)}px`;
       item.style.setProperty('--cluster-color', moduleColor(node?.modulePath || node?.sourcePath || 'unknown'));
@@ -1247,16 +1300,41 @@
   }
 
   function syncGraphSurface(view) {
-    let maxRight = view.bounds?.maxRight || 0;
-    let maxBottom = view.bounds?.maxBottom || 0;
+    const oldCenter = visibleWorldCenter();
+    const bounds = graphViewBounds(view) || view.bounds || {
+      minX: 0,
+      minY: 0,
+      maxRight: 0,
+      maxBottom: 0,
+      width: 0,
+      height: 0
+    };
+    let maxRight = bounds.maxRight || 0;
+    let maxBottom = bounds.maxBottom || 0;
+    let minX = bounds.minX || 0;
+    let minY = bounds.minY || 0;
     state.openNodes.forEach((nodeId) => {
       const pos = view.positions.get(nodeId);
       if (!pos) return;
+      minX = Math.min(minX, pos.x);
+      minY = Math.min(minY, pos.y);
       maxRight = Math.max(maxRight, pos.x + pos.width * 2);
       maxBottom = Math.max(maxBottom, pos.y + pos.height * 2);
     });
-    const width = Math.max(els.graphShell.clientWidth, maxRight + 160, 800);
-    const height = Math.max(els.graphShell.clientHeight, maxBottom + 160, 600);
+    const nextBounds = {
+      minX,
+      minY,
+      maxRight,
+      maxBottom,
+      width: Math.max(0, maxRight - minX),
+      height: Math.max(0, maxBottom - minY)
+    };
+    view.bounds = nextBounds;
+    const padding = graphSurfacePadding(nextBounds);
+    const width = Math.max(els.graphShell.clientWidth, nextBounds.width + padding.x * 2, 800);
+    const height = Math.max(els.graphShell.clientHeight, nextBounds.height + padding.y * 2, 600);
+    state.surfaceOffsetX = padding.x - nextBounds.minX;
+    state.surfaceOffsetY = padding.y - nextBounds.minY;
     state.surfaceWidth = width;
     state.surfaceHeight = height;
     els.graphCanvas.style.width = `${width}px`;
@@ -1267,6 +1345,7 @@
     els.graphEdges.style.width = `${width}px`;
     els.graphEdges.style.height = `${height}px`;
     applyZoom();
+    scrollToWorldCenter(oldCenter.x, oldCenter.y, 'auto');
     renderMinimap(view);
   }
 
@@ -1279,8 +1358,11 @@
     const scaledHeight = state.surfaceHeight * state.zoom;
     els.graphSurface.style.width = `${scaledWidth}px`;
     els.graphSurface.style.height = `${scaledHeight}px`;
-    els.graphCanvas.style.transform = `scale(${state.zoom})`;
-    els.graphEdges.style.transform = `scale(${state.zoom})`;
+    const offsetX = (state.surfaceOffsetX || 0) * state.zoom;
+    const offsetY = (state.surfaceOffsetY || 0) * state.zoom;
+    const matrix = `matrix(${state.zoom}, 0, 0, ${state.zoom}, ${offsetX}, ${offsetY})`;
+    els.graphCanvas.style.transform = matrix;
+    els.graphEdges.style.transform = matrix;
     els.zoomLabel.textContent = `${Math.round(state.zoom * 100)}%`;
     updateMinimapViewport();
   }
@@ -1409,8 +1491,8 @@
       const rawDy = moveEvent.clientY - startY;
       if (!moved && Math.hypot(rawDx, rawDy) < 3) return;
       moved = true;
-      pos.x = Math.max(0, startPos.x + rawDx / state.zoom);
-      pos.y = Math.max(0, startPos.y + rawDy / state.zoom);
+      pos.x = startPos.x + rawDx / state.zoom;
+      pos.y = startPos.y + rawDy / state.zoom;
       state.manualPositions.set(node.id, { x: pos.x, y: pos.y });
       card.style.left = `${pos.x}px`;
       card.style.top = `${pos.y}px`;
@@ -1785,6 +1867,7 @@
       selectedNodeId: state.selectedNodeId,
       focusedNodeId: state.focusedNodeId,
       zoom: state.zoom,
+      worldCenter: visibleWorldCenter(),
       scrollLeft: els.graphShell.scrollLeft,
       scrollTop: els.graphShell.scrollTop
     };
@@ -1862,6 +1945,10 @@
     await renderGraph();
     applyZoom();
     window.requestAnimationFrame(() => {
+      if (view.worldCenter && Number.isFinite(Number(view.worldCenter.x)) && Number.isFinite(Number(view.worldCenter.y))) {
+        scrollToWorldCenter(Number(view.worldCenter.x), Number(view.worldCenter.y), 'auto');
+        return;
+      }
       els.graphShell.scrollLeft = Number(view.scrollLeft) || 0;
       els.graphShell.scrollTop = Number(view.scrollTop) || 0;
     });
@@ -1925,6 +2012,8 @@
     state.openNodes = new Set();
     state.manualPositions = new Map();
     state.manualSizes = new Map();
+    state.surfaceExtraPaddingX = 1600;
+    state.surfaceExtraPaddingY = 1600;
     state.focusedNodeId = null;
     void renderGraph({ fit: true });
     closeMenus();
@@ -1933,9 +2022,31 @@
 
   function autoArrangeView() {
     state.manualPositions = new Map();
+    state.surfaceExtraPaddingX = 1600;
+    state.surfaceExtraPaddingY = 1600;
     void renderGraph({ fit: true });
     closeMenus();
     logStatus('auto-arranged visible graph');
+  }
+
+  function centerGraphView() {
+    const bounds = graphViewBounds();
+    if (!bounds) {
+      logStatus('no graph to center');
+      return;
+    }
+    scrollToWorldCenter((bounds.minX + bounds.maxRight) / 2, (bounds.minY + bounds.maxBottom) / 2);
+    closeMenus();
+    logStatus('centered graph');
+  }
+
+  function compactGraphDistances() {
+    state.manualPositions = new Map();
+    state.surfaceExtraPaddingX = 1600;
+    state.surfaceExtraPaddingY = 1600;
+    void renderGraph({ fit: true });
+    closeMenus();
+    logStatus('minimized node distances');
   }
 
   function updateViewToggles() {
@@ -2007,7 +2118,7 @@
     logStatus('collapsed all calls');
   }
 
-  function fitView() {
+  function fitView(animate = true) {
     if (!els.graphShell.clientWidth || !els.graphShell.clientHeight) return;
     const scaleX = els.graphShell.clientWidth / Math.max(1, state.surfaceWidth);
     const scaleY = els.graphShell.clientHeight / Math.max(1, state.surfaceHeight);
@@ -2016,7 +2127,7 @@
     els.graphShell.scrollTo({
       left: Math.max(0, (state.surfaceWidth * state.zoom - els.graphShell.clientWidth) / 2),
       top: Math.max(0, (state.surfaceHeight * state.zoom - els.graphShell.clientHeight) / 2),
-      behavior: 'smooth'
+      behavior: animate ? 'smooth' : 'auto'
     });
     updateMinimapViewport();
   }
@@ -2049,7 +2160,32 @@
       const factor = Math.exp(-event.deltaY * 0.0012);
       setZoom(state.zoom * factor, event);
     }, { passive: false });
-    els.graphShell.addEventListener('scroll', () => updateMinimapViewport());
+    els.graphShell.addEventListener('scroll', () => {
+      ensureInfiniteCanvasForScroll();
+      updateMinimapViewport();
+    });
+  }
+
+  function installHoverDropdowns() {
+    document.querySelectorAll('.menu-dropdown').forEach((menu) => {
+      let closeTimer = 0;
+      const openMenu = () => {
+        if (closeTimer) window.clearTimeout(closeTimer);
+        closeTimer = 0;
+        menu.open = true;
+      };
+      const closeMenu = () => {
+        if (closeTimer) window.clearTimeout(closeTimer);
+        closeTimer = window.setTimeout(() => {
+          if (menu.matches(':hover') || menu.contains(document.activeElement)) return;
+          menu.open = false;
+        }, 160);
+      };
+      menu.addEventListener('mouseenter', openMenu);
+      menu.addEventListener('mouseleave', closeMenu);
+      menu.addEventListener('focusin', openMenu);
+      menu.addEventListener('focusout', closeMenu);
+    });
   }
 
   function installKeyboard() {
@@ -2149,12 +2285,16 @@
     fitView();
     closeMenus();
   });
+  bindOptionalClick('center-view-btn', centerGraphView);
+  bindOptionalClick('compact-distance-btn', compactGraphDistances);
   els.clearExpandBtn.addEventListener('click', collapseAllNodes);
   bindOptionalClick('fit-rail-btn', () => {
     fitView();
     closeMenus();
   });
   bindOptionalClick('auto-layout-rail-btn', autoArrangeView);
+  bindOptionalClick('center-view-rail-btn', centerGraphView);
+  bindOptionalClick('compact-distance-rail-btn', compactGraphDistances);
   bindOptionalClick('reset-rail-btn', resetView);
   bindOptionalClick('toggle-grid-rail-btn', toggleGrid);
   bindOptionalClick('toggle-minimap-rail-btn', toggleMinimap);
@@ -2181,12 +2321,10 @@
   installWorkspacePanels();
   refreshViewSelect();
   updateViewToggles();
+  installHoverDropdowns();
   installDragPan();
   installKeyboard();
   renderSummary();
-  renderSelectedMeta();
-  renderNotes();
-  renderRunOutput();
 
   function graphViewportInsets() {
     const compact = window.matchMedia('(max-width: 1180px)').matches;
@@ -2261,10 +2399,21 @@
   }
 
   function syncGraphSurface(view) {
-    const bounds = graphViewBounds(view) || view.bounds || { maxRight: 0, maxBottom: 0 };
+    const oldCenter = visibleWorldCenter();
+    const bounds = graphViewBounds(view) || view.bounds || {
+      minX: 0,
+      minY: 0,
+      maxRight: 0,
+      maxBottom: 0,
+      width: 0,
+      height: 0
+    };
+    const padding = graphSurfacePadding(bounds);
+    const width = Math.max(els.graphShell.clientWidth, bounds.width + padding.x * 2, 800);
+    const height = Math.max(els.graphShell.clientHeight, bounds.height + padding.y * 2, 600);
     view.bounds = bounds;
-    const width = Math.max(els.graphShell.clientWidth, (bounds.maxRight || 0) + 160, 800);
-    const height = Math.max(els.graphShell.clientHeight, (bounds.maxBottom || 0) + 160, 600);
+    state.surfaceOffsetX = padding.x - (bounds.minX || 0);
+    state.surfaceOffsetY = padding.y - (bounds.minY || 0);
     state.surfaceWidth = width;
     state.surfaceHeight = height;
     els.graphCanvas.style.width = `${width}px`;
@@ -2275,26 +2424,29 @@
     els.graphEdges.style.width = `${width}px`;
     els.graphEdges.style.height = `${height}px`;
     applyZoom();
+    scrollToWorldCenter(oldCenter.x, oldCenter.y, 'auto');
     renderMinimap(view);
   }
 
-  function fitView() {
+  function fitView(animate = true) {
     if (!els.graphShell.clientWidth || !els.graphShell.clientHeight) return;
-    const scaleX = els.graphShell.clientWidth / Math.max(1, state.surfaceWidth);
-    const scaleY = els.graphShell.clientHeight / Math.max(1, state.surfaceHeight);
+    const bounds = graphViewBounds();
+    const targetWidth = Math.max(1, bounds?.width || state.surfaceWidth);
+    const targetHeight = Math.max(1, bounds?.height || state.surfaceHeight);
+    const scaleX = (els.graphShell.clientWidth * 0.82) / targetWidth;
+    const scaleY = (els.graphShell.clientHeight * 0.82) / targetHeight;
     state.zoom = clampZoom(Math.min(1, scaleX, scaleY));
     applyZoom();
-    const bounds = graphViewBounds();
     let left = Math.max(0, (state.surfaceWidth * state.zoom - els.graphShell.clientWidth) / 2);
     let top = Math.max(0, (state.surfaceHeight * state.zoom - els.graphShell.clientHeight) / 2);
     if (bounds) {
-      left = Math.max(0, ((bounds.minX + bounds.maxRight) * state.zoom) / 2 - els.graphShell.clientWidth / 2);
-      top = Math.max(0, ((bounds.minY + bounds.maxBottom) * state.zoom) / 2 - els.graphShell.clientHeight / 2);
+      left = Math.max(0, surfaceX((bounds.minX + bounds.maxRight) / 2) * state.zoom - els.graphShell.clientWidth / 2);
+      top = Math.max(0, surfaceY((bounds.minY + bounds.maxBottom) / 2) * state.zoom - els.graphShell.clientHeight / 2);
     }
     els.graphShell.scrollTo({
       left,
       top,
-      behavior: 'smooth'
+      behavior: animate ? 'smooth' : 'auto'
     });
     updateMinimapViewport();
   }

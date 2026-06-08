@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: restyle webui menus with qlacier shells
+Commit Message: repair webui minimap and infinite canvas controls
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.
@@ -19,6 +19,7 @@ Features (Done):
 - Added sample function execution with generated argument objects and JSON results.
 - Added a shared browser UI under `src/clients/webui/web/` plus a Nim WebUI host and a VS Code source extension shell.
 - Restyled the shared WebUI menus with qlacier-style floating shells and collapsible action rails.
+- Restored minimap rendering, offset-aware canvas scrolling, hover dropdowns, and aligned floating top controls.
 - Added repo graph coverage in `tests/test_repo_graph.nim`.
 
 Features (In Progress):
@@ -26,5 +27,5 @@ Features (In Progress):
 - Deeper sample-object generation for harder Nim types and more private-function cases.
 
 Notes:
-- Last change/problem: The first shared WebUI pass worked, but its flat toolbar did not match the floating menu language used in `qlacier-website`.
-- Fix attempts: Rebuilt the WebUI chrome around the existing control ids with qlacier-style floating shells, centered dropdowns, a collapsible left action rail, and a right utility stack while keeping the shared browser logic intact.
+- Last change/problem: Minimap rendering could be cancelled before it removed `hidden`, and the canvas surface only grew right/down, so dragged nodes could become hard to reach.
+- Fix attempts: Render minimap content immediately, translate graph world coordinates into a padded scroll surface, add edge-triggered canvas growth, and add Center/Minimize Distance controls.

@@ -61,6 +61,8 @@
               </summary>
               <div class="menu-popover">
                 <button id="fit-btn" class="action primary">Fit View</button>
+                <button id="center-view-btn" class="action muted">Center</button>
+                <button id="compact-distance-btn" class="action muted">Minimize Distance</button>
                 <button id="auto-layout-btn" class="action muted">Auto Arrange</button>
                 <button id="reset-btn" class="action muted">Reset View</button>
                 <button id="toggle-grid-btn" class="action muted">Grid: On</button>
@@ -211,6 +213,28 @@
                 </svg>
               </span>
               <span class="menu-text">Arrange</span>
+            </button>
+            <button id="center-view-rail-btn" class="menu-item side-item" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 5v14"></path>
+                  <path d="M5 12h14"></path>
+                  <circle cx="12" cy="12" r="3.2"></circle>
+                </svg>
+              </span>
+              <span class="menu-text">Center</span>
+            </button>
+            <button id="compact-distance-rail-btn" class="menu-item side-item" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M7 7h4v4H7V7Z"></path>
+                  <path d="M13 7h4v4h-4V7Z"></path>
+                  <path d="M9 11v2.6"></path>
+                  <path d="M15 11v2.6"></path>
+                  <path d="M8.4 16.6h7.2"></path>
+                </svg>
+              </span>
+              <span class="menu-text">Minimize</span>
             </button>
             <button id="reset-rail-btn" class="menu-item side-item" type="button">
               <span class="menu-icon" aria-hidden="true">
