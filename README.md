@@ -90,9 +90,11 @@ Main graph modules:
 - `src/clients/cli/otter_repo_graph.nim`
   - repo graph CLI.
 - `src/clients/webui/`
-  - Nim WebUI host plus shared HTML/CSS/JS graph client.
+- Nim WebUI host plus shared HTML/CSS/JS graph client.
 - `src/clients/vscode_extension/`
-  - source-only VS Code extension wrapper around the same frontend.
+- source-only VS Code extension wrapper around the same frontend.
+
+The shared WebUI now uses qlacier-style floating menu shells: repo root search on the left, centered file/view/selection menus, collapsible action rails on the left edge, and node/workspace utilities on the right.
 
 ## Main State
 - `OtterTimingTuple`

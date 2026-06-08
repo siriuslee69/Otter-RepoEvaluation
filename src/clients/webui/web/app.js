@@ -175,6 +175,22 @@
     });
   }
 
+  function bindOptionalClick(id, handler) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('click', handler);
+  }
+
+  function setOptionalMenuText(id, text) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const label = el.querySelector('.menu-text');
+    if (label) {
+      label.textContent = text;
+      return;
+    }
+    el.textContent = text;
+  }
+
   function panelElement(panelId) {
     return document.querySelector(`[data-panel-id="${panelId}"]`);
   }
@@ -1924,6 +1940,8 @@
     if (panel) panel.classList.toggle('grid-hidden', !state.showGrid);
     if (els.toggleGridBtn) els.toggleGridBtn.textContent = `Grid: ${state.showGrid ? 'On' : 'Off'}`;
     if (els.toggleMinimapBtn) els.toggleMinimapBtn.textContent = `Minimap: ${state.showMinimap ? 'On' : 'Off'}`;
+    setOptionalMenuText('toggle-grid-rail-btn', `Grid: ${state.showGrid ? 'On' : 'Off'}`);
+    setOptionalMenuText('toggle-minimap-rail-btn', `Minimap: ${state.showMinimap ? 'On' : 'Off'}`);
     renderMinimap();
   }
 
@@ -2129,6 +2147,19 @@
     closeMenus();
   });
   els.clearExpandBtn.addEventListener('click', collapseAllNodes);
+  bindOptionalClick('fit-rail-btn', () => {
+    fitView();
+    closeMenus();
+  });
+  bindOptionalClick('auto-layout-rail-btn', autoArrangeView);
+  bindOptionalClick('reset-rail-btn', resetView);
+  bindOptionalClick('toggle-grid-rail-btn', toggleGrid);
+  bindOptionalClick('toggle-minimap-rail-btn', toggleMinimap);
+  bindOptionalClick('focus-selected-rail-btn', focusSelectedNode);
+  bindOptionalClick('clear-focus-rail-btn', clearFocus);
+  bindOptionalClick('pin-selected-rail-btn', pinSelectedNode);
+  bindOptionalClick('unpin-all-rail-btn', unpinAllNodes);
+  bindOptionalClick('clear-expand-rail-btn', collapseAllNodes);
   els.queueNoteBtn.addEventListener('click', queueNote);
   els.runBtn.addEventListener('click', runSelectedNode);
   els.sendNotesBtn.addEventListener('click', sendNotes);

@@ -10,59 +10,293 @@
 <body>
   <div id="main-grid" class="main-grid layout-stacked" data-active-panel="graph">
     <header class="top-menu" data-panel-id="topbar" tabindex="0">
-      <details id="file-menu" class="menu-dropdown">
-        <summary class="action muted">File</summary>
-        <div class="menu-popover">
-          <button id="open-repo-btn" class="action primary">Open Repo</button>
-          <button id="save-view-btn" class="action muted">Save View</button>
-          <select id="load-view-select" class="view-select" aria-label="Saved graph views"></select>
-          <button id="load-view-btn" class="action muted">Load View</button>
-          <button id="delete-view-btn" class="action muted">Delete View</button>
-          <button id="export-graph-btn" class="action muted">Export Graph JSON</button>
-          <button id="export-view-btn" class="action muted">Export View JSON</button>
+      <section class="search-layout" aria-label="Repository input">
+        <div class="menu-shell search-shell">
+          <label class="search-inner" for="repo-root">
+            <span class="menu-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M4.8 7h5l1.8 2h8.4v8H4.8V7Z"></path>
+                <path d="M8.5 12h7"></path>
+              </svg>
+            </span>
+            <input id="repo-root" class="search-input" type="text" spellcheck="false" placeholder="Repo root">
+          </label>
         </div>
-      </details>
-      <details id="view-menu" class="menu-dropdown">
-        <summary class="action muted">View</summary>
-        <div class="menu-popover">
-          <button id="fit-btn" class="action primary">Fit View</button>
-          <button id="auto-layout-btn" class="action muted">Auto Arrange</button>
-          <button id="reset-btn" class="action muted">Reset View</button>
-          <button id="toggle-grid-btn" class="action muted">Grid: On</button>
-          <button id="toggle-minimap-btn" class="action muted">Minimap: On</button>
+      </section>
+
+      <section class="top-layout" aria-label="Graph menus">
+        <div class="menu-shell top-menu-shell">
+          <nav class="top-inner" aria-label="Graph menus">
+            <details id="file-menu" class="menu-dropdown menu-dropdown-top">
+              <summary class="menu-item top-item">
+                <span class="menu-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M5 6h5l1.8 2H19v10H5V6Z"></path>
+                    <path d="M8 12h8"></path>
+                  </svg>
+                </span>
+                <span class="menu-text">File</span>
+              </summary>
+              <div class="menu-popover">
+                <button id="open-repo-btn" class="action primary">Open Repo</button>
+                <button id="save-view-btn" class="action muted">Save View</button>
+                <select id="load-view-select" class="view-select" aria-label="Saved graph views"></select>
+                <button id="load-view-btn" class="action muted">Load View</button>
+                <button id="delete-view-btn" class="action muted">Delete View</button>
+                <button id="export-graph-btn" class="action muted">Export Graph JSON</button>
+                <button id="export-view-btn" class="action muted">Export View JSON</button>
+              </div>
+            </details>
+            <details id="view-menu" class="menu-dropdown menu-dropdown-top">
+              <summary class="menu-item top-item">
+                <span class="menu-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M5 5h6v6H5V5Z"></path>
+                    <path d="M13 5h6v4H13V5Z"></path>
+                    <path d="M13 11h6v8H13v-8Z"></path>
+                    <path d="M5 13h6v6H5v-6Z"></path>
+                  </svg>
+                </span>
+                <span class="menu-text">View</span>
+              </summary>
+              <div class="menu-popover">
+                <button id="fit-btn" class="action primary">Fit View</button>
+                <button id="auto-layout-btn" class="action muted">Auto Arrange</button>
+                <button id="reset-btn" class="action muted">Reset View</button>
+                <button id="toggle-grid-btn" class="action muted">Grid: On</button>
+                <button id="toggle-minimap-btn" class="action muted">Minimap: On</button>
+              </div>
+            </details>
+            <details id="selection-menu" class="menu-dropdown menu-dropdown-top">
+              <summary class="menu-item top-item">
+                <span class="menu-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M12 4.8v4.2"></path>
+                    <path d="M12 15v4.2"></path>
+                    <path d="M4.8 12h4.2"></path>
+                    <path d="M15 12h4.2"></path>
+                    <path d="M8.4 8.4 10.6 10.6"></path>
+                    <path d="M13.4 13.4 15.6 15.6"></path>
+                    <path d="M15.6 8.4 13.4 10.6"></path>
+                    <path d="M10.6 13.4 8.4 15.6"></path>
+                    <circle cx="12" cy="12" r="2.4"></circle>
+                  </svg>
+                </span>
+                <span class="menu-text">Selection</span>
+              </summary>
+              <div class="menu-popover">
+                <button id="focus-selected-btn" class="action primary">Focus Selected</button>
+                <button id="clear-focus-btn" class="action muted">Clear Focus</button>
+                <button id="pin-selected-btn" class="action muted">Pin Open</button>
+                <button id="unpin-all-btn" class="action muted">Unpin All</button>
+                <button id="clear-expand-btn" class="action muted">Collapse All</button>
+              </div>
+            </details>
+          </nav>
         </div>
-      </details>
-      <details id="selection-menu" class="menu-dropdown">
-        <summary class="action muted">Selection</summary>
-        <div class="menu-popover">
-          <button id="focus-selected-btn" class="action primary">Focus Selected</button>
-          <button id="clear-focus-btn" class="action muted">Clear Focus</button>
-          <button id="pin-selected-btn" class="action muted">Pin Open</button>
-          <button id="unpin-all-btn" class="action muted">Unpin All</button>
-          <button id="clear-expand-btn" class="action muted">Collapse All</button>
+      </section>
+
+      <section class="utility-layout" aria-label="Utility menus">
+        <div class="menu-shell utility-shell">
+          <div class="utility-inner">
+            <label class="search-inner utility-search" for="node-search">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M10.8 17.2a6.4 6.4 0 1 0 0-12.8 6.4 6.4 0 0 0 0 12.8Z"></path>
+                  <path d="m15.4 15.4 4.2 4.2"></path>
+                </svg>
+              </span>
+              <input id="node-search" class="search-input" type="search" spellcheck="false" placeholder="Search nodes">
+            </label>
+            <details id="workspace-menu" class="menu-dropdown utility-dropdown">
+              <summary class="menu-item utility-item">
+                <span class="menu-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M5 6h14v5.4H5V6Z"></path>
+                    <path d="M5 12.6h6.4V18H5v-5.4Z"></path>
+                    <path d="M12.6 12.6H19V18h-6.4v-5.4Z"></path>
+                  </svg>
+                </span>
+                <span class="menu-text">Views</span>
+              </summary>
+              <div class="menu-popover workspace-popover">
+                <button id="new-window-btn" class="action primary">New Window</button>
+                <button id="new-vertical-panel-btn" class="action muted">New Vertical Panel</button>
+                <button id="new-horizontal-panel-btn" class="action muted">New Horizontal Panel</button>
+                <button id="close-panel-btn" class="action muted">Close This Panel</button>
+              </div>
+            </details>
+          </div>
         </div>
-      </details>
-      <div class="top-search">
-        <label class="visually-hidden" for="repo-root">Repo Root</label>
-        <input id="repo-root" type="text" spellcheck="false" placeholder="Repo root">
-      </div>
-      <button id="analyze-btn" class="action primary">Analyze</button>
-      <button id="choose-btn" class="action muted">Pick</button>
-      <div class="top-toggles">
-        <label class="toggle-pill">
-          <input id="include-tests" type="checkbox">
-          <span>Tests</span>
-        </label>
-      </div>
-      <label class="visually-hidden" for="node-search">Search Nodes</label>
-      <input id="node-search" class="node-search" type="search" spellcheck="false" placeholder="Search nodes">
-      <button id="zoom-out-btn" class="action tiny">-</button>
-      <span id="zoom-label" class="zoom-label">100%</span>
-      <button id="zoom-in-btn" class="action tiny">+</button>
-      <div class="top-status">
-        <span id="host-pill" class="status-pill">host</span>
-        <span id="summary-pill" class="status-pill quiet">idle</span>
-      </div>
+        <div class="menu-shell utility-shell utility-shell-secondary">
+          <div class="utility-inner utility-inner-secondary">
+            <div class="zoom-cluster" aria-label="Zoom controls">
+              <button id="zoom-out-btn" class="utility-zoom-btn" type="button" aria-label="Zoom out">-</button>
+              <span id="zoom-label" class="zoom-label">100%</span>
+              <button id="zoom-in-btn" class="utility-zoom-btn" type="button" aria-label="Zoom in">+</button>
+            </div>
+            <div class="top-status">
+              <span id="host-pill" class="status-pill">host</span>
+              <span id="summary-pill" class="status-pill quiet">idle</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="side-stack" aria-label="Graph actions">
+        <section class="menu-shell side-panel side-panel-primary" aria-label="Repo actions">
+          <div class="side-inner">
+            <button id="analyze-btn" class="menu-item side-item side-item-strong" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M5 18V9.5"></path>
+                  <path d="M9.5 18v-6"></path>
+                  <path d="M14 18v-9.5"></path>
+                  <path d="M18.5 18V6"></path>
+                </svg>
+              </span>
+              <span class="menu-text">Analyze</span>
+            </button>
+            <button id="choose-btn" class="menu-item side-item" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M5 6h5l1.8 2H19v10H5V6Z"></path>
+                  <path d="m12 10.2 2.2 2.2 4-4"></path>
+                </svg>
+              </span>
+              <span class="menu-text">Pick</span>
+            </button>
+            <label class="menu-item side-item side-toggle-item" for="include-tests">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M6 6h12v12H6V6Z"></path>
+                  <path d="m9 12 2.2 2.2 4.2-4.2"></path>
+                </svg>
+              </span>
+              <span class="menu-text">Tests</span>
+              <input id="include-tests" type="checkbox">
+              <span class="menu-badge badge-blue badge-circle" aria-hidden="true"></span>
+            </label>
+          </div>
+        </section>
+
+        <section class="menu-shell side-panel side-panel-middle" aria-label="Layout actions">
+          <div class="side-inner">
+            <button id="fit-rail-btn" class="menu-item side-item side-item-strong" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M8 5H5v3"></path>
+                  <path d="M16 5h3v3"></path>
+                  <path d="M8 19H5v-3"></path>
+                  <path d="M16 19h3v-3"></path>
+                </svg>
+              </span>
+              <span class="menu-text">Fit</span>
+            </button>
+            <button id="auto-layout-rail-btn" class="menu-item side-item" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M7 7h4v4H7V7Z"></path>
+                  <path d="M13 7h4v4h-4V7Z"></path>
+                  <path d="M10 11v2"></path>
+                  <path d="M14 11v2"></path>
+                  <path d="M7 15h4v4H7v-4Z"></path>
+                  <path d="M13 15h4v4h-4v-4Z"></path>
+                </svg>
+              </span>
+              <span class="menu-text">Arrange</span>
+            </button>
+            <button id="reset-rail-btn" class="menu-item side-item" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M18.7 8.2A7 7 0 0 0 6 7.2L4.8 9.4"></path>
+                  <path d="M4.8 5.2v4.2H9"></path>
+                  <path d="M5.3 15.8A7 7 0 0 0 18 16.8l1.2-2.2"></path>
+                  <path d="M19.2 18.8v-4.2H15"></path>
+                </svg>
+              </span>
+              <span class="menu-text">Reset</span>
+            </button>
+            <button id="toggle-grid-rail-btn" class="menu-item side-item" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M6 6h12v12H6V6Z"></path>
+                  <path d="M12 6v12"></path>
+                  <path d="M6 12h12"></path>
+                </svg>
+              </span>
+              <span class="menu-text">Grid: On</span>
+            </button>
+            <button id="toggle-minimap-rail-btn" class="menu-item side-item" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M5 6h14v12H5V6Z"></path>
+                  <path d="M8 9h8v6H8V9Z"></path>
+                </svg>
+              </span>
+              <span class="menu-text">Minimap: On</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="menu-shell side-panel side-panel-lower" aria-label="Selection actions">
+          <div class="side-inner">
+            <button id="focus-selected-rail-btn" class="menu-item side-item side-item-strong" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 5v3.2"></path>
+                  <path d="M12 15.8V19"></path>
+                  <path d="M5 12h3.2"></path>
+                  <path d="M15.8 12H19"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </span>
+              <span class="menu-text">Focus</span>
+            </button>
+            <button id="pin-selected-rail-btn" class="menu-item side-item" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M9 6h6"></path>
+                  <path d="M10 6v5l-2 2h8l-2-2V6"></path>
+                  <path d="M12 13v5"></path>
+                </svg>
+              </span>
+              <span class="menu-text">Pin</span>
+            </button>
+            <button id="clear-focus-rail-btn" class="menu-item side-item" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="m8 8 8 8"></path>
+                  <path d="m16 8-8 8"></path>
+                  <circle cx="12" cy="12" r="7"></circle>
+                </svg>
+              </span>
+              <span class="menu-text">Clear</span>
+            </button>
+            <button id="unpin-all-rail-btn" class="menu-item side-item" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M9 6h6"></path>
+                  <path d="M10 6v5l-2 2h8l-2-2V6"></path>
+                  <path d="M12 13v5"></path>
+                  <path d="m7 7 10 10"></path>
+                </svg>
+              </span>
+              <span class="menu-text">Unpin</span>
+            </button>
+            <button id="clear-expand-rail-btn" class="menu-item side-item" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="m8 10 4 4 4-4"></path>
+                  <path d="M6 7h12"></path>
+                  <path d="M6 17h12"></path>
+                </svg>
+              </span>
+              <span class="menu-text">Collapse</span>
+            </button>
+          </div>
+        </section>
+      </aside>
     </header>
 
     <main class="canvas-panel" data-panel-id="graph" tabindex="0">
@@ -127,16 +361,6 @@
       </div>
     </footer>
   </div>
-
-  <details id="workspace-menu" class="workspace-menu">
-    <summary class="action tiny">Views</summary>
-    <div class="menu-popover workspace-popover">
-      <button id="new-window-btn" class="action primary">New Window</button>
-      <button id="new-vertical-panel-btn" class="action muted">New Vertical Panel</button>
-      <button id="new-horizontal-panel-btn" class="action muted">New Horizontal Panel</button>
-      <button id="close-panel-btn" class="action muted">Close This Panel</button>
-    </div>
-  </details>
 
   <div id="tooltip" class="tooltip hidden"></div>
 
