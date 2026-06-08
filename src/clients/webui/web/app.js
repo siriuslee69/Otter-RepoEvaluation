@@ -2184,6 +2184,118 @@
   renderSelectedMeta();
   renderNotes();
   renderRunOutput();
+
+  function graphViewportInsets() {
+    const compact = window.matchMedia('(max-width: 1180px)').matches;
+    const narrow = window.matchMedia('(max-width: 860px)').matches;
+    if (narrow) {
+      return { left: 72, top: 154, right: 28, bottom: 32 };
+    }
+    if (compact) {
+      return { left: 68, top: 112, right: 36, bottom: 32 };
+    }
+    return { left: 92, top: 124, right: 52, bottom: 36 };
+  }
+
+  function graphViewBounds(view = state.currentView) {
+    if (!view?.positions?.size) return null;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxRight = 0;
+    let maxBottom = 0;
+    for (const [nodeId, pos] of view.positions.entries()) {
+      const scale = state.openNodes.has(nodeId) ? 2 : 1;
+      minX = Math.min(minX, pos.x);
+      minY = Math.min(minY, pos.y);
+      maxRight = Math.max(maxRight, pos.x + pos.width * scale);
+      maxBottom = Math.max(maxBottom, pos.y + pos.height * scale);
+    }
+    if (!Number.isFinite(minX) || !Number.isFinite(minY)) return null;
+    return {
+      minX,
+      minY,
+      maxRight,
+      maxBottom,
+      width: Math.max(0, maxRight - minX),
+      height: Math.max(0, maxBottom - minY)
+    };
+  }
+
+  async function centerAutoPositions(positions, token) {
+    if (!positions.size || !els.graphShell) return;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = 0;
+    let maxY = 0;
+    let index = 0;
+    for (const pos of positions.values()) {
+      if (token !== state.renderToken) return;
+      minX = Math.min(minX, pos.x);
+      minY = Math.min(minY, pos.y);
+      maxX = Math.max(maxX, pos.x + pos.width);
+      maxY = Math.max(maxY, pos.y + pos.height);
+      index += 1;
+      if (index % 450 === 0) await nextFrame();
+    }
+    const graphWidth = maxX - minX;
+    const graphHeight = maxY - minY;
+    const scale = Math.max(state.zoom, 0.01);
+    const insets = graphViewportInsets();
+    const availableWidth = Math.max(0, els.graphShell.clientWidth / scale - insets.left - insets.right);
+    const availableHeight = Math.max(0, els.graphShell.clientHeight / scale - insets.top - insets.bottom);
+    const targetX = Math.max(insets.left, insets.left + (availableWidth - graphWidth) / 2);
+    const targetY = Math.max(insets.top, insets.top + (availableHeight - graphHeight) / 2);
+    const dx = targetX - minX;
+    const dy = targetY - minY;
+    index = 0;
+    for (const pos of positions.values()) {
+      if (token !== state.renderToken) return;
+      pos.x += dx;
+      pos.y += dy;
+      index += 1;
+      if (index % 450 === 0) await nextFrame();
+    }
+  }
+
+  function syncGraphSurface(view) {
+    const bounds = graphViewBounds(view) || view.bounds || { maxRight: 0, maxBottom: 0 };
+    view.bounds = bounds;
+    const width = Math.max(els.graphShell.clientWidth, (bounds.maxRight || 0) + 160, 800);
+    const height = Math.max(els.graphShell.clientHeight, (bounds.maxBottom || 0) + 160, 600);
+    state.surfaceWidth = width;
+    state.surfaceHeight = height;
+    els.graphCanvas.style.width = `${width}px`;
+    els.graphCanvas.style.height = `${height}px`;
+    els.graphCanvas.style.minHeight = `${height}px`;
+    els.graphEdges.setAttribute('width', String(width));
+    els.graphEdges.setAttribute('height', String(height));
+    els.graphEdges.style.width = `${width}px`;
+    els.graphEdges.style.height = `${height}px`;
+    applyZoom();
+    renderMinimap(view);
+  }
+
+  function fitView() {
+    if (!els.graphShell.clientWidth || !els.graphShell.clientHeight) return;
+    const scaleX = els.graphShell.clientWidth / Math.max(1, state.surfaceWidth);
+    const scaleY = els.graphShell.clientHeight / Math.max(1, state.surfaceHeight);
+    state.zoom = clampZoom(Math.min(1, scaleX, scaleY));
+    applyZoom();
+    const bounds = graphViewBounds();
+    let left = Math.max(0, (state.surfaceWidth * state.zoom - els.graphShell.clientWidth) / 2);
+    let top = Math.max(0, (state.surfaceHeight * state.zoom - els.graphShell.clientHeight) / 2);
+    if (bounds) {
+      left = Math.max(0, ((bounds.minX + bounds.maxRight) * state.zoom) / 2 - els.graphShell.clientWidth / 2);
+      top = Math.max(0, ((bounds.minY + bounds.maxBottom) * state.zoom) / 2 - els.graphShell.clientHeight / 2);
+    }
+    els.graphShell.scrollTo({
+      left,
+      top,
+      behavior: 'smooth'
+    });
+    updateMinimapViewport();
+  }
+
   bootstrap().then(async () => {
     await loadWorkspaceSettings(state.repoRoot);
     await analyzeRepo({ skipWorkspaceLoad: true });

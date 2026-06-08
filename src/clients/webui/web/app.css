@@ -1524,9 +1524,247 @@ body.workspace-window .side-item .menu-text {
     max-width: min(420px, calc(100% - 28px));
   }
 
+.utility-dropdown .menu-popover,
+.workspace-popover {
+  left: 0;
+  right: auto;
+}
+}
+
+:root {
+  --rail-collapsed-compact: 40px;
+  --rail-expanded-compact: 156px;
+}
+
+.top-menu-shell,
+.utility-shell,
+.utility-shell-secondary,
+.menu-dropdown-top,
+.utility-dropdown,
+.workspace-menu {
+  overflow: visible;
+}
+
+.bottom-panel {
+  flex-basis: var(--bottom-row-height, 124px);
+}
+
+.bottom-card {
+  padding: 8px 10px;
+}
+
+.selected-meta,
+textarea,
+.queued-notes,
+.run-output {
+  padding: 6px 8px;
+}
+
+.node-inspector,
+.queued-notes-panel {
+  gap: 8px;
+}
+
+.node-inspector {
+  grid-template-columns: minmax(132px, 0.56fr) minmax(0, 1fr);
+}
+
+textarea {
+  min-height: 52px;
+}
+
+.main-grid.layout-vertical .bottom-panel {
+  flex: 1 1 220px;
+}
+
+.main-grid.layout-vertical .bottom-card {
+  min-height: 132px;
+}
+
+body.workspace-window .top-menu {
+  position: relative;
+  inset: auto;
+  min-height: 232px;
+  display: block;
+  padding: 0;
+  overflow: visible;
+  pointer-events: auto;
+}
+
+body.workspace-window .search-layout,
+body.workspace-window .top-layout,
+body.workspace-window .utility-layout,
+body.workspace-window .side-stack {
+  position: absolute;
+  max-width: none;
+}
+
+body.workspace-window .search-layout {
+  top: 12px;
+  left: 12px;
+  width: min(220px, calc(100% - 24px));
+}
+
+body.workspace-window .top-layout {
+  top: 12px;
+  left: 50%;
+  width: clamp(260px, calc(100% - 320px), 420px);
+  transform: translateX(-50%);
+}
+
+body.workspace-window .utility-layout {
+  top: 12px;
+  right: 12px;
+  width: min(280px, calc(100% - 24px));
+  gap: 8px;
+}
+
+body.workspace-window .side-stack {
+  top: 64px;
+  left: 12px;
+  width: var(--rail-collapsed);
+  grid-template-columns: none;
+  grid-template-rows: repeat(3, minmax(0, auto));
+  gap: 10px;
+}
+
+body.workspace-window .side-panel {
+  width: var(--rail-collapsed);
+}
+
+body.workspace-window .side-panel:hover,
+body.workspace-window .side-panel:focus-within {
+  width: var(--rail-expanded);
+}
+
+body.workspace-window .side-item .menu-text {
+  max-width: 0;
+  opacity: 0;
+}
+
+body.workspace-window .side-panel:hover .side-item .menu-text,
+body.workspace-window .side-panel:focus-within .side-item .menu-text {
+  max-width: 126px;
+  opacity: 1;
+}
+
+body.workspace-window .utility-dropdown .menu-popover,
+body.workspace-window .workspace-popover {
+  left: auto;
+  right: 0;
+}
+
+@media (max-width: 1180px) {
+  .top-menu {
+    position: absolute;
+    inset: 0 0 auto 0;
+    min-height: 228px;
+    display: block;
+    padding: 0;
+    pointer-events: none;
+  }
+
+  .search-layout {
+    top: 12px;
+    left: 12px;
+    width: min(208px, calc(100vw - 24px));
+    height: 40px;
+  }
+
+  .top-layout {
+    top: 12px;
+    left: 50%;
+    width: clamp(220px, calc(100vw - 340px), 420px);
+    height: 40px;
+    transform: translateX(-50%);
+  }
+
+  .utility-layout {
+    top: 12px;
+    right: 12px;
+    width: min(228px, calc(100vw - 24px));
+    gap: 8px;
+  }
+
+  .utility-inner {
+    grid-template-columns: minmax(0, 1fr) 96px;
+  }
+
+  .utility-inner-secondary {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .top-status {
+    width: auto;
+    justify-content: flex-end;
+    margin-left: auto;
+  }
+
+  .side-stack {
+    top: 60px;
+    left: 12px;
+    width: var(--rail-collapsed-compact);
+    grid-template-columns: none;
+    grid-template-rows: repeat(3, minmax(0, auto));
+    gap: 8px;
+  }
+
+  .side-panel {
+    width: var(--rail-collapsed-compact);
+  }
+
+  .side-panel:hover,
+  .side-panel:focus-within {
+    width: var(--rail-expanded-compact);
+  }
+
+  .side-item .menu-text {
+    max-width: 0;
+    opacity: 0;
+  }
+
+  .side-panel:hover .side-item .menu-text,
+  .side-panel:focus-within .side-item .menu-text {
+    max-width: 108px;
+    opacity: 1;
+  }
+
+  .canvas-panel {
+    min-height: 62vh;
+  }
+
+  .canvas-search-panel {
+    top: 96px;
+    right: 12px;
+    max-width: min(300px, calc(100% - 24px));
+  }
+
   .utility-dropdown .menu-popover,
   .workspace-popover {
-    left: 0;
-    right: auto;
+    left: auto;
+    right: 0;
+  }
+}
+
+@media (max-width: 860px) {
+  .top-menu {
+    min-height: 272px;
+  }
+
+  .top-layout {
+    top: 60px;
+    left: auto;
+    right: 12px;
+    width: min(320px, calc(100vw - 72px));
+    transform: none;
+  }
+
+  .side-stack {
+    top: 108px;
+  }
+
+  .canvas-search-panel {
+    top: 144px;
   }
 }
