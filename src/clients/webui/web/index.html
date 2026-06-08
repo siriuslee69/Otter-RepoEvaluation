@@ -10,23 +10,24 @@
 <body>
   <div id="main-grid" class="main-grid layout-stacked" data-active-panel="graph">
     <header class="top-menu" data-panel-id="topbar" tabindex="0">
-      <section class="search-layout" aria-label="Repository input">
-        <div class="menu-shell search-shell">
-          <label class="search-inner" for="repo-root">
-            <span class="menu-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M4.8 7h5l1.8 2h8.4v8H4.8V7Z"></path>
-                <path d="M8.5 12h7"></path>
-              </svg>
-            </span>
-            <input id="repo-root" class="search-input" type="text" spellcheck="false" placeholder="Repo root">
-          </label>
-        </div>
-      </section>
+      <div class="top-chrome-row" aria-label="Graph controls">
+        <section class="search-layout" aria-label="Repository input">
+          <div class="menu-shell search-shell">
+            <label class="search-inner" for="repo-root">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M4.8 7h5l1.8 2h8.4v8H4.8V7Z"></path>
+                  <path d="M8.5 12h7"></path>
+                </svg>
+              </span>
+              <input id="repo-root" class="search-input" type="text" spellcheck="false" placeholder="Repo root">
+            </label>
+          </div>
+        </section>
 
-      <section class="top-layout" aria-label="Graph menus">
-        <div class="menu-shell top-menu-shell">
-          <nav class="top-inner" aria-label="Graph menus">
+        <section class="top-layout" aria-label="Graph menus">
+          <div class="menu-shell top-menu-shell">
+            <nav class="top-inner" aria-label="Graph menus">
             <details id="file-menu" class="menu-dropdown menu-dropdown-top">
               <summary class="menu-item top-item">
                 <span class="menu-icon" aria-hidden="true">
@@ -94,28 +95,24 @@
                 <button id="clear-expand-btn" class="action muted">Collapse All</button>
               </div>
             </details>
-          </nav>
-        </div>
-      </section>
+            </nav>
+          </div>
+        </section>
 
-      <section class="path-layout" aria-label="Active node path">
-        <div class="menu-shell path-shell">
-          <div id="breadcrumbs" class="active-path">active: none</div>
+        <div class="canvas-search-panel top-search-panel">
+          <select id="canvas-search-filter" class="canvas-search-filter" aria-label="Canvas search filter">
+            <option value="functions">Functions</option>
+            <option value="parameters">Parameters</option>
+            <option value="tags">Tags</option>
+            <option value="results">Results</option>
+            <option value="types">Types</option>
+          </select>
+          <input id="canvas-search" class="canvas-search" type="search" spellcheck="false" placeholder="Search nodes">
         </div>
-      </section>
 
-      <section class="utility-layout" aria-label="Utility menus">
-        <div class="menu-shell utility-shell">
-          <div class="utility-inner">
-            <label class="search-inner utility-search" for="node-search">
-              <span class="menu-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24">
-                  <path d="M10.8 17.2a6.4 6.4 0 1 0 0-12.8 6.4 6.4 0 0 0 0 12.8Z"></path>
-                  <path d="m15.4 15.4 4.2 4.2"></path>
-                </svg>
-              </span>
-              <input id="node-search" class="search-input" type="search" spellcheck="false" placeholder="Search nodes">
-            </label>
+        <section class="utility-layout" aria-label="Utility menus">
+          <div class="menu-shell utility-shell">
+            <div class="utility-inner">
             <details id="workspace-menu" class="menu-dropdown utility-dropdown">
               <summary class="menu-item utility-item">
                 <span class="menu-icon" aria-hidden="true">
@@ -134,10 +131,6 @@
                 <button id="close-panel-btn" class="action muted">Close This Panel</button>
               </div>
             </details>
-          </div>
-        </div>
-        <div class="menu-shell utility-shell utility-shell-secondary">
-          <div class="utility-inner utility-inner-secondary">
             <div class="zoom-cluster" aria-label="Zoom controls">
               <button id="zoom-out-btn" class="utility-zoom-btn" type="button" aria-label="Zoom out">-</button>
               <span id="zoom-label" class="zoom-label">100%</span>
@@ -148,8 +141,8 @@
               <span id="summary-pill" class="status-pill quiet">idle</span>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
 
       <aside class="side-stack" aria-label="Graph actions">
         <section class="menu-shell side-panel side-panel-primary" aria-label="Repo actions">
@@ -336,21 +329,15 @@
           <div id="graph-canvas" class="graph-canvas"></div>
         </div>
       </div>
-      <div class="canvas-search-panel">
-        <span class="canvas-search-label">Filter</span>
-        <select id="canvas-search-filter" class="canvas-search-filter" aria-label="Canvas search filter">
-          <option value="functions">Functions</option>
-          <option value="parameters">Parameters</option>
-          <option value="tags">Tags</option>
-          <option value="results">Results</option>
-          <option value="types">Types</option>
-        </select>
-        <input id="canvas-search" class="canvas-search" type="search" spellcheck="false" placeholder="Search nodes on canvas">
-      </div>
       <div id="minimap" class="minimap hidden">
         <div id="minimap-content" class="minimap-content"></div>
         <div id="minimap-viewport" class="minimap-viewport"></div>
       </div>
+      <section class="path-layout active-path-dock" aria-label="Active node path">
+        <div class="menu-shell path-shell">
+          <div id="breadcrumbs" class="active-path">active: none</div>
+        </div>
+      </section>
 
       <aside id="layer-panel" class="layer-panel" aria-label="Reference layers panel">
         <button id="layer-panel-toggle" class="layer-panel-toggle" type="button" aria-label="Toggle references panel">
@@ -462,6 +449,10 @@
 
   <div id="tooltip" class="tooltip hidden"></div>
 
+  <script src="app_core.js"></script>
+  <script src="app_chrome.js"></script>
   <script src="app.js"></script>
+  <script src="app_layers.js"></script>
+  <script src="app_start.js"></script>
 </body>
 </html>
