@@ -8,6 +8,9 @@ import ../../.iron/metaPragmas
 type
   OtterTimingTuple* {.role: memory, metaTags: {tagTiming, tagState}.} = tuple
     functionName: string
+    sourcePath: string
+    sourceLine: int
+    sourceColumn: int
     startTick: int64
     endTick: int64
 

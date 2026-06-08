@@ -5,13 +5,38 @@ author        = "siriuslee69"
 description   = "Compile-time timing instrumentation for parent Nim repos."
 license       = "Unlicense"
 srcDir        = "src"
-requires "nim >= 2.0.0"
+requires "nim >= 2.0.0", "webui >= 2.5.0"
 
 task test, "Run smoke tests":
   exec "nim c --path:src -r tests/test_smoke.nim"
+  exec "nim c --path:src -r tests/test_repo_graph.nim"
 
 task build, "Build smoke tests in release mode":
   exec "nim c --path:src -d:release tests/test_smoke.nim"
+
+task buildcli, "Build the otter-nim CLI wrapper":
+  exec "mkdir -p bin && nim c -d:release --path:src -o:bin/otter-nim src/clients/cli/otter_nim.nim"
+
+task installcli, "Install the otter-nim CLI into ~/.local/bin":
+  exec "mkdir -p bin && mkdir -p ~/.local/bin && nim c -d:release --path:src -o:~/.local/bin/otter-nim src/clients/cli/otter_nim.nim"
+
+task buildgraphcli, "Build the repo graph CLI":
+  exec "mkdir -p bin && nim c -d:release --path:src -o:bin/otter-repo-graph src/clients/cli/otter_repo_graph.nim"
+
+task rungraphcli, "Run the repo graph CLI help":
+  exec "mkdir -p build && nim c -r --path:src -o:build/otter-repo-graph-run src/clients/cli/otter_repo_graph.nim"
+
+task buildwebui, "Build the Nim WebUI frontend":
+  exec "mkdir -p bin && nim c --path:src -o:bin/otter-repo-graph-webui src/clients/webui/app.nim"
+
+task runwebui, "Run the Nim WebUI frontend":
+  exec "mkdir -p build && nim c -r --path:src -o:build/otter-repo-graph-webui src/clients/webui/app.nim"
+
+task buildvscode, "Build the VS Code extension":
+  exec "test -f src/clients/vscode_extension/package.json && test -f src/clients/vscode_extension/src/extension.js"
+
+task packagevscode, "Package the VS Code extension":
+  echo "The VS Code extension is source-only. Open src/clients/vscode_extension in VS Code or package it with your local VSIX tooling."
 
 task autopush, "Add, commit, and push with message from .iron/PROGRESS.md":
   var

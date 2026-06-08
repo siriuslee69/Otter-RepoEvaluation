@@ -1,28 +1,50 @@
 # Otter-RepoEvaluation
 
-Compile-time timing instrumentation for Nim repos.
+Compile-time timing instrumentation, debug tracing, and interactive Nim repo graph analysis.
 
 ## Purpose
-- Let a parent repo enable function-level timing with one additional compile flag: `-d:otterTiming`.
-- Inject start and end timing capture around wrapped parent-repo routines.
-- Store captured data in an in-memory object that holds tuples of `functionName`, `startTick`, and `endTick`.
-- Flush that timing state to a log file when the test process exits.
-- Reuse the benchmark layer from the `Sigma-BenchAndEval` and `Fylgia-Utils` submodules.
+- Let a parent repo enable function timing with `-d:otterTiming`.
+- Auto-wrap plain Nim files with `otter-nim` for crash tracing and timing without hand edits.
+- Parse Nim repos into function graphs with roles, comments, sockets, and helper-grouped orchestrators.
+- Run best-effort sample calls against selected functions to inspect output.
+- Expose the graph through a Nim WebUI shell and a VS Code webview that can hand queued notes to the Codex extension.
 
-## Repo Boundary
-- Owns compile-time instrumentation macros and the in-memory timing store.
-- Owns end-of-run log flushing for instrumented test binaries.
-- Re-exports Sigma benchmark helpers for local timing comparisons in parent repos.
-- Does not rewrite foreign source files on disk.
+## Main Workflows
 
-## Parent Repo Flow
-1. Add `Otter-RepoEvaluation` as a dependency or submodule.
-2. Import `otter_repo_evaluation`.
-3. Wrap the routines you want to instrument with `otterInstrument:` or `otterTimed:`, or attach `.otterTimed.`, `.otterInstrument.`, or `.otterBench.` directly to a routine.
-4. Run the parent repo tests with `-d:otterTiming`.
-5. Otter writes `build/otter_timings.log` on process exit unless the parent test code overrides the path with `setLogPath(...)`.
+### 1. Instrument a repo or file
+1. Import `otter_repo_evaluation`.
+2. Wrap routines with `otterInstrument:` or attach `.otterTimed.`, `.otterInstrument.`, or `.otterBench.`.
+3. Run with `-d:otterTiming`.
+4. Read `build/otter_timings.log`.
 
-## Example
+For a plain Nim file:
+
+```sh
+nimble buildcli
+./bin/otter-nim c -r my_file.nim
+```
+
+### 2. Analyze a repo graph
+
+```sh
+nimble buildgraphcli
+./bin/otter-repo-graph snapshot .
+./bin/otter-repo-graph artifacts .
+./bin/otter-repo-graph run . 'src/protocols/foo::bar:42'
+```
+
+### 3. Open the interactive UI
+
+```sh
+nimble buildwebui
+./bin/otter-repo-graph-webui
+```
+
+VS Code extension source lives in `src/clients/vscode_extension/`.
+Open that folder in VS Code and run the `Otter Repo Graph: Open` command.
+
+## Instrumentation Example
+
 ```nim
 import otter_repo_evaluation
 
@@ -40,7 +62,7 @@ otterInstrument:
     result = t + 1
 ```
 
-For direct routine pragmas, you can also write:
+Direct pragma form:
 
 ```nim
 import otter_repo_evaluation
@@ -52,66 +74,71 @@ proc parseInput*(s: string): int {.otterBench.} =
   result = t
 ```
 
-Run the parent test binary with:
+## Repo Graph Surface
 
-```sh
-nim c --path:src -d:otterTiming -r tests/test_smoke.nim
-```
+The merged graph layer ports the Ratatoskr parser into Otter and extends it with:
+- function sockets from parameter and return types,
+- hoverable doc/comment payloads,
+- orchestrator helper grouping,
+- graph JSON export,
+- sample-function execution,
+- shared WebUI/VS Code frontend assets.
 
-If you want a different log target:
-
-```nim
-setLogPath("build/my_repo_otter.log")
-```
+Main graph modules:
+- `src/protocols/repo_graph/`
+  - parser, graph builder, role inference, grouping, exporters, sample runner.
+- `src/clients/cli/otter_repo_graph.nim`
+  - repo graph CLI.
+- `src/clients/webui/`
+  - Nim WebUI host plus shared HTML/CSS/JS graph client.
+- `src/clients/vscode_extension/`
+  - source-only VS Code extension wrapper around the same frontend.
 
 ## Main State
 - `OtterTimingTuple`
-  - one captured timing span.
+  - one timing span plus source location.
 - `OtterTimingMemory`
-  - in-memory store with all timing tuples plus log metadata.
-
-## Main Orchestrators
-- `recordTiming`
-  - append one captured function span.
-- `flushTimingLog`
-  - write the full timing object to the log file.
-- `otterInstrument`
-  - compile-time macro that wraps procs and funcs in a statement list or through direct routine pragmas.
-- `otterTimed`
-  - alias macro for the same instrumentation flow.
-- `otterBench`
-  - bench-named alias for the same instrumentation flow.
-
-## Repo Layout
-- `src/otter_repo_evaluation.nim`
-  - public library surface.
-- `src/protocols/types.nim`
-  - timing tuple and memory types.
-- `src/protocols/state.nim`
-  - timing store, exit-hook registration, and log flushing.
-- `src/protocols/instrumentation.nim`
-  - compile-time injection macros.
-- `src/protocols/sigma_bridge.nim`
-  - Sigma benchmark wrappers and shared monotonic clock helpers.
-- `submodules/Fylgia-Utils/`
-  - direct Fylgia dependency checkout; no vendored `src/fylgia_utils` shim remains.
-- `tests/test_smoke.nim`
-  - smoke coverage plus an end-of-run log verification.
+  - process-local timing store and flush metadata.
+- `FunctionInfo`
+  - one parsed Nim function plus sockets, comments, tags, and role data.
+- `RepoGraph`
+  - full function/call/group graph for one analyzed repo.
+- `RunSampleResult`
+  - best-effort sample execution result for one selected function.
 
 ## Commands
 - `nimble test`
-  - run the smoke tests.
+  - run instrumentation smoke tests plus repo-graph tests.
 - `nimble build`
   - compile the smoke test in release mode.
+- `nimble buildcli`
+  - build `bin/otter-nim`.
+- `nimble buildgraphcli`
+  - build `bin/otter-repo-graph`.
+- `nimble buildwebui`
+  - build `bin/otter-repo-graph-webui`.
+- `nimble runwebui`
+  - compile and run the WebUI shell.
+- `nimble buildvscode`
+  - verify the VS Code extension source files exist.
 - `nimble find`
   - switch submodule URLs to local sibling clones when available.
+
+## Issue Playbook
+- Non-exported function sample runs can fail:
+  - exported functions use import mode;
+  - private functions fall back to include mode only when the source file has no `when isMainModule`.
+- Very large repos create dense root graphs:
+  - use orchestrator expansion or enter a group with `Tab` in the UI.
+- VS Code packaging is not built in this shell:
+  - the extension is source-only to avoid a local Node toolchain requirement here.
 
 ## License
 Released under [The Unlicense](LICENSE.txt).
 
 ## Development Conventions (Short)
-- Keep Otter focused on instrumentation and timing state only.
-- Keep timing capture monotonic and process-local.
-- Prefer compile-time wrapping over runtime reflection tricks.
-- Update `.iron/PROGRESS.md` and this README when the public API changes.
+- Keep timing capture monotonic, process-local, and source-location aware.
+- Keep graph parsing deterministic and comment-preserving.
+- Prefer one shared graph model for CLI, WebUI, and VS Code instead of parallel feature copies.
+- Update `.iron/PROGRESS.md` and this README when public behavior changes.
 - Follow the full workspace rules in `.iron/CONVENTIONS.md`.

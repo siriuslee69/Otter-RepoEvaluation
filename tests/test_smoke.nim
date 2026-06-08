@@ -68,3 +68,32 @@ suite "otter smoke":
     check content.contains("otter_timing_log")
     check content.contains("childLeaf")
     check content.contains("childBranch")
+
+  test "otter-nim auto-wraps a plain Nim file":
+    var
+      oldLogPath: string = ""
+      logPath: string = absolutePath("tests/build/otter_cli.log")
+      cmd: string = ""
+      content: string = ""
+      hadLogPath: bool = false
+      r: tuple[output: string, exitCode: int]
+    createDir("tests/build")
+    if fileExists(logPath):
+      removeFile(logPath)
+    oldLogPath = getEnv("OTTER_TIMING_LOG_PATH")
+    hadLogPath = oldLogPath.len > 0
+    putEnv("OTTER_TIMING_LOG_PATH", logPath)
+    cmd = "./otter-nim c --path:src --nimcache:build/nimcache_cli -r tests/samples/auto_trace_sample.nim"
+    r = execCmdEx(cmd, options = {poUsePath, poStdErrToStdOut})
+    if hadLogPath:
+      putEnv("OTTER_TIMING_LOG_PATH", oldLogPath)
+    else:
+      delEnv("OTTER_TIMING_LOG_PATH")
+    check r.exitCode == 0
+    check r.output.contains("[otter] enter autoLeaf")
+    check r.output.contains("[otter] exit autoBranch")
+    check fileExists(logPath)
+    content = readFile(logPath)
+    check content.contains("autoLeaf")
+    check content.contains("autoBranch")
+    check content.contains("tests/samples/auto_trace_sample.nim")

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Otter Repo Graph</title>
+  <link rel="stylesheet" href="app.css">
+  <script src="/webui.js"></script>
+</head>
+<body>
+  <div id="main-grid" class="main-grid layout-stacked" data-active-panel="graph">
+    <header class="top-menu" data-panel-id="topbar" tabindex="0">
+      <details id="file-menu" class="menu-dropdown">
+        <summary class="action muted">File</summary>
+        <div class="menu-popover">
+          <button id="open-repo-btn" class="action primary">Open Repo</button>
+          <button id="save-view-btn" class="action muted">Save View</button>
+          <select id="load-view-select" class="view-select" aria-label="Saved graph views"></select>
+          <button id="load-view-btn" class="action muted">Load View</button>
+          <button id="delete-view-btn" class="action muted">Delete View</button>
+          <button id="export-graph-btn" class="action muted">Export Graph JSON</button>
+          <button id="export-view-btn" class="action muted">Export View JSON</button>
+        </div>
+      </details>
+      <details id="view-menu" class="menu-dropdown">
+        <summary class="action muted">View</summary>
+        <div class="menu-popover">
+          <button id="fit-btn" class="action primary">Fit View</button>
+          <button id="auto-layout-btn" class="action muted">Auto Arrange</button>
+          <button id="reset-btn" class="action muted">Reset View</button>
+          <button id="toggle-grid-btn" class="action muted">Grid: On</button>
+          <button id="toggle-minimap-btn" class="action muted">Minimap: On</button>
+        </div>
+      </details>
+      <details id="selection-menu" class="menu-dropdown">
+        <summary class="action muted">Selection</summary>
+        <div class="menu-popover">
+          <button id="focus-selected-btn" class="action primary">Focus Selected</button>
+          <button id="clear-focus-btn" class="action muted">Clear Focus</button>
+          <button id="pin-selected-btn" class="action muted">Pin Open</button>
+          <button id="unpin-all-btn" class="action muted">Unpin All</button>
+          <button id="clear-expand-btn" class="action muted">Collapse All</button>
+        </div>
+      </details>
+      <div class="top-search">
+        <label class="visually-hidden" for="repo-root">Repo Root</label>
+        <input id="repo-root" type="text" spellcheck="false" placeholder="Repo root">
+      </div>
+      <button id="analyze-btn" class="action primary">Analyze</button>
+      <button id="choose-btn" class="action muted">Pick</button>
+      <div class="top-toggles">
+        <label class="toggle-pill">
+          <input id="include-tests" type="checkbox">
+          <span>Tests</span>
+        </label>
+      </div>
+      <label class="visually-hidden" for="node-search">Search Nodes</label>
+      <input id="node-search" class="node-search" type="search" spellcheck="false" placeholder="Search nodes">
+      <button id="zoom-out-btn" class="action tiny">-</button>
+      <span id="zoom-label" class="zoom-label">100%</span>
+      <button id="zoom-in-btn" class="action tiny">+</button>
+      <div class="top-status">
+        <span id="host-pill" class="status-pill">host</span>
+        <span id="summary-pill" class="status-pill quiet">idle</span>
+      </div>
+    </header>
+
+    <main class="canvas-panel" data-panel-id="graph" tabindex="0">
+      <div id="graph-shell" class="graph-shell">
+        <div id="graph-surface" class="graph-surface">
+          <svg id="graph-edges" class="graph-edges"></svg>
+          <div id="graph-canvas" class="graph-canvas"></div>
+        </div>
+      </div>
+      <div class="canvas-search-panel">
+        <select id="canvas-search-filter" class="canvas-search-filter" aria-label="Canvas search filter">
+          <option value="functions">Functions</option>
+          <option value="parameters">Parameters</option>
+          <option value="tags">Tags</option>
+          <option value="results">Results</option>
+          <option value="types">Types</option>
+        </select>
+        <input id="canvas-search" class="canvas-search" type="search" spellcheck="false" placeholder="Search">
+      </div>
+      <div id="minimap" class="minimap hidden">
+        <div id="minimap-content" class="minimap-content"></div>
+        <div id="minimap-viewport" class="minimap-viewport"></div>
+      </div>
+    </main>
+
+    <footer class="bottom-panel" data-panel-id="bottom" tabindex="0">
+      <button id="bottom-toggle-btn" class="bottom-toggle action tiny" title="Collapse bottom panel">v</button>
+      <div class="bottom-grid">
+        <section class="bottom-card">
+          <div class="panel-header">
+            <span class="panel-title">Node</span>
+            <span id="selected-role" class="status-pill quiet">none</span>
+          </div>
+          <div class="node-inspector">
+            <div id="selected-meta" class="selected-meta"></div>
+            <textarea id="annotation-note" rows="5" placeholder="too complex"></textarea>
+            <div class="panel-actions">
+              <button id="queue-note-btn" class="action primary">Queue Note</button>
+              <button id="run-btn" class="action muted">Run</button>
+            </div>
+          </div>
+        </section>
+        <section class="bottom-card">
+          <div class="panel-header">
+            <span class="panel-title">Run Output</span>
+          </div>
+          <pre id="run-output" class="run-output"></pre>
+        </section>
+        <section class="bottom-card">
+          <div class="panel-header">
+            <span class="panel-title">Queued Notes</span>
+            <span id="note-count" class="status-pill quiet">0</span>
+          </div>
+          <div class="queued-notes-panel">
+            <div id="queued-notes" class="queued-notes"></div>
+            <div class="panel-actions">
+              <button id="send-notes-btn" class="action primary">Send To Codex</button>
+              <button id="clear-notes-btn" class="action muted">Clear</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </footer>
+  </div>
+
+  <details id="workspace-menu" class="workspace-menu">
+    <summary class="action tiny">Views</summary>
+    <div class="menu-popover workspace-popover">
+      <button id="new-window-btn" class="action primary">New Window</button>
+      <button id="new-vertical-panel-btn" class="action muted">New Vertical Panel</button>
+      <button id="new-horizontal-panel-btn" class="action muted">New Horizontal Panel</button>
+      <button id="close-panel-btn" class="action muted">Close This Panel</button>
+    </div>
+  </details>
+
+  <div id="tooltip" class="tooltip hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

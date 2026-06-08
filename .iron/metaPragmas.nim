@@ -20,13 +20,20 @@ type
         id: uint64 #issues id/reference
     MetaIssues* = seq[MetaIssue]
     MetaTag* = enum
+        tagExecution,
+        tagGraph,
+        tagImportContext,
         tagInstrumentation,
+        tagParsing,
         tagLogging,
         tagParentIntegration,
+        tagResolution,
         tagSigma,
         tagState,
         tagTesting,
-        tagTiming
+        tagTiming,
+        tagUi,
+        tagVsCode
     MetaTags* = set[MetaTag]
 
 template input*(x: set[MetaInput]) {.pragma.}

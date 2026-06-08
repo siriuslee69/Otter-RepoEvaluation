@@ -3,6 +3,8 @@ build/
 builds/
 dist/
 bin/
+**/node_modules/
+**/*.vsix
 *.exe
 *.dll
 *.so
@@ -27,5 +29,6 @@ tests/build/
 .idea/
 nimble.develop
 nimble.paths
+.otter_run_*.nim
 .iron/.local*
 !.iron/.local*.template

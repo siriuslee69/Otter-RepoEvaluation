@@ -18,17 +18,35 @@ const
   }
 
 
-template otterSpan*(n: string, body: untyped): untyped {.role: helper, metaTags: {tagInstrumentation, tagTiming}.} =
+template otterSpan*(n: string, p: string, l: int, c: int,
+    body: untyped): untyped {.role: helper, metaTags: {tagInstrumentation, tagTiming}.} =
   ## n: function name.
-  when OtterTimingEnabled:
+  ## p: source path.
+  ## l: source line.
+  ## c: source column.
+  bind OtterTimingEnabled
+  bind OtterDebugEnabled
+  bind emitOtterDebug
+  bind ensureOtterHook
+  bind otterTick
+  bind recordTiming
+  when OtterTimingEnabled or OtterDebugEnabled:
     var
+      otterEnd: int64 = 0
       otterStart: int64 = 0
-    ensureOtterHook()
-    otterStart = otterTick()
+    if OtterTimingEnabled:
+      ensureOtterHook()
+      otterStart = otterTick()
+    emitOtterDebug("enter", n, p, l, c)
     try:
       body
+    except:
+      emitOtterDebug("exception", n, p, l, c)
+      raise
     finally:
-      recordTiming(n, otterStart, otterTick())
+      otterEnd = otterTick()
+      recordTiming(n, p, l, c, otterStart, otterEnd)
+      emitOtterDebug("exit", n, p, l, c, otterStart, otterEnd)
   else:
     body
 
@@ -44,34 +62,49 @@ proc otterRoutineName(n: NimNode): string {.compileTime, role: helper, metaTags:
   result = s
 
 
-proc otterInstrumentNode(n: NimNode): NimNode {.compileTime, role: helper, metaTags: {tagInstrumentation}.}
+proc otterInstrumentNode(n: NimNode, sourcePath: string = "", lineOffset: int = 0): NimNode {.compileTime, role: helper, metaTags: {tagInstrumentation}.}
 
 
-proc otterInstrumentRoutine(n: NimNode): NimNode {.compileTime, role: helper, metaTags: {tagInstrumentation}.} =
+proc otterInstrumentRoutine(n: NimNode, sourcePath: string = "", lineOffset: int = 0): NimNode {.compileTime, role: helper, metaTags: {tagInstrumentation}.} =
   var
+    info: LineInfo
     r: NimNode
     b: NimNode
+    c: NimNode
     i: int = 0
+    p: NimNode
     s: NimNode
+    l: NimNode
   r = copyNimTree(n)
+  info = lineInfoObj(n)
+  if sourcePath.len > 0:
+    info.filename = sourcePath
+    info.line = info.line - lineOffset
+    if info.line < 1:
+      info.line = 1
   i = r.len - 1
-  b = otterInstrumentNode(r[i])
+  b = otterInstrumentNode(r[i], sourcePath, lineOffset)
+  c = newLit(info.column)
+  p = newLit(info.filename)
   s = newLit(otterRoutineName(n))
+  l = newLit(info.line)
   r[i] = quote do:
-    otterSpan(`s`):
+    otterSpan(`s`, `p`, `l`, `c`):
       `b`
+  r[i].setLineInfo(info)
   result = r
 
 
-proc otterInstrumentNode(n: NimNode): NimNode {.compileTime, role: helper, metaTags: {tagInstrumentation}.} =
+proc otterInstrumentNode(n: NimNode, sourcePath: string = "",
+    lineOffset: int = 0): NimNode {.compileTime, role: helper, metaTags: {tagInstrumentation}.} =
   var
     t: NimNode
   if n.kind in OtterRoutineKinds:
-    result = otterInstrumentRoutine(n)
+    result = otterInstrumentRoutine(n, sourcePath, lineOffset)
     return
   t = copyNimNode(n)
   for c in n:
-    t.add(otterInstrumentNode(c))
+    t.add(otterInstrumentNode(c, sourcePath, lineOffset))
   result = t
 
 
@@ -89,3 +122,11 @@ macro otterBench*(body: untyped): untyped {.role: helper, metaTags: {tagInstrume
   ## body: statement list or single routine definition.
   ## Supports both block-macro use and direct routine pragmas.
   result = otterInstrumentNode(body)
+
+
+macro otterWrapFile*(p: static[string], lineOffset: static[int],
+    body: untyped): untyped {.role: helper, metaTags: {tagInstrumentation, tagParentIntegration}.} =
+  ## p: original source path for debug output.
+  ## lineOffset: wrapper header line count added before the original file.
+  ## body: original source body to instrument.
+  result = otterInstrumentNode(body, p, lineOffset)
