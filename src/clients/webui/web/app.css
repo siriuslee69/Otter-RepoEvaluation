@@ -480,7 +480,8 @@ body.workspace-window .bottom-panel {
   box-shadow: 0 10px 32px rgba(0, 0, 0, 0.28);
   overflow: auto;
   cursor: move;
-  transition: width 0.24s ease, height 0.24s ease, border-color 0.24s ease, box-shadow 0.24s ease;
+  transform-origin: center center;
+  transition: transform 0.24s ease, border-color 0.24s ease, box-shadow 0.24s ease;
 }
 
 .node:hover,
@@ -514,10 +515,8 @@ body.workspace-window .bottom-panel {
   border-left-color: var(--warn);
 }
 
-.node:hover,
-.node.open {
-  width: calc(var(--node-width-current, var(--node-width)) + var(--node-width-current, var(--node-width)));
-  height: calc(var(--node-height) + var(--node-height));
+.node.preview-active {
+  transform: scale(2);
   z-index: 20;
 }
 
@@ -633,8 +632,8 @@ body.workspace-window .bottom-panel {
 }
 
 .socket-dot {
-  width: 10px;
-  height: 10px;
+  width: 7px;
+  height: 7px;
   background: var(--socket-color, var(--active));
   box-shadow: 0 0 14px var(--socket-color, var(--active));
   transform: rotate(45deg);
@@ -842,6 +841,78 @@ textarea {
   gap: 10px;
   min-width: 0;
   min-height: 0;
+}
+
+.socket-preview {
+  position: absolute;
+  left: 212px;
+  top: 112px;
+  width: min(340px, calc(100% - 276px));
+  display: grid;
+  gap: 10px;
+  z-index: 18;
+  pointer-events: none;
+}
+
+.socket-preview-card {
+  padding: 12px 14px;
+  background: linear-gradient(90deg, rgba(6, 16, 23, 0.96) 0%, rgba(9, 22, 31, 0.86) 68%, rgba(9, 22, 31, 0.18) 100%);
+  border-left: 2px solid rgba(111, 193, 223, 0.82);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(8px);
+}
+
+.socket-preview-result {
+  border-left-color: rgba(240, 111, 82, 0.9);
+}
+
+.socket-preview-label {
+  display: block;
+  margin-bottom: 8px;
+  color: rgba(230, 242, 247, 0.72);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.socket-preview-list {
+  display: grid;
+  gap: 7px;
+}
+
+.socket-preview-row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, auto) minmax(0, 1fr);
+  align-items: center;
+  column-gap: 8px;
+  min-width: 0;
+}
+
+.socket-preview-name,
+.socket-preview-type,
+.socket-preview-empty {
+  font-family: "Cascadia Code", "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+}
+
+.socket-preview-name {
+  color: var(--text);
+}
+
+.socket-preview-type {
+  color: var(--muted);
+  word-break: break-word;
+}
+
+.socket-preview-empty {
+  color: rgba(230, 242, 247, 0.56);
+}
+
+@media (max-width: 980px) {
+  .socket-preview {
+    left: 96px;
+    width: min(320px, calc(100% - 128px));
+  }
 }
 
 .tooltip {

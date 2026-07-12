@@ -69,7 +69,10 @@
     summaryLines: document.getElementById('summary-lines'),
     runOutput: document.getElementById('run-output'),
     statusLog: document.getElementById('status-log'),
-    tooltip: document.getElementById('tooltip')
+    tooltip: document.getElementById('tooltip'),
+    socketPreview: document.getElementById('socket-preview'),
+    socketPreviewInputs: document.getElementById('socket-preview-inputs'),
+    socketPreviewResult: document.getElementById('socket-preview-result')
   };
 
   const state = {
@@ -92,6 +95,7 @@
     manualSizes: new Map(),
     currentView: null,
     suppressNodeClick: false,
+    previewNodeId: null,
     selectedNodeId: null,
     focusedNodeId: null,
     expandedNodes: new Set(),
@@ -953,6 +957,81 @@
     els.tooltip.classList.add('hidden');
   }
 
+  function findNodeCard(nodeId) {
+    return els.graphCanvas.querySelector(`.node[data-node-id="${String(nodeId)}"]`);
+  }
+
+  function setPreviewNode(nodeId, card = null) {
+    if (state.previewNodeId && state.previewNodeId !== nodeId) {
+      findNodeCard(state.previewNodeId)?.classList.remove('preview-active');
+    }
+    state.previewNodeId = nodeId;
+    (card || findNodeCard(nodeId))?.classList.add('preview-active');
+  }
+
+  function clearPreviewNode(nodeId = null, card = null) {
+    if (nodeId && state.previewNodeId !== nodeId) return;
+    const activeId = state.previewNodeId;
+    state.previewNodeId = null;
+    if (!activeId) return;
+    (card || findNodeCard(activeId))?.classList.remove('preview-active');
+  }
+
+  function socketPreviewRowHtml(socket, outputs = false) {
+    const name = socket.name || (outputs ? 'result' : 'param');
+    const typeName = socket.typeName || 'void';
+    return `
+      <div class="socket-preview-row">
+        <span class="socket-dot" style="--socket-color: ${socketColor(socket, outputs)}"></span>
+        <span class="socket-preview-name">${escapeHtml(name)}</span>
+        <span class="socket-preview-type">${escapeHtml(typeName)}</span>
+      </div>
+    `;
+  }
+
+  function positionSocketPreview(anchorRect) {
+    if (!anchorRect || els.socketPreview.classList.contains('hidden')) return;
+    const canvasRect = els.canvasPanel.getBoundingClientRect();
+    const previewHeight = els.socketPreview.offsetHeight || 0;
+    const rawTop = anchorRect.top - canvasRect.top - 10;
+    const maxTop = Math.max(16, canvasRect.height - previewHeight - 16);
+    const top = Math.max(16, Math.min(maxTop, rawTop));
+    els.socketPreview.style.top = `${top}px`;
+  }
+
+  function showSocketPreview(node, anchorEl = null) {
+    if (!node || !els.socketPreview) return;
+    const nextNodeId = String(node.id);
+    if (els.socketPreview.dataset.nodeId === nextNodeId && !els.socketPreview.classList.contains('hidden')) {
+      positionSocketPreview(anchorEl?.getBoundingClientRect?.() || null);
+      return;
+    }
+    const inputs = inputSockets(node);
+    const outputs = outputSockets(node);
+    const resultSockets = outputs.length ? outputs : [{ name: 'result', typeName: node.returnType || 'void' }];
+    els.socketPreviewInputs.innerHTML = `
+      <span class="socket-preview-label">Inputs</span>
+      <div class="socket-preview-list">
+        ${inputs.length ? inputs.map((socket) => socketPreviewRowHtml(socket)).join('') : '<div class="socket-preview-empty">no inputs</div>'}
+      </div>
+    `;
+    els.socketPreviewResult.innerHTML = `
+      <span class="socket-preview-label">Result</span>
+      <div class="socket-preview-list">
+        ${resultSockets.map((socket) => socketPreviewRowHtml(socket, true)).join('')}
+      </div>
+    `;
+    els.socketPreview.dataset.nodeId = nextNodeId;
+    els.socketPreview.classList.remove('hidden');
+    positionSocketPreview(anchorEl?.getBoundingClientRect?.() || null);
+  }
+
+  function hideSocketPreview() {
+    if (!els.socketPreview) return;
+    delete els.socketPreview.dataset.nodeId;
+    els.socketPreview.classList.add('hidden');
+  }
+
   function tooltipFromEvent(event, fallbackNode) {
     const target = event.target.closest('[data-tooltip]');
     return target ? target.getAttribute('data-tooltip') : fallbackNode?.tooltipText || '';
@@ -1155,15 +1234,10 @@
   }
 
   function edgePath(edge, from, to) {
-    const fromOpen = state.openNodes.has(edge.callerId);
-    const toOpen = state.openNodes.has(edge.calleeId);
-    const fromWidth = from.width * (fromOpen ? 2 : 1);
-    const fromHeight = from.height * (fromOpen ? 2 : 1);
-    const toHeight = to.height * (toOpen ? 2 : 1);
-    const x1 = from.x + fromWidth;
-    const y1 = from.y + fromHeight / 2;
+    const x1 = from.x + from.width;
+    const y1 = from.y + from.height / 2;
     const x2 = to.x;
-    const y2 = to.y + toHeight / 2;
+    const y2 = to.y + to.height / 2;
     const dx = Math.max(40, (x2 - x1) / 2);
     return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
   }
@@ -1298,13 +1372,12 @@
     for (const [nodeId, pos] of view.positions.entries()) {
       if (token !== state.minimapRenderToken) return;
       const node = state.functionById.get(nodeId);
-      const scale = state.openNodes.has(nodeId) ? 2 : 1;
       const item = document.createElement('div');
       item.className = 'minimap-node';
       item.style.left = `${surfaceX(pos.x) * scaleX}px`;
       item.style.top = `${surfaceY(pos.y) * scaleY}px`;
-      item.style.width = `${Math.max(2, pos.width * scale * scaleX)}px`;
-      item.style.height = `${Math.max(2, pos.height * scale * scaleY)}px`;
+      item.style.width = `${Math.max(2, pos.width * scaleX)}px`;
+      item.style.height = `${Math.max(2, pos.height * scaleY)}px`;
       item.style.setProperty('--cluster-color', moduleColor(node?.modulePath || node?.sourcePath || 'unknown'));
       fragment.appendChild(item);
       index += 1;
@@ -1333,14 +1406,6 @@
     let maxBottom = bounds.maxBottom || 0;
     let minX = bounds.minX || 0;
     let minY = bounds.minY || 0;
-    state.openNodes.forEach((nodeId) => {
-      const pos = view.positions.get(nodeId);
-      if (!pos) return;
-      minX = Math.min(minX, pos.x);
-      minY = Math.min(minY, pos.y);
-      maxRight = Math.max(maxRight, pos.x + pos.width * 2);
-      maxBottom = Math.max(maxBottom, pos.y + pos.height * 2);
-    });
     const nextBounds = {
       minX,
       minY,
@@ -1440,8 +1505,9 @@
     });
   }
 
-  function selectNodeLocally(nodeId, card, pinOpen = true) {
+  function selectNodeLocally(nodeId, card, pinOpen = false) {
     state.selectedNodeId = nodeId;
+    setPreviewNode(nodeId, card);
     els.graphCanvas.querySelectorAll('.node.selected').forEach((nodeEl) => {
       nodeEl.classList.remove('selected');
     });
@@ -1456,8 +1522,8 @@
       const openBtn = card?.querySelector('.node-open');
       if (openBtn) {
         openBtn.innerHTML = '&minus;';
-        openBtn.title = 'Close node';
-        openBtn.setAttribute('data-tooltip', 'Close this pinned-open node.');
+        openBtn.title = 'Unpin node';
+        openBtn.setAttribute('data-tooltip', 'Remove this node from the pinned set.');
       }
     }
     renderSelectedMeta();
@@ -1542,7 +1608,8 @@
     const childIds = directCalleeIds(node.id);
     const heldOpen = state.openNodes.has(node.id);
     const nodeKind = nodeKindFor(node.id);
-    card.className = `node${nodeKind ? ` node-${nodeKind}` : ''}${state.selectedNodeId === node.id ? ' selected' : ''}${heldOpen ? ' open' : ''}`;
+    card.className = `node${nodeKind ? ` node-${nodeKind}` : ''}${state.selectedNodeId === node.id ? ' selected' : ''}${heldOpen ? ' open' : ''}${state.previewNodeId === node.id ? ' preview-active' : ''}`;
+    card.dataset.nodeId = node.id;
     card.style.left = `${pos.x}px`;
     card.style.top = `${pos.y}px`;
     card.style.setProperty('--node-width-current', `${pos.width}px`);
@@ -1564,7 +1631,7 @@
           <div class="node-subtitle" data-tooltip="${escapeHtml(`${node.sourcePath || node.modulePath}\nlines ${node.lineStart}-${node.lineEnd}`)}">${escapeHtml(node.modulePath)}:${escapeHtml(node.lineStart)}</div>
         </div>
         <div class="node-controls">
-          <button class="node-btn node-open" title="${heldOpen ? 'Close node' : 'Keep node open'}" data-tooltip="${heldOpen ? 'Close this pinned-open node.' : 'Keep this node expanded after hover.'}">${heldOpen ? '&minus;' : '&#9633;'}</button>
+          <button class="node-btn node-open" title="${heldOpen ? 'Unpin node' : 'Pin node'}" data-tooltip="${heldOpen ? 'Remove this node from the pinned set.' : 'Add this node to the pinned set.'}">${heldOpen ? '&minus;' : '&#9633;'}</button>
           <button class="node-btn node-run" title="Run" data-tooltip="${escapeHtml(`Run ${node.name} with generated sample arguments.`)}">&#9654;</button>
           ${childCount ? `<button class="node-btn node-expand" title="${expanded ? 'Collapse callees' : 'Expand callees'}" data-tooltip="${escapeHtml(`${expanded ? 'Collapse' : 'Expand'} ${childCount} direct callees.`)}">${expanded ? '-' : '+'}</button>` : ''}
         </div>
@@ -1581,13 +1648,24 @@
       <span class="node-resize" data-tooltip="Drag to manually resize this node."></span>
     `;
     card.addEventListener('mousedown', (event) => startNodeDrag(event, node, card));
-    card.addEventListener('mouseenter', (event) => showTooltipText(tooltipFromEvent(event, node), event.clientX, event.clientY));
-    card.addEventListener('mousemove', (event) => showTooltipText(tooltipFromEvent(event, node), event.clientX, event.clientY));
-    card.addEventListener('mouseleave', hideTooltip);
+    card.addEventListener('mouseenter', (event) => {
+      showTooltipText(tooltipFromEvent(event, node), event.clientX, event.clientY);
+      showSocketPreview(node, card);
+    });
+    card.addEventListener('mousemove', (event) => {
+      showTooltipText(tooltipFromEvent(event, node), event.clientX, event.clientY);
+      showSocketPreview(node, card);
+    });
+    card.addEventListener('mouseleave', () => {
+      hideTooltip();
+      hideSocketPreview();
+      clearPreviewNode(node.id, card);
+    });
     card.addEventListener('click', (event) => {
       if (state.suppressNodeClick) return;
       if (event.target.closest('.node-btn')) return;
-      selectNodeLocally(node.id, card, true);
+      selectNodeLocally(node.id, card, false);
+      showSocketPreview(node, card);
     });
     card.addEventListener('dblclick', () => toggleExpand(node.id));
     const runBtn = card.querySelector('.node-run');
@@ -1684,8 +1762,8 @@
       const openBtn = card.querySelector('.node-open');
       if (openBtn) {
         openBtn.innerHTML = willOpen ? '&minus;' : '&#9633;';
-        openBtn.title = willOpen ? 'Close node' : 'Keep node open';
-        openBtn.setAttribute('data-tooltip', willOpen ? 'Close this pinned-open node.' : 'Keep this node expanded after hover.');
+        openBtn.title = willOpen ? 'Unpin node' : 'Pin node';
+        openBtn.setAttribute('data-tooltip', willOpen ? 'Remove this node from the pinned set.' : 'Add this node to the pinned set.');
       }
       refreshGraphGeometrySoon();
     } else {
@@ -2159,12 +2237,23 @@
     let scrollLeft = 0;
     let scrollTop = 0;
     els.graphShell.addEventListener('mousedown', (event) => {
-      if (event.target.closest('.node')) return;
+      const onNode = !!event.target.closest('.node');
+      const middleButton = event.button === 1;
+      if (event.button !== 0 && !middleButton) return;
+      if (onNode && !middleButton) return;
       dragging = true;
       startX = event.clientX;
       startY = event.clientY;
       scrollLeft = els.graphShell.scrollLeft;
       scrollTop = els.graphShell.scrollTop;
+      if (middleButton) {
+        event.preventDefault();
+      }
+    });
+    els.graphShell.addEventListener('auxclick', (event) => {
+      if (event.button === 1) {
+        event.preventDefault();
+      }
     });
     window.addEventListener('mousemove', (event) => {
       if (!dragging) return;
@@ -2369,12 +2458,11 @@
     let minY = Infinity;
     let maxRight = 0;
     let maxBottom = 0;
-    for (const [nodeId, pos] of view.positions.entries()) {
-      const scale = state.openNodes.has(nodeId) ? 2 : 1;
+    for (const [, pos] of view.positions.entries()) {
       minX = Math.min(minX, pos.x);
       minY = Math.min(minY, pos.y);
-      maxRight = Math.max(maxRight, pos.x + pos.width * scale);
-      maxBottom = Math.max(maxBottom, pos.y + pos.height * scale);
+      maxRight = Math.max(maxRight, pos.x + pos.width);
+      maxBottom = Math.max(maxBottom, pos.y + pos.height);
     }
     if (!Number.isFinite(minX) || !Number.isFinite(minY)) return null;
     return {
