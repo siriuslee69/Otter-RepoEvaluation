@@ -7,7 +7,7 @@ import std/[exitprocs, locks, os, strutils]
 
 import ../../.iron/metaPragmas
 import ./types
-import ./sigma_bridge
+import ./evaluation/benchmarks
 
 const
   OtterTimingEnabled* {.role: helper, metaTags: {tagTiming, tagParentIntegration}.} = defined(otterTiming)
@@ -208,7 +208,7 @@ proc flushTimingLog*() {.role: dataWriter, metaTags: {tagLogging, tagTiming}.} =
   release(gOtterLock)
   ensureLogDir(p)
   lines.add("otter_timing_log")
-  lines.add("generated_at=" & otterIsoTimestamp())
+  lines.add("generated_at=" & isoTimestamp())
   lines.add("entries=" & $A.len)
   for t in A:
     lines.add(formatTimingEntry(t))

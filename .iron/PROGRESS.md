@@ -1,17 +1,18 @@
 # Progress
 
-Commit Message: align webui chrome and split visualizer scripts
+Commit Message: merge evaluation protocols into otter
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.
 - Monotonic function timing capture with start and end ticks.
 - End-of-run timing log flush for test runs.
-- Sigma benchmark helper re-exports for parent repos.
+- Built-in benchmark and binary-stream evaluation helpers for parent repos.
 - Shared repo graph UI and extension polish beyond the first merged pass.
 
 Features (Done):
 - Initialized the repo layout from the shared template.
-- Added Sigma as a vendored submodule dependency.
+- Merged the former Sigma benchmark and statistical protocols directly into Otter.
+- Removed the Sigma package and submodule dependency.
 - Implemented timing state, logging, instrumentation macros, and smoke coverage.
 - Added direct routine pragma coverage for `otterTimed` and the bench-named `otterBench` alias.
 - Added source-aware debug enter/exit/exception tracing and the `otter-nim` CLI wrapper for plain Nim files.
@@ -28,5 +29,5 @@ Features (In Progress):
 - Deeper sample-object generation for harder Nim types and more private-function cases.
 
 Notes:
-- Last change/problem: The visualizer chrome had conflicting absolute-positioned CSS layers, duplicate search fields, top-row padding drift, and overlapping left-rail groups.
-- Fix attempts: Consolidated controls into one qlacier-style top wrapper, kept only the filter/search pair, moved active scope to a bottom-left dock, made wheel input zoom directly, and split core/chrome/layer/startup JS into separate loaded files.
+- Last change/problem: Parent repositories depended on both Otter and Sigma for related timing and benchmark work.
+- Fix attempts: Merged Sigma's protocol modules into Otter, replaced its external timing helper with monotonic standard-library timing, and retained the benchmark API through Otter's public module.

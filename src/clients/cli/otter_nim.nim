@@ -83,12 +83,6 @@ proc otterDependencyPaths*(): seq[string] {.role: helper, metaTags: {tagParentIn
   p = joinPath(OtterRepoDir, "submodules", "Fylgia-Utils", "src")
   if dirExists(p):
     A.add(p)
-  p = joinPath(OtterRepoDir, "submodules", "sigma", "src")
-  if dirExists(p):
-    A.add(p)
-  p = joinPath(parentDir(OtterRepoDir), "Sigma-BenchAndEval", "src")
-  if dirExists(p):
-    A.add(p)
   result = A
 
 

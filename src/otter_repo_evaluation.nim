@@ -1,16 +1,16 @@
 # ============================================================
 # | Otter Public Module                                     |
-# | -> Re-export instrumentation, timing state, and Sigma   |
+# | -> Instrumentation, evaluation, and repository graphs  |
 # ============================================================
 
 import ./protocols/types
-import ./protocols/sigma_bridge
+import ./protocols/evaluation
 import ./protocols/state
 import ./protocols/instrumentation
 import ./protocols/repo_graph
 
 export types
-export sigma_bridge
+export evaluation
 export state
 export instrumentation
 export repo_graph

@@ -1,8 +1,4 @@
 switch("path", "src")
-if dirExists("submodules/sigma/src"):
-  switch("path", "submodules/sigma/src")
-elif dirExists("../Sigma-BenchAndEval/src"):
-  switch("path", "../Sigma-BenchAndEval/src")
 if dirExists("submodules/Fylgia-Utils/src"):
   switch("path", "submodules/Fylgia-Utils/src")
 elif dirExists("../Fylgia-Utils/src"):

@@ -9,7 +9,7 @@ Read `.iron/CONVENTIONS.md` first.
 - Keep the repo-graph layer shared across CLI, WebUI, and VS Code instead of forking frontend-specific parsers.
 
 ## Safe Change Areas
-- Add new wrappers around the vendored Sigma benchmark layer.
+- Extend the internal evaluation protocols and benchmark helpers.
 - Extend the timing log format if parent repos need more metadata.
 - Improve instrumentation macros as long as the flag-off path stays inert.
 - Extend repo graph parsing, grouping, or sample-run heuristics.
@@ -26,7 +26,7 @@ Read `.iron/CONVENTIONS.md` first.
 
 ## Commands
 - `nimble test`
-- `nimble build`
+- `nimble buildtests`
 - `nimble buildgraphcli`
 - `nimble buildwebui`
 - `nimble buildvscode`

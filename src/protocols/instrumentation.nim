@@ -7,7 +7,7 @@ import std/macros
 
 import ../../.iron/metaPragmas
 import ./state
-import ./sigma_bridge
+import ./evaluation/benchmarks
 
 const
   OtterRoutineKinds = {
@@ -28,7 +28,7 @@ template otterSpan*(n: string, p: string, l: int, c: int,
   bind OtterDebugEnabled
   bind emitOtterDebug
   bind ensureOtterHook
-  bind otterTick
+  bind monotonicTick
   bind recordTiming
   when OtterTimingEnabled or OtterDebugEnabled:
     var
@@ -36,7 +36,7 @@ template otterSpan*(n: string, p: string, l: int, c: int,
       otterStart: int64 = 0
     if OtterTimingEnabled:
       ensureOtterHook()
-      otterStart = otterTick()
+      otterStart = monotonicTick()
     emitOtterDebug("enter", n, p, l, c)
     try:
       body
@@ -44,7 +44,7 @@ template otterSpan*(n: string, p: string, l: int, c: int,
       emitOtterDebug("exception", n, p, l, c)
       raise
     finally:
-      otterEnd = otterTick()
+      otterEnd = monotonicTick()
       recordTiming(n, p, l, c, otterStart, otterEnd)
       emitOtterDebug("exit", n, p, l, c, otterStart, otterEnd)
   else:

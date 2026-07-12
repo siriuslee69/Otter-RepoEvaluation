@@ -11,8 +11,9 @@ task test, "Run smoke tests":
   exec "nim c --path:src -r tests/test_smoke.nim"
   exec "nim c --path:src -r tests/test_repo_graph.nim"
 
-task build, "Build smoke tests in release mode":
+task buildtests, "Build smoke tests in release mode":
   exec "nim c --path:src -d:release tests/test_smoke.nim"
+  exec "nim c --path:src -d:release tests/test_repo_graph.nim"
 
 task buildcli, "Build the otter-nim CLI wrapper":
   exec "mkdir -p bin && nim c -d:release --path:src -o:bin/otter-nim src/clients/cli/otter_nim.nim"

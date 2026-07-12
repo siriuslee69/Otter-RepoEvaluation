@@ -19,6 +19,8 @@ bin/
 *.log
 tests/test_smoke
 tests/test_child_enabled
+tests/test_repo_graph
+tests/samples/*_otter_wrapped
 tests/build/
 *.tmp
 *.swp

@@ -1,6 +1,6 @@
 # ============================================================
 # | Otter Smoke Tests                                       |
-# | -> Verify flag gating, Sigma bridge, and exit logging   |
+# | -> Verify timing, evaluation helpers, and exit logging  |
 # ============================================================
 
 import std/[os, osproc, strutils, unittest]
@@ -40,7 +40,7 @@ suite "otter smoke":
     check timingCount() == 0
     check snapshotTimings().len == 0
 
-  test "sigma benchmark helpers are reachable through otter":
+  test "benchmark helpers are reachable through otter":
     var
       A: array[1, BenchAlgo]
       R: seq[BenchResult] = @[]
@@ -50,6 +50,34 @@ suite "otter smoke":
     s = formatBenchResults(R)
     check R.len == 1
     check s.contains("localBranch")
+
+  test "statistical suite is reachable through otter":
+    var
+      Bs: seq[uint8] = @[]
+      p: NistParams
+      R: seq[NistResult] = @[]
+      i: int = 0
+    Bs.setLen(2048)
+    while i < Bs.len:
+      Bs[i] = uint8(i mod 256)
+      i = i + 1
+    p.blockSize = 128
+    p.patternSize = 4
+    p.longRunBlock = 8
+    p.alpha = defaultAlpha
+    p.rankRows = 32
+    p.rankCols = 32
+    p.spectralMaxBits = 1 shl 12
+    p.templateSize = 9
+    p.templateBlockSize = 1032
+    p.templateCount = 8
+    p.overlapTemplateSize = 9
+    p.overlapTemplateBlock = 1032
+    p.linearComplexityBlock = 500
+    p.universalBlockSize = 7
+    p.universalInitBlocks = 0
+    R = nistSuiteFromBytes(Bs, p)
+    check R.len > 0
 
   test "timed child writes its log on process exit":
     var
@@ -73,17 +101,22 @@ suite "otter smoke":
     var
       oldLogPath: string = ""
       logPath: string = absolutePath("tests/build/otter_cli.log")
+      cliPath: string = joinPath("build", "otter-nim" & ExeExt)
       cmd: string = ""
       content: string = ""
       hadLogPath: bool = false
       r: tuple[output: string, exitCode: int]
     createDir("tests/build")
+    createDir("build")
     if fileExists(logPath):
       removeFile(logPath)
+    cmd = "nim c --path:src -o:" & quoteShell(cliPath) & " src/clients/cli/otter_nim.nim"
+    r = execCmdEx(cmd, options = {poUsePath, poStdErrToStdOut})
+    check r.exitCode == 0
     oldLogPath = getEnv("OTTER_TIMING_LOG_PATH")
     hadLogPath = oldLogPath.len > 0
     putEnv("OTTER_TIMING_LOG_PATH", logPath)
-    cmd = "./otter-nim c --path:src --nimcache:build/nimcache_cli -r tests/samples/auto_trace_sample.nim"
+    cmd = quoteShell(cliPath) & " c --path:src --nimcache:build/nimcache_cli -r tests/samples/auto_trace_sample.nim"
     r = execCmdEx(cmd, options = {poUsePath, poStdErrToStdOut})
     if hadLogPath:
       putEnv("OTTER_TIMING_LOG_PATH", oldLogPath)

@@ -7,6 +7,7 @@ Compile-time timing instrumentation, debug tracing, and interactive Nim repo gra
 - Auto-wrap plain Nim files with `otter-nim` for crash tracing and timing without hand edits.
 - Parse Nim repos into function graphs with roles, comments, sockets, and helper-grouped orchestrators.
 - Run best-effort sample calls against selected functions to inspect output.
+- Compare algorithm runtimes and evaluate binary streams with the built-in statistical suite.
 - Expose the graph through a Nim WebUI shell and a VS Code webview that can hand queued notes to the Codex extension.
 
 ## Main Workflows
@@ -74,6 +75,23 @@ proc parseInput*(s: string): int {.otterBench.} =
   result = t
 ```
 
+### 2. Compare algorithms
+
+```nim
+import otter_repo_evaluation
+
+var
+  algorithms: array[1, BenchAlgo]
+  results: seq[BenchResult] = @[]
+
+algorithms[0] = BenchAlgo(name: "work", run: proc() = discard)
+results = compareAlgorithms(algorithms, loops = 1000, warmup = 10)
+echo formatBenchResults(results)
+```
+
+The benchmark and NIST-style statistical evaluation protocols live inside
+Otter. They have no Sigma package or submodule dependency.
+
 ## Repo Graph Surface
 
 The merged graph layer ports the Ratatoskr parser into Otter and extends it with:
@@ -101,6 +119,10 @@ The shared WebUI now uses qlacier-style floating menu shells: repo root search o
   - one timing span plus source location.
 - `OtterTimingMemory`
   - process-local timing store and flush metadata.
+- `BenchAlgo` / `BenchResult`
+  - one callable benchmark case and its monotonic timing result.
+- `NistParams` / `NistResult`
+  - settings and outcomes for binary-stream statistical evaluation.
 - `FunctionInfo`
   - one parsed Nim function plus sockets, comments, tags, and role data.
 - `RepoGraph`
@@ -111,8 +133,8 @@ The shared WebUI now uses qlacier-style floating menu shells: repo root search o
 ## Commands
 - `nimble test`
   - run instrumentation smoke tests plus repo-graph tests.
-- `nimble build`
-  - compile the smoke test in release mode.
+- `nimble buildtests`
+  - compile the smoke and repo-graph tests in release mode.
 - `nimble buildcli`
   - build `bin/otter-nim`.
 - `nimble buildgraphcli`
@@ -132,6 +154,9 @@ The shared WebUI now uses qlacier-style floating menu shells: repo root search o
   - private functions fall back to include mode only when the source file has no `when isMainModule`.
 - Very large repos create dense root graphs:
   - use orchestrator expansion or enter a group with `Tab` in the UI.
+- Statistical results need adequate input sizes:
+  - use the NIST parameter ranges appropriate for the supplied byte stream;
+  - short streams intentionally produce failed or empty test outcomes.
 - VS Code packaging is not built in this shell:
   - the extension is source-only to avoid a local Node toolchain requirement here.
 
