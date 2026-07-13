@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: merge evaluation protocols into otter
+Commit Message: add pragma-driven isolated test webui
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.
@@ -8,6 +8,7 @@ Features (Planned):
 - End-of-run timing log flush for test runs.
 - Built-in benchmark and binary-stream evaluation helpers for parent repos.
 - Shared repo graph UI and extension polish beyond the first merged pass.
+- Parent-repo adoption of the pragma-driven test UI after Otter example validation.
 
 Features (Done):
 - Initialized the repo layout from the shared template.
@@ -23,11 +24,21 @@ Features (Done):
 - Restored minimap rendering, offset-aware canvas scrolling, hover dropdowns, and aligned floating top controls.
 - Reworked the visualizer chrome into one qlacier-style top row, restored separated left-rail groups, moved the active path chip to the canvas bottom-left, made wheel input zoom by default, and split frontend JS into focused loaded scripts.
 - Added repo graph coverage in `tests/test_repo_graph.nim`.
+- Added `.otterUiTest` metadata for menu, filters, panel grouping, and version tabs.
+- Added automatic test-tree discovery, configured/fallback branding, custom CSS, and log output paths.
+- Added a restartable WebUI host, independent spawner, isolated compile/run workers, cancellation, and atomic job states.
+- Added `nimble testUi` and `nimble buildTestUi` plus grouped and standalone example tests.
+- Added discovery, configuration, direct worker, and black-box spawner process tests.
+- Adapted Tyr's dark interop-laboratory theme to the reusable Otter test dashboard while retaining Otter menus, filters, grouping, and version tabs.
+- Added ordered per-panel version execution, status glyphs on version tabs, and an editable/native-picker output path carried into each worker.
+- Consolidated dashboard customization into eleven solid semantic colors; Otter now derives all gradients, transparency, surfaces, glows, shadows, and state treatments internally.
+- Added checkbox/card multi-selection with Ctrl/Cmd and Shift ranges, selected-card batch runs, structured worker failure details, source popups, and plain-text/JSON clipboard export.
 
 Features (In Progress):
 - Broader parent-repo integration patterns beyond single-file auto-wrapping.
 - Deeper sample-object generation for harder Nim types and more private-function cases.
+- Trial the test UI against Otter examples before replacing any Tyr test catalog or WebUI code.
 
 Notes:
-- Last change/problem: Parent repositories depended on both Otter and Sigma for related timing and benchmark work.
-- Fix attempts: Merged Sigma's protocol modules into Otter, replaced its external timing helper with monotonic standard-library timing, and retained the benchmark API through Otter's public module.
+- Last change/problem: Otter's first generic test dashboard worked but lacked Tyr's clearer dark laboratory hierarchy and state styling.
+- Fix attempts: Kept Tyr unchanged and adapted its layered background, glass rails, hero circuit, cyan/pink accents, dense cards, glowing states, and responsive behavior to Otter's generic test model.

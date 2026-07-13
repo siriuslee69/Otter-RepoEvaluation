@@ -10,10 +10,24 @@ requires "nim >= 2.0.0", "webui >= 2.5.0"
 task test, "Run smoke tests":
   exec "nim c --path:src -r tests/test_smoke.nim"
   exec "nim c --path:src -r tests/test_repo_graph.nim"
+  exec "nim c --path:src -r tests/test_test_ui.nim"
 
 task buildtests, "Build smoke tests in release mode":
   exec "nim c --path:src -d:release tests/test_smoke.nim"
   exec "nim c --path:src -d:release tests/test_repo_graph.nim"
+  exec "nim c --path:src -d:release tests/test_test_ui.nim"
+
+task buildTestUi, "Build the pragma-driven test WebUI":
+  mkDir("bin")
+  exec "nim c --path:src -o:" & quoteShell(joinPath("bin", "otter-test-ui" & ExeExt)) &
+    " src/clients/test_ui/app.nim"
+
+task testUi, "Discover pragma tests and open the isolated test WebUI":
+  var
+    appPath: string = joinPath("build", "otter-test-ui" & ExeExt)
+  mkDir("build")
+  exec "nim c --path:src -o:" & quoteShell(appPath) & " src/clients/test_ui/app.nim"
+  exec quoteShell(appPath) & " --repo-root:."
 
 task buildcli, "Build the otter-nim CLI wrapper":
   exec "mkdir -p bin && nim c -d:release --path:src -o:bin/otter-nim src/clients/cli/otter_nim.nim"

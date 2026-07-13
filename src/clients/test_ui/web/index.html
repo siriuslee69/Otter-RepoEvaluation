@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Otter Test UI</title>
+  <link rel="stylesheet" href="css/app.css?v=10" />
+  <script src="/webui.js"></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="top glass">
+      <div class="brand"><b>OTTER</b><span data-title>TEST UI</span></div>
+      <div class="status"><i></i><span data-status>discovering tests</span></div>
+    </header>
+
+    <section class="output glass" title="Configured directory for per-test logs">
+      <span class="output-mark">OUT</span>
+      <label class="path-field" title="Directory where test logs are written">
+        <input data-output-path spellcheck="false" placeholder="Test output folder" />
+      </label>
+      <button type="button" class="folder-button" data-pick-output title="Choose a test output directory"><span>&#9635;</span> Folder</button>
+      <span class="path-state" data-path-state>initializing output</span>
+    </section>
+
+    <nav class="menus glass" data-menus aria-label="Test menus">
+      <span class="rail-label">MENU</span>
+    </nav>
+
+    <section class="tools glass">
+      <span class="rail-label filter-label">FILTER</span>
+      <div class="filters" data-filters></div>
+      <button type="button" class="stop" data-stop-all disabled><span>&#9632;</span> Stop all</button>
+      <button type="button" class="deselect" data-deselect hidden><span>&#9633;</span> Deselect</button>
+      <button type="button" class="run" data-run-all><span>&#9655;</span> <b data-run-label>Run visible</b></button>
+    </section>
+
+    <section class="banner glass">
+      <div><span data-menu-label>ALL TESTS</span><h1 data-banner>Loading repository tests.</h1></div>
+      <div class="counts"><b data-visible-count>0</b><span>visible tests</span></div>
+      <div class="hero-circuit" aria-hidden="true"><span></span><span></span><span></span></div>
+    </section>
+
+    <section class="matrix-head">
+      <div><span>&#9671;</span> Pragma test catalog</div>
+      <div>isolated compiler / worker processes</div>
+    </section>
+
+    <section class="catalog" data-catalog aria-live="polite"></section>
+  </main>
+
+  <dialog class="failure-dialog glass" data-failure-dialog>
+    <article>
+      <header>
+        <div><span>TEST FAILURE</span><h2 data-failure-title>Failure details</h2></div>
+        <button type="button" class="dialog-close" data-failure-close title="Close failure details">&#215;</button>
+      </header>
+      <div class="failure-location"><code data-failure-path></code><b data-failure-line></b></div>
+      <button type="button" class="failure-message" data-failure-message></button>
+      <pre data-failure-code></pre>
+      <footer>
+        <span data-copy-state>Ready to copy</span>
+        <button type="button" class="copy-button" data-copy-text title="Copy a readable failure report"><span>&#9776;</span> Plain text</button>
+        <button type="button" class="copy-button json" data-copy-json title="Copy a structured JSON failure report"><span>{ }</span> JSON</button>
+      </footer>
+    </article>
+  </dialog>
+
+  <template data-panel-template>
+    <article class="panel glass is-idle">
+      <header><label class="card-select" title="Select this test card"><input type="checkbox" data-card-select /><span></span></label><div><span class="menu-name"></span><div class="copy-row"><h2></h2><button type="button" class="tiny-copy" data-copy-name title="Copy test name">&#10697;</button></div></div><span class="badge">IDLE</span></header>
+      <nav class="versions" data-versions></nav>
+      <div class="source"><div class="copy-row path-copy"><code data-source></code><button type="button" class="tiny-copy" data-copy-path title="Copy test path">&#10697;</button></div><span data-routine></span></div>
+      <div class="tags" data-tags></div>
+      <div class="result"><span data-result>not run</span><b data-duration>-- ms</b></div>
+      <button type="button" class="failure-link" data-failure-link hidden><span>&#9888;</span><b></b></button>
+      <div class="log" data-log></div>
+      <button type="button" class="panel-run" data-panel-run><span>&#9655;</span> Run</button>
+    </article>
+  </template>
+
+  <script type="module" src="js/app.js?v=10"></script>
+</body>
+</html>

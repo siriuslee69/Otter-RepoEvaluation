@@ -1,0 +1,3 @@
+title = "Otter Test Laboratory"
+banner = "Pragma Otter tests"
+output_path = "tests/.otter/results"
