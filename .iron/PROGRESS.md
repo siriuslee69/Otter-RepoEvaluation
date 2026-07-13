@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: add pragma-driven isolated test webui
+Commit Message: add nightly git workflow tasks
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.
@@ -33,6 +33,7 @@ Features (Done):
 - Added ordered per-panel version execution, status glyphs on version tabs, and an editable/native-picker output path carried into each worker.
 - Consolidated dashboard customization into eleven solid semantic colors; Otter now derives all gradients, transparency, surfaces, glows, shadows, and state treatments internally.
 - Added checkbox/card multi-selection with Ctrl/Cmd and Shift ranges, selected-card batch runs, structured worker failure details, source popups, and plain-text/JSON clipboard export.
+- Added safe `autopush`, `switch`, and fast-forward-only `applynightly` Nimble tasks for the nightly development workflow.
 
 Features (In Progress):
 - Broader parent-repo integration patterns beyond single-file auto-wrapping.
