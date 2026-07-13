@@ -1,0 +1,125 @@
+# ============================================================
+# | Otter Repo Graph CLI                                     |
+# | -> Analyze repos, write artifacts, and run sample calls  |
+# ============================================================
+
+import std/[os, strutils]
+
+import ../../../.iron/metaPragmas
+import ../../otter_repo_evaluation
+
+proc printUsage() {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+  echo "Usage:"
+  echo "  otter_repo_graph snapshot [repoRoot] [--include-tests]"
+  echo "  otter_repo_graph artifacts [repoRoot] [outputDir] [--include-tests]"
+  echo "  otter_repo_graph run [repoRoot] [functionId] [--include-tests]"
+
+
+proc flagPresent(args: seq[string], flag: string): bool {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+  for a in args:
+    if a == flag:
+      result = true
+      return
+
+
+proc positionalArgs(args: seq[string]): seq[string] {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+  for a in args:
+    if a.startsWith("--"):
+      continue
+    result.add(a)
+
+
+proc cliArgs(): seq[string] {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+  var
+    i: int = 1
+  while i <= paramCount():
+    result.add(paramStr(i))
+    i = i + 1
+
+
+proc runSnapshot(args: seq[string]) {.role: actor, metaTags: {tagGraph, tagExecution}.} =
+  var
+    items: seq[string] = @[]
+    rootDir: string = "."
+    includeTests: bool = false
+    g: RepoGraph
+  items = positionalArgs(args)
+  if items.len > 0:
+    rootDir = items[0]
+  includeTests = flagPresent(args, "--include-tests")
+  g = analyzeRepo(rootDir, includeTests)
+  echo toGraphJson(g)
+
+
+proc runArtifacts(args: seq[string]) {.role: actor, metaTags: {tagGraph, tagExecution}.} =
+  var
+    items: seq[string] = @[]
+    rootDir: string = "."
+    outputDir: string = ""
+    includeTests: bool = false
+    g: RepoGraph
+  items = positionalArgs(args)
+  if items.len > 0:
+    rootDir = items[0]
+  if items.len > 1:
+    outputDir = items[1]
+  if outputDir.len == 0:
+    outputDir = defaultOutputDir(rootDir)
+  includeTests = flagPresent(args, "--include-tests")
+  g = analyzeRepo(rootDir, includeTests)
+  discard writeArtifacts(g, outputDir)
+  for line in graphSummaryLines(g):
+    echo line
+  echo "Artifacts: " & outputDir
+
+
+proc runSample(args: seq[string]) {.role: actor, metaTags: {tagGraph, tagExecution}.} =
+  var
+    items: seq[string] = @[]
+    rootDir: string = "."
+    functionId: string = ""
+    includeTests: bool = true
+    r: RunSampleResult
+  items = positionalArgs(args)
+  if items.len > 0:
+    rootDir = items[0]
+  if items.len > 1:
+    functionId = items[1]
+  if functionId.len == 0:
+    printUsage()
+    quit(1)
+  includeTests = true
+  r = runFunctionSample(rootDir, functionId, includeTests)
+  echo toRunSampleJson(r)
+  if not r.ok:
+    quit(1)
+
+
+proc runCli*() {.role: orchestrator, metaTags: {tagGraph, tagExecution}.} =
+  var
+    args: seq[string] = @[]
+    cmd: string = ""
+    rest: seq[string] = @[]
+  args = cliArgs()
+  if args.len == 0 or args[0] == "--help" or args[0] == "-h":
+    printUsage()
+    return
+  cmd = args[0]
+  if args.len > 1:
+    rest = args[1 .. ^1]
+  else:
+    rest = @[]
+  case cmd
+  of "snapshot":
+    runSnapshot(rest)
+  of "artifacts":
+    runArtifacts(rest)
+  of "run":
+    runSample(rest)
+  else:
+    printUsage()
+    quit(1)
+
+
+when isMainModule:
+  runCli()

@@ -1,0 +1,398 @@
+# ============================================================
+# | Otter Repo Graph Sample Runner                           |
+# | -> Best-effort compile/run harness for selected funcs    |
+# ============================================================
+
+import std/[json, os, osproc, strutils]
+
+import ./analysis_pipeline
+import ./sample_values
+import ./types
+import ../../../.iron/metaPragmas
+
+const
+  OtterRunMarker = "__OTTER_RUN_RESULT__"
+
+type
+  RunSampleResult* {.role: truthState, metaTags: {tagGraph, tagExecution}.} = object
+    ok*: bool
+    mode*: string
+    functionId*: string
+    command*: string
+    wrapperPath*: string
+    generatedArgs*: seq[string]
+    mutatedArgs*: seq[string]
+    resultText*: string
+    stdout*: string
+    stderr*: string
+    error*: string
+
+
+proc escapeNimString(s: string): string {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+  var
+    t: string = "\""
+  for ch in s:
+    case ch
+    of '\\':
+      t.add("\\\\")
+    of '"':
+      t.add("\\\"")
+    of '\n':
+      t.add("\\n")
+    of '\r':
+      t.add("\\r")
+    of '\t':
+      t.add("\\t")
+    else:
+      t.add(ch)
+  t.add("\"")
+  result = t
+
+
+proc shellEscape(s: string): string {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+  var
+    t: string = "'"
+  for ch in s:
+    if ch == '\'':
+      t.add("'\\''")
+    else:
+      t.add(ch)
+  t.add("'")
+  result = t
+
+
+proc formatCommand(args: openArray[string]): string {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+  var
+    A: seq[string] = @[]
+  for a in args:
+    A.add(shellEscape(a))
+  result = A.join(" ")
+
+
+proc functionById(g: RepoGraph, functionId: string): FunctionInfo {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+  for f in g.functions:
+    if f.id == functionId:
+      result = f
+      return
+
+
+proc fileHasMainBlock(path: string): bool {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+  if not fileExists(path):
+    return
+  if "when isMainModule" in readFile(path):
+    result = true
+
+
+proc wrapperModeFor(f: FunctionInfo): string {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+  if f.isExported:
+    result = "import"
+    return
+  if fileHasMainBlock(f.sourcePath):
+    result = "unsupported"
+    return
+  result = "include"
+
+
+proc renderImportsForSamples(f: FunctionInfo): string {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+  var
+    needsTables: bool = false
+    needsOptions: bool = false
+    t: string = ""
+  for socket in f.sockets:
+    t = socket.sampleExpr
+    if "initTable[" in t:
+      needsTables = true
+    if "some(" in t or "none(" in t:
+      needsOptions = true
+  if needsTables:
+    result.add("tables, ")
+  if needsOptions:
+    result.add("options, ")
+  if result.endsWith(", "):
+    result.setLen(result.len - 2)
+
+
+proc declarationForSocket(s: FunctionSocket): string {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+  var
+    typeName: string = ""
+    expr: string = ""
+  typeName = cleanTypeName(s.typeName)
+  expr = s.sampleExpr
+  if expr.len == 0:
+    expr = guessSampleExpr(typeName)
+  if typeName.toLowerAscii().replace(" ", "").startsWith("openarray["):
+    result = "  var sample_" & s.name & " = " & expr
+    return
+  result = "  var sample_" & s.name & ": " & typeName & " = " & expr
+
+
+proc callArgsForFunction(f: FunctionInfo): seq[string] {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+  for s in f.sockets:
+    if s.direction == sdOutput or s.name == "result":
+      continue
+    result.add("sample_" & s.name)
+
+
+proc mutatedArgPayloadEntries(f: FunctionInfo): seq[string] {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+  for s in f.sockets:
+    if s.direction != sdVarInput:
+      continue
+    result.add("%*{\"name\": " & escapeNimString(s.name) &
+      ", \"value\": otterRunnerRenderValue(sample_" & s.name & ")}")
+
+
+proc generatedArgPayloadEntries(f: FunctionInfo): seq[string] {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+  for s in f.sockets:
+    if s.direction == sdOutput or s.name == "result":
+      continue
+    result.add("%*{\"name\": " & escapeNimString(s.name) &
+      ", \"expr\": " & escapeNimString(s.sampleExpr) & "}")
+
+
+proc buildImportWrapperSource(f: FunctionInfo): string {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+  var
+    extraImports: string = ""
+    decls: seq[string] = @[]
+    callArgs: seq[string] = @[]
+    generatedEntries: seq[string] = @[]
+    mutatedEntries: seq[string] = @[]
+    lines: seq[string] = @[]
+    expr: string = ""
+  extraImports = renderImportsForSamples(f)
+  callArgs = callArgsForFunction(f)
+  generatedEntries = generatedArgPayloadEntries(f)
+  mutatedEntries = mutatedArgPayloadEntries(f)
+  for s in f.sockets:
+    if s.direction == sdOutput or s.name == "result":
+      continue
+    decls.add(declarationForSocket(s))
+  if f.returnType.len > 0:
+    expr = f.name & "(" & callArgs.join(", ") & ")"
+  else:
+    expr = f.name & "(" & callArgs.join(", ") & ")"
+  lines.add("# generated by otter sample runner")
+  if extraImports.len > 0:
+    lines.add("import std/[json, strutils, " & extraImports & "]")
+  else:
+    lines.add("import std/[json, strutils]")
+  lines.add("import " & f.importModulePath)
+  lines.add("")
+  lines.add("proc otterRunnerRenderValue[T](v: T): string =")
+  lines.add("  when compiles(pretty(v)):")
+  lines.add("    result = pretty(v)")
+  lines.add("  elif compiles($v):")
+  lines.add("    result = $v")
+  lines.add("  elif compiles(repr(v)):")
+  lines.add("    result = repr(v)")
+  lines.add("  else:")
+  lines.add("    result = \"<unprintable>\"")
+  lines.add("")
+  lines.add("when isMainModule:")
+  for d in decls:
+    lines.add(d)
+  lines.add("  try:")
+  if f.returnType.len > 0:
+    lines.add("    var otterResult = " & expr)
+    lines.add("    echo \"" & OtterRunMarker & "\" & $(%*{")
+    lines.add("      \"ok\": true,")
+    lines.add("      \"mode\": \"import\",")
+    lines.add("      \"resultText\": otterRunnerRenderValue(otterResult),")
+    lines.add("      \"generatedArgs\": @[" & generatedEntries.join(", ") & "],")
+    lines.add("      \"mutatedArgs\": @[" & mutatedEntries.join(", ") & "]")
+    lines.add("    })")
+  else:
+    lines.add("    " & expr)
+    lines.add("    echo \"" & OtterRunMarker & "\" & $(%*{")
+    lines.add("      \"ok\": true,")
+    lines.add("      \"mode\": \"import\",")
+    lines.add("      \"resultText\": \"<void>\",")
+    lines.add("      \"generatedArgs\": @[" & generatedEntries.join(", ") & "],")
+    lines.add("      \"mutatedArgs\": @[" & mutatedEntries.join(", ") & "]")
+    lines.add("    })")
+  lines.add("  except CatchableError as e:")
+  lines.add("    echo \"" & OtterRunMarker & "\" & $(%*{")
+  lines.add("      \"ok\": false,")
+  lines.add("      \"mode\": \"import\",")
+  lines.add("      \"error\": e.msg,")
+  lines.add("      \"generatedArgs\": @[" & generatedEntries.join(", ") & "]")
+  lines.add("    })")
+  result = lines.join("\n") & "\n"
+
+
+proc buildIncludeWrapperSource(f: FunctionInfo): string {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+  var
+    extraImports: string = ""
+    decls: seq[string] = @[]
+    callArgs: seq[string] = @[]
+    generatedEntries: seq[string] = @[]
+    mutatedEntries: seq[string] = @[]
+    lines: seq[string] = @[]
+    includeName: string = ""
+    expr: string = ""
+  extraImports = renderImportsForSamples(f)
+  callArgs = callArgsForFunction(f)
+  generatedEntries = generatedArgPayloadEntries(f)
+  mutatedEntries = mutatedArgPayloadEntries(f)
+  includeName = splitFile(f.sourcePath).name & splitFile(f.sourcePath).ext
+  for s in f.sockets:
+    if s.direction == sdOutput or s.name == "result":
+      continue
+    decls.add(declarationForSocket(s))
+  expr = f.name & "(" & callArgs.join(", ") & ")"
+  lines.add("# generated by otter sample runner")
+  if extraImports.len > 0:
+    lines.add("import std/[json, strutils, " & extraImports & "]")
+  else:
+    lines.add("import std/[json, strutils]")
+  lines.add("")
+  lines.add("proc otterRunnerRenderValue[T](v: T): string =")
+  lines.add("  when compiles(pretty(v)):")
+  lines.add("    result = pretty(v)")
+  lines.add("  elif compiles($v):")
+  lines.add("    result = $v")
+  lines.add("  elif compiles(repr(v)):")
+  lines.add("    result = repr(v)")
+  lines.add("  else:")
+  lines.add("    result = \"<unprintable>\"")
+  lines.add("")
+  lines.add("include " & escapeNimString(includeName))
+  lines.add("")
+  lines.add("when isMainModule:")
+  for d in decls:
+    lines.add(d)
+  lines.add("  try:")
+  if f.returnType.len > 0:
+    lines.add("    var otterResult = " & expr)
+    lines.add("    echo \"" & OtterRunMarker & "\" & $(%*{")
+    lines.add("      \"ok\": true,")
+    lines.add("      \"mode\": \"include\",")
+    lines.add("      \"resultText\": otterRunnerRenderValue(otterResult),")
+    lines.add("      \"generatedArgs\": @[" & generatedEntries.join(", ") & "],")
+    lines.add("      \"mutatedArgs\": @[" & mutatedEntries.join(", ") & "]")
+    lines.add("    })")
+  else:
+    lines.add("    " & expr)
+    lines.add("    echo \"" & OtterRunMarker & "\" & $(%*{")
+    lines.add("      \"ok\": true,")
+    lines.add("      \"mode\": \"include\",")
+    lines.add("      \"resultText\": \"<void>\",")
+    lines.add("      \"generatedArgs\": @[" & generatedEntries.join(", ") & "],")
+    lines.add("      \"mutatedArgs\": @[" & mutatedEntries.join(", ") & "]")
+    lines.add("    })")
+  lines.add("  except CatchableError as e:")
+  lines.add("    echo \"" & OtterRunMarker & "\" & $(%*{")
+  lines.add("      \"ok\": false,")
+  lines.add("      \"mode\": \"include\",")
+  lines.add("      \"error\": e.msg,")
+  lines.add("      \"generatedArgs\": @[" & generatedEntries.join(", ") & "]")
+  lines.add("    })")
+  result = lines.join("\n") & "\n"
+
+
+proc parseMarkerPayload(r: var RunSampleResult, output: string) {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+  var
+    idx: int = -1
+    payload: string = ""
+    parsed: JsonNode
+    generated: JsonNode
+    mutated: JsonNode
+  idx = output.rfind(OtterRunMarker)
+  if idx < 0:
+    r.stdout = output
+    return
+  r.stdout = output[0 ..< idx].strip()
+  payload = output[idx + OtterRunMarker.len .. ^1].strip()
+  if payload.len == 0:
+    return
+  parsed = parseJson(payload)
+  r.ok = parsed{"ok"}.getBool(false)
+  r.mode = parsed{"mode"}.getStr("")
+  r.resultText = parsed{"resultText"}.getStr("")
+  r.error = parsed{"error"}.getStr("")
+  generated = parsed{"generatedArgs"}
+  if generated.kind == JArray:
+    for item in generated:
+      r.generatedArgs.add(item{"name"}.getStr("") & "=" & item{"expr"}.getStr(""))
+  mutated = parsed{"mutatedArgs"}
+  if mutated.kind == JArray:
+    for item in mutated:
+      r.mutatedArgs.add(item{"name"}.getStr("") & "=" & item{"value"}.getStr(""))
+
+
+proc toRunSampleJson*(r: RunSampleResult): string {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+  result = pretty(%*{
+    "ok": r.ok,
+    "mode": r.mode,
+    "functionId": r.functionId,
+    "command": r.command,
+    "wrapperPath": r.wrapperPath,
+    "generatedArgs": r.generatedArgs,
+    "mutatedArgs": r.mutatedArgs,
+    "resultText": r.resultText,
+    "stdout": r.stdout,
+    "stderr": r.stderr,
+    "error": r.error
+  })
+
+
+proc runFunctionSample*(rootDir: string, functionId: string,
+    bIncludeTests: bool = true): RunSampleResult {.role: actor, metaTags: {tagGraph, tagExecution}.} =
+  var
+    g: RepoGraph
+    f: FunctionInfo
+    mode: string = ""
+    wrapperPath: string = ""
+    wrapperSource: string = ""
+    args: seq[string] = @[]
+    execResult: tuple[output: string, exitCode: int]
+    wrapperDir: string = ""
+    fileName: string = ""
+  result = default(RunSampleResult)
+  result.functionId = functionId
+  g = analyzeRepo(rootDir, bIncludeTests)
+  f = functionById(g, functionId)
+  if f.id.len == 0:
+    result.error = "function not found: " & functionId
+    return
+  mode = wrapperModeFor(f)
+  if mode == "unsupported":
+    result.error = "non-exported function lives in a file with when isMainModule; import or split it before auto-run"
+    return
+  if mode == "include":
+    wrapperDir = splitFile(f.sourcePath).dir
+    fileName = ".otter_run_" & f.name & ".nim"
+    wrapperPath = joinPath(wrapperDir, fileName)
+    wrapperSource = buildIncludeWrapperSource(f)
+  else:
+    wrapperDir = joinPath(rootDir, "build")
+    createDir(wrapperDir)
+    fileName = "otter_run_" & f.name & ".nim"
+    wrapperPath = joinPath(wrapperDir, fileName)
+    wrapperSource = buildImportWrapperSource(f)
+  writeFile(wrapperPath, wrapperSource)
+  result.wrapperPath = wrapperPath.replace('\\', '/')
+  args = @[
+    "nim",
+    "c",
+    "-r",
+    "--path:.",
+    "--path:src",
+    "--path:tests",
+    "--path:tools",
+    "--hints:off",
+    "--verbosity:0",
+    "--nimcache:build/nimcache_otter_run_" & f.name,
+    wrapperPath
+  ]
+  result.command = formatCommand(args)
+  execResult = execCmdEx(result.command, options = {poUsePath, poStdErrToStdOut},
+    workingDir = rootDir)
+  parseMarkerPayload(result, execResult.output)
+  if execResult.exitCode != 0 and result.error.len == 0:
+    result.error = execResult.output
+  if result.stdout.len == 0 and execResult.exitCode == 0 and result.ok:
+    result.stdout = execResult.output
+  try:
+    removeFile(wrapperPath)
+  except OSError:
+    discard

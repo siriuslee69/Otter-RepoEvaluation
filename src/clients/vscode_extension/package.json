@@ -1,0 +1,27 @@
+{
+  "name": "otter-repo-graph",
+  "displayName": "Otter Repo Graph",
+  "description": "Interactive Nim repo graph viewer for Otter with Codex note handoff.",
+  "version": "0.1.0",
+  "publisher": "codingmain",
+  "license": "Unlicense",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:otterRepoGraph.open"
+  ],
+  "main": "./src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "otterRepoGraph.open",
+        "title": "Otter Repo Graph: Open"
+      }
+    ]
+  },
+  "scripts": {}
+}
