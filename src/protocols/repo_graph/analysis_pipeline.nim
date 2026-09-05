@@ -12,7 +12,7 @@ import ./io_utils
 import ./nim_parser
 import ./role_inference
 import ./types
-import ../../../.iron/metaPragmas
+import ../../../meta/metaPragmas
 
 proc analyzeRepo*(rootDir: string, bIncludeTests: bool = false): RepoGraph {.role: orchestrator, metaTags: {tagGraph}.} =
   var

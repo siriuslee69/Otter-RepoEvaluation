@@ -41,7 +41,7 @@
 
 import std/[algorithm, math, os, osproc, strutils, tables]
 
-import ../../../.iron/metaPragmas
+import ../../../meta/metaPragmas
 
 const
   secretFloor*: float = 0.55

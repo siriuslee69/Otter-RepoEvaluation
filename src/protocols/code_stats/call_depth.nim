@@ -36,7 +36,7 @@
 import std/[algorithm, sets, strutils, tables]
 
 import ../repo_graph/types as graphTypes
-import ../../../.iron/metaPragmas
+import ../../../meta/metaPragmas
 
 const
   depthCap*: int = 64

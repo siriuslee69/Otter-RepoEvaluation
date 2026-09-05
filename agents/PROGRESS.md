@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: measure a whole repository, and fix the exit-time timing log.
+Commit Message: move the repository onto the conventional layout.
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.

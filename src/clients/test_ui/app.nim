@@ -11,7 +11,7 @@ from webui/bindings import set_custom_parameters
 when not defined(windows):
   import std/posix
 
-import ../../../.iron/metaPragmas
+import ../../../meta/metaPragmas
 import ../../otter_repo_evaluation
 
 const

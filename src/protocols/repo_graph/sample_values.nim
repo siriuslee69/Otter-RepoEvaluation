@@ -5,7 +5,7 @@
 
 import std/[strutils]
 
-import ../../../.iron/metaPragmas
+import ../../../meta/metaPragmas
 
 proc cleanTypeName*(s: string): string {.role: helper, metaTags: {tagGraph, tagExecution}.} =
   var

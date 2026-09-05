@@ -19,7 +19,7 @@ import std/[strutils]
 import ./types
 import ../repo_graph/io_utils
 import ../repo_graph/types as graphTypes
-import ../../../.iron/metaPragmas
+import ../../../meta/metaPragmas
 
 const
   kindNames*: array[10, string] = ["unit", "edge case", "benchmark",

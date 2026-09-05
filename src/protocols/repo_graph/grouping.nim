@@ -6,7 +6,7 @@
 import std/[sets, tables]
 
 import ./types
-import ../../../.iron/metaPragmas
+import ../../../meta/metaPragmas
 
 proc collectOutMap(g: RepoGraph): Table[string, seq[string]] {.role: helper, metaTags: {tagGraph}.} =
   var

@@ -3,7 +3,7 @@
 # | -> Discovered tests, display groups, and user settings   |
 # ============================================================
 
-import ../../../.iron/metaPragmas
+import ../../../meta/metaPragmas
 
 type
   OtterUiTestEntry* {.role: truthState, metaTags: {tagTesting, tagUi}.} = object

@@ -6,7 +6,7 @@
 import std/[sets, tables]
 
 import ./types
-import ../../../.iron/metaPragmas
+import ../../../meta/metaPragmas
 
 proc importPreference(f: FunctionInfo, callName, targetModulePath: string): int {.role: helper, metaTags: {tagGraph, tagResolution, tagImportContext}.} =
   var

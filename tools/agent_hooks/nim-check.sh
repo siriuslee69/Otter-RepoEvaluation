@@ -87,7 +87,7 @@ for f in "$@"; do
 
   # --- layout rules, read from the path rather than the contents ---
   case "$f" in
-    */evaluation/*) ;;
+    */evaluation/*|evaluation/*) ;;
     *)
       case "$(basename "$f")" in
         test_*.nim|*_test.nim)

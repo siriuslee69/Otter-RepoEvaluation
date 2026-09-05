@@ -8,7 +8,7 @@ import std/[sets, strutils]
 import ./io_utils
 import ./sample_values
 import ./types
-import ../../../.iron/metaPragmas
+import ../../../meta/metaPragmas
 
 const
   NimFunctionKinds = [
@@ -725,7 +725,8 @@ proc normalizeImportModule(currentModulePath, raw: string): string {.role: helpe
     t = t.replace('.', '/')
   if t.endsWith(".nim"):
     t = t[0 .. ^5]
-  if t.startsWith("src/") or t.startsWith("tests/") or t.startsWith("tools/"):
+  if t.startsWith("src/") or t.startsWith("tests/") or t.startsWith("tools/") or
+      t.startsWith("evaluation/"):
     base = @[]
   else:
     dir = moduleDir(currentModulePath)

@@ -10,7 +10,7 @@
 import std/[os, unittest]
 
 import otter_repo_evaluation
-import ../.iron/metaPragmas
+import ../../meta/metaPragmas
 
 const
   sampleSource = """
@@ -43,7 +43,7 @@ proc lonely*(): int {.role: helper.} =
 """
   sampleTests = """
 import std/unittest
-import ../src/sample
+import ../../src/sample
 
 suite "sample":
   test "the average adds every row":

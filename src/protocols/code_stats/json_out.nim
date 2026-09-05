@@ -9,7 +9,7 @@
 import std/[json]
 
 import ./types
-import ../../../.iron/metaPragmas
+import ../../../meta/metaPragmas
 
 proc fileJson*(f: FileStat): JsonNode {.role: dataWriter,
     metaTags: {tagStats}.} =

@@ -5,7 +5,7 @@
 
 import std/[exitprocs, locks, os, strutils]
 
-import ../../.iron/metaPragmas
+import ../../meta/metaPragmas
 import ./types
 import ./evaluation/benchmarks
 

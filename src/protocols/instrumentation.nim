@@ -5,7 +5,7 @@
 
 import std/macros
 
-import ../../.iron/metaPragmas
+import ../../meta/metaPragmas
 import ./state
 import ./evaluation/benchmarks
 

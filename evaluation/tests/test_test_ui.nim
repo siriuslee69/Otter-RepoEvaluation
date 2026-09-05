@@ -5,7 +5,7 @@
 
 import std/[json, monotimes, os, osproc, strutils, times, unittest]
 
-import ../.iron/metaPragmas
+import ../../meta/metaPragmas
 import otter_repo_evaluation
 
 proc catalogEntry(C: OtterUiCatalog, routine: string): OtterUiTestEntry

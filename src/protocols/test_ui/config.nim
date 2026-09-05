@@ -1,11 +1,11 @@
 # ============================================================
 # | Otter Test UI Configuration                              |
-# | -> Read tests/.otter theme, title, banner, and log path  |
+# | -> Read the .otter theme, title, banner, and log path    |
 # ============================================================
 
 import std/[os, strutils]
 
-import ../../../.iron/metaPragmas
+import ../../../meta/metaPragmas
 import ./types
 
 const
@@ -78,7 +78,7 @@ proc assignConfigValue(S: var OtterUiConfig, key, value: string)
 proc parseConfigFile(S: var OtterUiConfig, path: string)
     {.role: parser, metaTags: {tagParsing, tagTesting, tagUi}.} =
   ## S: settings receiving supported top-level TOML values.
-  ## path: tests/.otter/config.toml file.
+  ## path: the .otter/config.toml file.
   var
     line: string = ""
     clean: string = ""
@@ -97,13 +97,26 @@ proc parseConfigFile(S: var OtterUiConfig, path: string)
     value = clean[splitAt + 1 .. ^1]
     assignConfigValue(S, key, value)
 
+proc testsRootOf*(repoRoot: string): string {.role: parser,
+    metaTags: {tagTesting, tagUi}.} =
+  ## repoRoot: repository to look inside.
+  ## Prefers the conventional `evaluation/tests`, and falls back to a plain
+  ## `tests` folder so repositories not yet moved over still read correctly.
+  var
+    t: string = ""
+  t = joinPath(repoRoot, "evaluation", "tests")
+  if not dirExists(t):
+    t = joinPath(repoRoot, "tests")
+  result = t
+
+
 proc resolveOutputPath(repoRoot, configured: string): string
     {.role: helper, metaTags: {tagTesting, tagUi}.} =
   ## repoRoot/configured: repository and optional configured output location.
   var
     path: string = configured.strip()
   if path.len == 0:
-    path = joinPath("tests", ".otter", "results")
+    path = joinPath(relativePath(testsRootOf(repoRoot), repoRoot), ".otter", "results")
   if not path.isAbsolute():
     path = joinPath(repoRoot, path)
   result = normalizedPath(path)
@@ -114,15 +127,16 @@ proc tomlString(s: string): string {.role: helper,
   result = "\"" & s.replace("\\", "\\\\").replace("\"", "\\\"").replace(
     "\n", "\\n").replace("\r", "\\r") & "\""
 
-proc defaultConfigToml(repoName: string): string {.role: dataWriter,
+proc defaultConfigToml(repoName, testsRel: string): string {.role: dataWriter,
     metaTags: {tagParsing, tagTesting, tagUi}.} =
   ## repoName: repository label used in a new editable configuration file.
+  ## testsRel: where the tests sit, relative to the repository.
   result = "title = " & tomlString(repoName & " Tests") & "\n" &
     "banner = " & tomlString(DefaultBanner) & "\n" &
-    "output_path = \"tests/.otter/results\"\n" &
+    "output_path = " & tomlString(testsRel & "/.otter/results") & "\n" &
     "default_flags = [\"*\"]\n"
 
-proc ensureOtterConfigFiles(testsRoot, repoName: string): tuple[configPath,
+proc ensureOtterConfigFiles(testsRoot, repoName, testsRel: string): tuple[configPath,
     cssPath: string] {.role: dataWriter,
     metaTags: {tagParsing, tagTesting, tagUi}.} =
   ## testsRoot/repoName: parent tests directory and generated project label.
@@ -132,7 +146,7 @@ proc ensureOtterConfigFiles(testsRoot, repoName: string): tuple[configPath,
   result.configPath = joinPath(settingsDir, "config.toml")
   result.cssPath = joinPath(settingsDir, "config.css")
   if not fileExists(result.configPath):
-    writeFile(result.configPath, defaultConfigToml(repoName))
+    writeFile(result.configPath, defaultConfigToml(repoName, testsRel))
   if not fileExists(result.cssPath):
     writeFile(result.cssPath, DefaultConfigCss)
 
@@ -145,11 +159,12 @@ proc loadOtterUiConfig*(repoRoot: string): OtterUiConfig
     repoName: string = ""
     generated: tuple[configPath, cssPath: string]
   result.repoRoot = absolutePath(repoRoot)
-  result.testsRoot = joinPath(result.repoRoot, "tests")
+  result.testsRoot = testsRootOf(result.repoRoot)
   repoName = splitPath(result.repoRoot).tail
   result.title = repoName
   result.banner = DefaultBanner
-  generated = ensureOtterConfigFiles(result.testsRoot, repoName)
+  generated = ensureOtterConfigFiles(result.testsRoot, repoName,
+      relativePath(result.testsRoot, result.repoRoot).replace('\\', '/'))
   configPath = generated.configPath
   cssPath = generated.cssPath
   parseConfigFile(result, configPath)
