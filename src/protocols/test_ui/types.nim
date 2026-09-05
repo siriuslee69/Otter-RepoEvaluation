@@ -24,7 +24,10 @@ type
     banner*: string
     outputPath*: string
     customCss*: string
+    defaultFlags*: seq[string]
 
   OtterUiCatalog* {.role: truthState, metaTags: {tagTesting, tagUi}.} = object
     config*: OtterUiConfig
     entries*: seq[OtterUiTestEntry]
+    availableFlags*: seq[string]
+    defaultFlags*: seq[string]

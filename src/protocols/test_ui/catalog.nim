@@ -8,6 +8,68 @@ import std/[algorithm, os, sets, strutils]
 import ../../../.iron/metaPragmas
 import ./[config, types]
 
+const
+  ImplicitFlags = [
+    "aarch64", "amd64", "android", "arm", "arm64", "debug", "danger",
+    "dragonfly", "emscripten", "freebsd", "haiku", "i386", "ios", "js",
+    "linux", "macosx", "netbsd", "nimvm", "openbsd", "posix", "release",
+    "solaris", "threads", "unix", "wasm", "wasm32", "windows"
+  ]
+
+when defined(amd64) or defined(i386):
+  proc cpuid(eaxInput, ecxInput: int32): array[4, int32] {.role: dataFetcher,
+      metaTags: {tagParsing, tagTesting, tagUi}.} =
+    ## eaxInput/ecxInput: CPUID leaf and subleaf queried on the host CPU.
+    when defined(vcc):
+      proc cpuidEx(cpuInfo: ptr int32, functionId, subFunctionId: int32)
+          {.cdecl, importc: "__cpuidex", header: "intrin.h".}
+      cpuidEx(cast[ptr int32](result.addr), eaxInput, ecxInput)
+    else:
+      var
+        eaxResult, ebxResult, ecxResult, edxResult: int32 = 0
+      asm """
+        cpuid
+        :"=a"(`eaxResult`), "=b"(`ebxResult`), "=c"(`ecxResult`), "=d"(`edxResult`)
+        :"a"(`eaxInput`), "c"(`ecxInput`)"""
+      result = [eaxResult, ebxResult, ecxResult, edxResult]
+
+  proc xgetbv(): uint64 {.role: dataFetcher,
+      metaTags: {tagParsing, tagTesting, tagUi}.} =
+    ## Returns XCR0 so AVX defaults are enabled only when the OS saves YMM state.
+    when defined(vcc):
+      proc readXcr(register: uint32): uint64
+          {.cdecl, importc: "_xgetbv", header: "immintrin.h".}
+      result = readXcr(0)
+    else:
+      var
+        eaxResult, edxResult: uint32 = 0
+      asm """
+        xgetbv
+        :"=a"(`eaxResult`), "=d"(`edxResult`)
+        :"c"(0)"""
+      result = (uint64(edxResult) shl 32) or uint64(eaxResult)
+
+  proc x86Feature(flag: string): bool {.role: parser,
+      metaTags: {tagParsing, tagTesting, tagUi}.} =
+    ## flag: x86 SIMD/AES feature checked directly through CPUID.
+    var
+      leaf0, leaf1, leaf7: array[4, int32]
+      avxState: bool = false
+    leaf0 = cpuid(0, 0)
+    leaf1 = cpuid(1, 0)
+    if flag == "sse2":
+      return (leaf1[3] and (1'i32 shl 26)) != 0
+    if flag == "aesni":
+      return (leaf1[2] and (1'i32 shl 25)) != 0
+    if flag != "avx2" or leaf0[0] < 7:
+      return false
+    avxState = (leaf1[2] and (1'i32 shl 27)) != 0 and
+      (leaf1[2] and (1'i32 shl 28)) != 0
+    if not avxState or (xgetbv() and 0x6'u64) != 0x6'u64:
+      return false
+    leaf7 = cpuid(7, 0)
+    result = (leaf7[1] and (1'i32 shl 5)) != 0
+
 proc isIdentifierChar(c: char): bool {.inline, role: helper,
     metaTags: {tagParsing, tagTesting, tagUi}.} =
   ## c: character checked for a Nim identifier position.
@@ -77,6 +139,122 @@ proc normalizedFilters(s: string): seq[string]
     if value.len > 0 and value notin result:
       result.add(value)
 
+proc normalizedVersion(s: string): string {.role: parser,
+    metaTags: {tagParsing, tagTesting, tagUi}.} =
+  ## s: version label normalized for standard native and wasm target tabs.
+  if s.toLowerAscii() in ["native", "wasm"]:
+    result = s.toLowerAscii()
+  else:
+    result = s
+
+proc implicitFlag(name: string): bool {.role: parser,
+    metaTags: {tagParsing, tagTesting, tagUi}.} =
+  ## name: defined symbol checked against compiler and target built-ins.
+  var
+    normalized: string = name.toLowerAscii()
+    i: int = 0
+  while i < ImplicitFlags.len:
+    if normalized == ImplicitFlags[i]:
+      return true
+    i = i + 1
+
+proc appendDefinedFlags(F: var HashSet[string], line: string)
+    {.role: parser, metaTags: {tagParsing, tagTesting, tagUi}.} =
+  ## F/line: discovered optional symbols and one compile-time condition line.
+  var
+    searchAt: int = 0
+    markerAt: int = 0
+    startAt: int = 0
+    stopAt: int = 0
+    name: string = ""
+  while searchAt < line.len:
+    markerAt = line.find("defined", searchAt)
+    if markerAt < 0:
+      break
+    startAt = markerAt + "defined".len
+    while startAt < line.len and line[startAt].isSpaceAscii():
+      startAt = startAt + 1
+    if startAt < line.len and line[startAt] == '(':
+      startAt = startAt + 1
+    while startAt < line.len and line[startAt].isSpaceAscii():
+      startAt = startAt + 1
+    stopAt = startAt
+    while stopAt < line.len and isIdentifierChar(line[stopAt]):
+      stopAt = stopAt + 1
+    if stopAt > startAt:
+      name = line[startAt ..< stopAt]
+      if not implicitFlag(name):
+        F.incl(name)
+    searchAt = max(stopAt, markerAt + "defined".len)
+
+proc appendSourceFlags(F: var HashSet[string], sourcePath: string)
+    {.role: parser, metaTags: {tagParsing, tagTesting, tagUi}.} =
+  ## F/sourcePath: optional symbols collected from Nim when/elif conditions.
+  var
+    clean: string = ""
+    conditionOpen: bool = false
+  for line in readFile(sourcePath).splitLines():
+    clean = line.strip()
+    if clean.startsWith("when ") or clean.startsWith("elif "):
+      conditionOpen = true
+    if conditionOpen:
+      appendDefinedFlags(F, clean)
+    if conditionOpen and clean.endsWith(":"):
+      conditionOpen = false
+
+proc ignoredFlagSource(repoRoot, sourcePath: string): bool {.role: parser,
+    metaTags: {tagParsing, tagTesting, tagUi}.} =
+  ## repoRoot/sourcePath: project file checked against generated/dependency trees.
+  var
+    relative: string = relativePath(sourcePath, repoRoot).replace('\\', '/')
+  result = relative.startsWith(".git/") or relative.startsWith("build/") or
+    relative.startsWith("builds/") or relative.startsWith("dist/") or
+    relative.startsWith("submodules/") or relative.startsWith("testResults/") or
+    relative.contains("/.otter/results/") or relative.contains("/nimcache/")
+
+proc nimFlagSource(path: string): bool {.role: parser,
+    metaTags: {tagParsing, tagTesting, tagUi}.} =
+  ## path: source-like Nim file whose compile conditions can expose flags.
+  result = path.endsWith(".nim") or path.endsWith(".nims") or
+    path.endsWith(".nimble")
+
+proc hostSupportsFlag(flag: string): bool {.role: parser,
+    metaTags: {tagParsing, tagTesting, tagUi}.} =
+  ## flag: configured default filtered against current host CPU capabilities.
+  case flag.toLowerAscii()
+  of "sse2", "avx2", "aesni":
+    when defined(amd64) or defined(i386):
+      result = x86Feature(flag.toLowerAscii())
+  of "neon":
+    when defined(arm64) or defined(aarch64):
+      result = true
+  else:
+    result = true
+
+proc automaticDefaultFlag(flag: string): bool {.role: parser,
+    metaTags: {tagParsing, tagTesting, tagUi}.} =
+  ## flag: discovered symbol safe to enable automatically when host-supported.
+  result = flag in ["sse2", "avx2", "aesni", "neon"]
+
+proc resolveDefaultFlags(C: var OtterUiCatalog) {.role: truthBuilder,
+    metaTags: {tagParsing, tagTesting, tagUi}.} =
+  ## C: discovered allowlist receiving supported configured default flags.
+  var
+    flag: string = ""
+  for configured in C.config.defaultFlags:
+    flag = configured.strip()
+    if flag == "*":
+      for available in C.availableFlags:
+        if automaticDefaultFlag(available) and hostSupportsFlag(available) and
+            available notin C.defaultFlags:
+          C.defaultFlags.add(available)
+      continue
+    if flag notin C.availableFlags:
+      raise newException(ValueError,
+        "configured default Otter flag was not discovered: " & flag)
+    if hostSupportsFlag(flag):
+      C.defaultFlags.add(flag)
+
 proc stableId(relativePath, routine: string): string
     {.role: helper, metaTags: {tagTesting, tagUi}.} =
   ## relativePath/routine: source identity converted to a filesystem-safe ID.
@@ -126,7 +304,7 @@ proc appendSourceEntries(E: var seq[OtterUiTestEntry], sourcePath, testsRoot: st
     entry.testName = values[0]
     entry.menu = values[1]
     entry.filters = normalizedFilters(values[2])
-    entry.version = values[3]
+    entry.version = normalizedVersion(values[3])
     entry.routine = routine
     entry.line = source[0 ..< pragmaAt].count('\n') + 1
     entry.sourcePath = sourcePath
@@ -166,6 +344,8 @@ proc validateEntries(E: openArray[OtterUiTestEntry])
 proc discoverOtterUiTests*(repoRoot: string): OtterUiCatalog
     {.role: metaOrchestrator, metaTags: {tagParsing, tagTesting, tagUi}.} =
   ## repoRoot: repository whose tests tree is scanned for otterUiTest pragmas.
+  var
+    flags: HashSet[string]
   result.config = loadOtterUiConfig(repoRoot)
   if not dirExists(result.config.testsRoot):
     raise newException(IOError, "tests directory does not exist: " & result.config.testsRoot)
@@ -173,5 +353,13 @@ proc discoverOtterUiTests*(repoRoot: string): OtterUiCatalog
     if sourcePath.endsWith(".nim") and not sourcePath.contains(DirSep & ".otter" & DirSep) and
         not sourcePath.contains(DirSep & "build" & DirSep):
       appendSourceEntries(result.entries, sourcePath, result.config.testsRoot)
+  for sourcePath in walkDirRec(result.config.repoRoot):
+    if nimFlagSource(sourcePath) and not ignoredFlagSource(
+        result.config.repoRoot, sourcePath):
+      appendSourceFlags(flags, sourcePath)
+  for flag in flags:
+    result.availableFlags.add(flag)
+  result.availableFlags.sort(system.cmp[string])
+  resolveDefaultFlags(result)
   result.entries.sort(compareEntries)
   validateEntries(result.entries)

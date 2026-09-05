@@ -520,6 +520,8 @@ proc parsePragmaToken(tok: string, f: var FunctionInfo) {.role: parser, metaTags
       f.roleConfidence = 1.0
       f.roleReason = "pragma role"
       addPragmaTag(f, "role:" & roleToString(r))
+    else:
+      addPragmaTag(f, "role:" & rawValue.strip())
   elif key == "risk":
     for item in rawValue.split('|'):
       if item.strip().len > 0:
@@ -529,6 +531,7 @@ proc parsePragmaToken(tok: string, f: var FunctionInfo) {.role: parser, metaTags
     addIssueRef(f, rawValue)
     addPragmaTag(f, "issue:" & rawValue.toLowerAscii())
   elif key == "tag" or key == "tags":
+    addPragmaTag(f, key)
     for item in rawValue.split({'|', ',', ';'}):
       if item.strip().len > 0:
         addPragmaTag(f, item.strip())

@@ -22,6 +22,9 @@ tests/test_child_enabled
 tests/test_repo_graph
 tests/test_test_ui
 tests/test_ui_examples
+tests/test_code_stats
+tests/test_evaluation
+tests/test_insights
 tests/.otter/results/
 tests/samples/*_otter_wrapped
 tests/build/

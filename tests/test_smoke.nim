@@ -44,12 +44,29 @@ suite "otter smoke":
     var
       A: array[1, BenchAlgo]
       R: seq[BenchResult] = @[]
+      S: seq[StableBenchResult] = @[]
       s: string = ""
-    A[0] = BenchAlgo(name: "localBranch", run: proc() {.closure.} = discard localBranch(5))
+    A[0] = BenchAlgo(name: "localBranch", bytesPerOp: 4,
+      run: proc() {.closure.} = discard localBranch(5))
     R = compareAlgorithms(A, loops = 2, warmup = 1)
     s = formatBenchResults(R)
     check R.len == 1
     check s.contains("localBranch")
+    S = compareAlgorithmsStable(A, loops = 2, warmup = 1, samples = 3)
+    check S.len == 1
+    check S[0].samples == 3
+    check S[0].bytesPerOp == 4
+    check formatStableBenchResults(S).contains("median_ns=")
+
+  test "rank probabilities match binary matrix reference values":
+    var
+      p32, p31, pRest: float64
+    p32 = rankProbability(32, 32, 32)
+    p31 = rankProbability(32, 32, 31)
+    pRest = 1.0 - p32 - p31
+    check abs(p32 - 0.2887880951538411) < 1.0e-12
+    check abs(p31 - 0.5775761901732048) < 1.0e-12
+    check abs(pRest - 0.1336357146729541) < 1.0e-12
 
   test "statistical suite is reachable through otter":
     var
@@ -78,6 +95,9 @@ suite "otter smoke":
     p.universalInitBlocks = 0
     R = nistSuiteFromBytes(Bs, p)
     check R.len > 0
+    p = nistParamsForBits(Bs.len * 8)
+    R = nistCoreSuiteFromBytes(Bs, p)
+    check R.len == 11
 
   test "timed child writes its log on process exit":
     var

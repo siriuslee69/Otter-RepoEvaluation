@@ -11,6 +11,10 @@ let resultsPath = "";
 let pollBusy = false;
 let selectionAnchor = -1;
 let currentFailure = null;
+let availableFlags = [];
+let selectedFlags = [];
+let flagsConfirmed = false;
+let heartbeatTimer = 0;
 
 function binding(name, value) {
   if (typeof window[name] === "function") return window[name](value);
@@ -25,11 +29,26 @@ async function request(payload) {
   return response;
 }
 
+async function heartbeat() {
+  const response = JSON.parse(await binding("otterUiHeartbeat", "{}"));
+  if (!response.ok) throw new Error("Otter Test UI heartbeat failed");
+}
+
+function startHeartbeat() {
+  if (heartbeatTimer) return;
+  heartbeatTimer = window.setInterval(() => {
+    heartbeat().catch(error => setStatus(error.message));
+  }, 500);
+}
+
 function setStatus(message) { $("[data-status]").textContent = message; }
 function setPathStatus(message, failed = false) {
   const state = $("[data-path-state]");
   state.textContent = message;
   state.style.color = failed ? "var(--bad)" : "";
+}
+function updateFlagCount() {
+  $(`[data-flag-count]`).textContent = String(selectedFlags.length);
 }
 function groupKey(entry) { return `${entry.menu}\u0000${entry.testName}`; }
 function selectedEntries(group) {
@@ -106,9 +125,10 @@ function selectGroup(group, event) {
     else selectedGroups.add(group.key);
     selectionAnchor = current;
   } else {
+    const alreadySelected = selectedGroups.size === 1 && selectedGroups.has(group.key);
     selectedGroups.clear();
-    selectedGroups.add(group.key);
-    selectionAnchor = current;
+    if (!alreadySelected) selectedGroups.add(group.key);
+    selectionAnchor = alreadySelected ? -1 : current;
   }
   updateSelectionControls();
 }
@@ -143,7 +163,7 @@ function stateLabel(state) {
 }
 
 function groupState(group) {
-  const entries = group.entries;
+  const entries = selectedEntries(group);
   const values = entries.map(entry => states.get(entry.id)).filter(Boolean);
   if (values.length === 0) return null;
   let status = values[0].status;
@@ -155,8 +175,15 @@ function groupState(group) {
     status,
     exitCode: values.find(state => state.exitCode)?.exitCode || 0,
     durationMs: values.reduce((sum, state) => sum + (state.durationMs || 0), 0),
+    compileDurationMs: values.reduce((sum, state) => sum + (state.compileDurationMs || 0), 0),
+    runDurationMs: values.reduce((sum, state) => sum + (state.runDurationMs || 0), 0),
     logPath: values.map(state => state.logPath).filter(Boolean).join(" | "),
   };
+}
+
+function durationLabel(state) {
+  if (!state) return "-- ms";
+  return `${state.runDurationMs || 0} ms run · ${state.compileDurationMs || 0} ms compile`;
 }
 
 function versionGlyph(state) {
@@ -185,7 +212,7 @@ function updatePanel(group) {
   $("[data-source]", panel).textContent = [...new Set(entries.map(item => item.sourcePath))].join(" + ");
   $("[data-routine]", panel).textContent = entries.map(item => item.routine).join(" + ");
   $("[data-result]", panel).textContent = stateLabel(state);
-  $("[data-duration]", panel).textContent = state?.durationMs ? `${state.durationMs} ms` : "-- ms";
+  $("[data-duration]", panel).textContent = durationLabel(state);
   $("[data-log]", panel).textContent = state?.logPath || "";
   const tags = $("[data-tags]", panel);
   tags.replaceChildren();
@@ -288,7 +315,7 @@ async function startSequence(group) {
 
 async function startSequenceEntry(sequence) {
   const entry = sequence.group.entries[sequence.index];
-  await request({ action: "start", id: entry.id, resultsPath });
+  await request({ action: "start", id: entry.id, resultsPath, flags: selectedFlags });
   states.set(entry.id, { id: entry.id, status: "queued" });
 }
 
@@ -443,10 +470,75 @@ function bindFailureDialog() {
   dialog.addEventListener("close", () => { currentFailure = null; });
 }
 
+function selectedFlagValues() {
+  return [...document.querySelectorAll(`[data-flag-options] input:checked`)].map(input => input.value);
+}
+
+function updateFlagSummary() {
+  const pending = selectedFlagValues();
+  $(`[data-flag-summary]`).textContent = pending.length === 0 ? "No optional flags" :
+    pending.length <= 3 ? pending.join(", ") : `${pending.length} flags selected`;
+}
+
+function openFlagDialog() {
+  document.querySelectorAll(`[data-flag-options] input`).forEach(input => {
+    input.checked = selectedFlags.includes(input.value);
+  });
+  updateFlagSummary();
+  $(`[data-flag-dialog]`).showModal();
+}
+
+function bindFlagDialog() {
+  const dialog = $(`[data-flag-dialog]`);
+  const options = $(`[data-flag-options]`);
+  availableFlags.forEach(flag => {
+    const label = document.createElement("label");
+    const input = document.createElement("input");
+    const marker = document.createElement("span");
+    const text = document.createElement("b");
+    input.type = "checkbox";
+    input.value = flag;
+    text.textContent = flag;
+    input.addEventListener("change", () => {
+      if (input.checked && input.value === "gcArc") {
+        const other = $(`[data-flag-options] input[value="gcOrc"]`);
+        if (other) other.checked = false;
+      } else if (input.checked && input.value === "gcOrc") {
+        const other = $(`[data-flag-options] input[value="gcArc"]`);
+        if (other) other.checked = false;
+      }
+      updateFlagSummary();
+    });
+    label.append(input, marker, text);
+    options.append(label);
+  });
+  $(`[data-open-flags]`).addEventListener("click", openFlagDialog);
+  $(`[data-clear-flags]`).addEventListener("click", () => {
+    document.querySelectorAll(`[data-flag-options] input`).forEach(input => { input.checked = false; });
+    updateFlagSummary();
+  });
+  $(`[data-apply-flags]`).addEventListener("click", () => {
+    selectedFlags = selectedFlagValues();
+    flagsConfirmed = true;
+    updateFlagCount();
+    $(`[data-flag-dropdown]`).open = false;
+  });
+  dialog.addEventListener("cancel", event => {
+    if (!flagsConfirmed && availableFlags.length > 0) event.preventDefault();
+  });
+  updateFlagCount();
+  if (availableFlags.length === 0) $(`[data-open-flags]`).disabled = true;
+  else openFlagDialog();
+}
+
 async function boot() {
+  await heartbeat();
+  startHeartbeat();
   const payload = JSON.parse(await binding("otterUiBootstrap", "{}"));
   if (!payload.ok) throw new Error(payload.error || "test discovery failed");
   catalog = payload.entries;
+  availableFlags = payload.availableFlags || [];
+  selectedFlags = payload.defaultFlags || [];
   document.title = `${payload.config.title} / Otter Test UI`;
   $("[data-title]").textContent = payload.config.title;
   $("[data-banner]").textContent = payload.config.banner;
@@ -459,7 +551,7 @@ async function boot() {
     style.textContent = payload.config.customCss;
     document.head.append(style);
   }
-  buildGroups(); createNavigation(); createPanels(); bindOutputControls(); bindFailureDialog(); refresh();
+  buildGroups(); createNavigation(); createPanels(); bindOutputControls(); bindFailureDialog(); bindFlagDialog(); refresh();
   $("[data-run-all]").addEventListener("click", () => runVisible().catch(error => setStatus(error.message)));
   $("[data-deselect]").addEventListener("click", deselectAll);
   $("[data-stop-all]").addEventListener("click", () => {

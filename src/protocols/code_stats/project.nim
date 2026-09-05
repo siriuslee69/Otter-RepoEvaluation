@@ -21,6 +21,14 @@ import std/[os, sets, strutils, tables]
 import ./pipeline
 import ./test_scan
 import ./types
+import ./shape
+import ./placeholders
+import ./secrets
+import ./config_touch
+import ./timeline
+import ./unused
+import ./call_depth
+import ./coupling
 import ../repo_graph/graph_builder
 import ../repo_graph/io_utils
 import ../repo_graph/nim_parser
@@ -208,6 +216,46 @@ proc analyzeProject*(rootDir: string): ProjectStats {.role: orchestrator,
 
   for row in result.files:
     result.totalLines = result.totalLines + row.lines
+
+  # ---- the six reports beside this file ------------------------------
+  #
+  # All six are worked out from `all`, the one parse of the tree made
+  # near the top of this routine, so nothing here reads a file twice
+  # and no two reports can disagree about what the source says.
+  #
+  #   all ─┬─► shape        alike routines, and the point cloud
+  #        ├─► placeholders routines that do nothing yet
+  #        ├─► unused       routines nothing calls, and their size
+  #        └─► config       which settings anything reads
+  #
+  #   the folder ─┬─► secrets   keys, in the tree and in its history
+  #               └─► timeline  the tree at a spread of past moments
+  #
+  # `calledNames` is every name anything in the tree calls, lowered.
+  # Two of the reports need it and neither should build it again.
+  var
+    calledNames: HashSet[string] = initHashSet[string]()
+  for fn in all:
+    for name in fn.calls:
+      calledNames.incl(name.toLowerAscii())
+  result.shape = shapeReport(parts.src, normDir)
+  result.placeholders = placeholdersOf(all, calledNames, normDir)
+  result.unusedFuncs = unusedReportOf(parts.src, calledNames, normDir)
+  result.config = configReportOf(normDir, files, all)
+  result.secrets = secretsOf(normDir, allSourceFiles)
+  result.timeline = timelineOf(normDir)
+
+  # Two more, both reading the call graph rather than the files:
+  #
+  #   how deep a chain of calls can get, and who sits at each depth
+  #   whether every door has a guard, and whether the guards are tested
+  #
+  # The test-reach sets come from the one walk of the tests made
+  # further up, so what the coverage rings say and what the guard
+  # report says can never disagree.
+  result.callDepth = callDepthOf(parts.src, graph.edges, normDir)
+  result.coupling = couplingOf(parts.src, graph.edges, normDir,
+    walk.hits, walk.edge, walk.regress, walk.bug)
 
 
 proc summaryLines*(S: ProjectStats): seq[string] {.role: helper,

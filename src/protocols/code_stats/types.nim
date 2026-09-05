@@ -14,6 +14,20 @@
 # The bands are the colours the window uses, named rather than
 # numbered so a reader knows what "2" meant six months later.
 
+import ./shape
+import ./placeholders
+import ./secrets
+import ./config_touch
+import ./timeline
+import ./unused
+import ./call_depth
+import ./coupling
+
+# The six reports become fields of `ProjectStats` below, so anything
+# that reads a ProjectStats needs their types too. Re-exported here so
+# that a caller importing this file gets the whole shape in one go.
+export shape, placeholders, secrets, config_touch, timeline, unused
+export call_depth, coupling
 import ../../../.iron/metaPragmas
 
 type
@@ -223,6 +237,32 @@ type
     testStats*: ProjectScopeStats
     nest*: NestStats
     tests*: TestStats
+
+    ## Everything below is worked out by the files beside this one.
+    ## Each is a whole report rather than a handful of loose numbers,
+    ## so a window can draw one section per report and a reader can
+    ## follow each back to the file that produced it.
+    shape*: ShapeReport
+      ## routines placed by what they are built like: duplicates,
+      ## and the point cloud. See `shape.nim`.
+    placeholders*: PlaceholderReport
+      ## routines that do not do anything yet. See `placeholders.nim`.
+    secrets*: SecretReport
+      ## keys and personal data, in the tree and in its history.
+      ## See `secrets.nim`.
+    config*: ConfigReport
+      ## which settings anything actually reads. See `config_touch.nim`.
+    timeline*: TimelineStats
+      ## the repository through time. See `timeline.nim`.
+    unusedFuncs*: UnusedReport
+      ## routines nothing calls, with their size. See `unused.nim`.
+    callDepth*: CallDepthStats
+      ## how deep a chain of calls can get, and who sits at each
+      ## depth. See `call_depth.nim`.
+    coupling*: CouplingStats
+      ## whether every routine taking input from outside is paired
+      ## with a sanitizer, and whether those sanitizers are
+      ## themselves tested. See `coupling.nim`.
     error*: string
 
 const

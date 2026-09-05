@@ -162,6 +162,8 @@ macro otterUiTest*(metadata: untyped, body: untyped): untyped
   var
     routineName: NimNode
     params: NimNode
+    threadName: NimNode
+    threadProc: NimNode
   validateOtterUiMetadata(metadata)
   if body.kind notin OtterRoutineKinds:
     error("otterUiTest can only annotate a proc, func, method, or converter", body)
@@ -169,11 +171,18 @@ macro otterUiTest*(metadata: untyped, body: untyped): untyped
   if params.len != 1:
     error("otterUiTest routines must not accept parameters", params)
   routineName = otterUiRoutineName(body)
+  threadName = genSym(nskVar, "otterTestThread")
+  threadProc = genSym(nskProc, "otterTestThreadMain")
   result = quote do:
     `body`
     when isMainModule and OtterUiTarget == astToStr(`routineName`):
-      `routineName`()
-      quit(programResult)
+      proc `threadProc`() {.thread.} =
+        {.cast(gcsafe).}:
+          `routineName`()
+      var
+        `threadName`: Thread[void]
+      createThread(`threadName`, `threadProc`)
+      joinThread(`threadName`)
 
 
 macro otterWrapFile*(p: static[string], lineOffset: static[int],

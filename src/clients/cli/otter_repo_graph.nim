@@ -3,7 +3,7 @@
 # | -> Analyze repos, write artifacts, and run sample calls  |
 # ============================================================
 
-import std/[os, strutils]
+import std/[json, os, strutils]
 
 import ../../../.iron/metaPragmas
 import ../../otter_repo_evaluation
@@ -13,6 +13,7 @@ proc printUsage() {.role: helper, metaTags: {tagGraph, tagExecution}.} =
   echo "  otter_repo_graph snapshot [repoRoot] [--include-tests]"
   echo "  otter_repo_graph artifacts [repoRoot] [outputDir] [--include-tests]"
   echo "  otter_repo_graph run [repoRoot] [functionId] [--include-tests]"
+  echo "  otter_repo_graph stats [repoRoot] [--json]"
 
 
 proc flagPresent(args: seq[string], flag: string): bool {.role: helper, metaTags: {tagGraph, tagExecution}.} =
@@ -95,6 +96,27 @@ proc runSample(args: seq[string]) {.role: actor, metaTags: {tagGraph, tagExecuti
     quit(1)
 
 
+proc runStats(args: seq[string]) {.role: actor,
+    metaTags: {tagGraph, tagStats, tagExecution}.} =
+  ## args: the words after `stats`. Prints the summary a person reads,
+  ## or the whole shape a window reads, but never both.
+  var
+    items: seq[string] = @[]
+    rootDir: string = "."
+    s: ProjectStats
+  items = positionalArgs(args)
+  if items.len > 0:
+    rootDir = items[0]
+  s = analyzeProject(rootDir)
+  if flagPresent(args, "--json"):
+    echo statsJson(s)
+    return
+  for line in summaryLines(s):
+    echo line
+  if s.error.len > 0:
+    quit(1)
+
+
 proc runCli*() {.role: orchestrator, metaTags: {tagGraph, tagExecution}.} =
   var
     args: seq[string] = @[]
@@ -116,6 +138,8 @@ proc runCli*() {.role: orchestrator, metaTags: {tagGraph, tagExecution}.} =
     runArtifacts(rest)
   of "run":
     runSample(rest)
+  of "stats":
+    runStats(rest)
   else:
     printUsage()
     quit(1)

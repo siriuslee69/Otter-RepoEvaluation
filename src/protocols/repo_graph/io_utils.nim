@@ -95,3 +95,42 @@ proc readLinesSafe*(filePath: string): seq[string] =
     result = @[]
     return
   result = readFile(filePath).splitLines()
+
+
+proc isTestPath*(path: string): bool =
+  ## path: one source path. Tests live under a tests folder or are
+  ## named for what they are.
+  ##
+  ## Only the file's own name and the folders right above it are read.
+  ## A tree that happens to sit in a folder called `my_test_repo` is
+  ## not a tree of tests, and looking for the word anywhere in the path
+  ## would say that it is.
+  ##
+  ## This lives here, at the bottom of the stack, because both the
+  ## test scanner and the history reader need it and neither may
+  ## import the other.
+  var
+    parts: seq[string] = normalizeSlashes(path).toLowerAscii().split('/')
+    i: int = 0
+  result = false
+  if parts.len == 0:
+    return
+  if parts[^1].startsWith("test_") or parts[^1].endsWith("_test.nim"):
+    result = true
+    return
+  i = max(0, parts.len - 4)
+  while i < parts.len - 1:
+    if parts[i] == "tests" or parts[i] == "test":
+      result = true
+      return
+    i = i + 1
+
+
+proc isSrcPath*(path: string): bool =
+  ## path: one source path. Whether it belongs to the source of the
+  ## program rather than to its tests. A file under a `tests` folder
+  ## is a test even when that folder sits inside `src`, so the two
+  ## answers never both claim the same file.
+  var
+    p: string = normalizeSlashes(path)
+  result = (p.startsWith("src/") or "/src/" in p) and not isTestPath(p)
