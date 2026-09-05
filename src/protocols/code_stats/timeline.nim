@@ -31,7 +31,7 @@
 import std/[algorithm, os, osproc, sequtils, strutils, times]
 
 import ../repo_graph/io_utils
-import ../../../.iron/metaPragmas
+import ../../../meta/metaPragmas
 
 const
   timelinePoints*: int = 48

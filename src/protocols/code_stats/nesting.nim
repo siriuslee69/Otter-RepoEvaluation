@@ -23,7 +23,7 @@ import std/[strutils]
 
 import ./types
 import ../repo_graph/types as graphTypes
-import ../../../.iron/metaPragmas
+import ../../../meta/metaPragmas
 
 const
   openerWords*: array[7, string] = ["if", "for", "while", "case", "when",

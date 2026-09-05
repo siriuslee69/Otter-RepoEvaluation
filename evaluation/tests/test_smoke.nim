@@ -5,7 +5,7 @@
 
 import std/[os, osproc, strutils, unittest]
 
-import ../.iron/metaPragmas
+import ../../meta/metaPragmas
 import otter_repo_evaluation
 
 otterInstrument:
@@ -101,14 +101,14 @@ suite "otter smoke":
 
   test "timed child writes its log on process exit":
     var
-      logPath: string = "tests/build/otter_enabled.log"
+      logPath: string = "evaluation/tests/build/otter_enabled.log"
       cmd: string = ""
       r: tuple[output: string, exitCode: int]
       content: string = ""
-    createDir("tests/build")
+    createDir("evaluation/tests/build")
     if fileExists(logPath):
       removeFile(logPath)
-    cmd = "nim c --path:src --nimcache:build/nimcache_child -d:otterTiming -r tests/test_child_enabled.nim"
+    cmd = "nim c --path:src --nimcache:build/nimcache_child -d:otterTiming -r evaluation/tests/test_child_enabled.nim"
     r = execCmdEx(cmd)
     check r.exitCode == 0
     check fileExists(logPath)
@@ -120,13 +120,13 @@ suite "otter smoke":
   test "otter-nim auto-wraps a plain Nim file":
     var
       oldLogPath: string = ""
-      logPath: string = absolutePath("tests/build/otter_cli.log")
+      logPath: string = absolutePath("evaluation/tests/build/otter_cli.log")
       cliPath: string = joinPath("build", "otter-nim" & ExeExt)
       cmd: string = ""
       content: string = ""
       hadLogPath: bool = false
       r: tuple[output: string, exitCode: int]
-    createDir("tests/build")
+    createDir("evaluation/tests/build")
     createDir("build")
     if fileExists(logPath):
       removeFile(logPath)
@@ -136,7 +136,7 @@ suite "otter smoke":
     oldLogPath = getEnv("OTTER_TIMING_LOG_PATH")
     hadLogPath = oldLogPath.len > 0
     putEnv("OTTER_TIMING_LOG_PATH", logPath)
-    cmd = quoteShell(cliPath) & " c --path:src --nimcache:build/nimcache_cli -r tests/samples/auto_trace_sample.nim"
+    cmd = quoteShell(cliPath) & " c --path:src --nimcache:build/nimcache_cli -r evaluation/tests/samples/auto_trace_sample.nim"
     r = execCmdEx(cmd, options = {poUsePath, poStdErrToStdOut})
     if hadLogPath:
       putEnv("OTTER_TIMING_LOG_PATH", oldLogPath)
@@ -149,4 +149,4 @@ suite "otter smoke":
     content = readFile(logPath)
     check content.contains("autoLeaf")
     check content.contains("autoBranch")
-    check content.contains("tests/samples/auto_trace_sample.nim")
+    check content.contains("evaluation/tests/samples/auto_trace_sample.nim")

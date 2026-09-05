@@ -35,7 +35,7 @@
 import std/[algorithm, sets, strutils, tables]
 
 import ../repo_graph/types as graphTypes
-import ../../../.iron/metaPragmas
+import ../../../meta/metaPragmas
 
 # Fylgia holds the room-and-distance maths, and is reached by a path
 # relative to *this file* rather than through the module search path.

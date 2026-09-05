@@ -8,7 +8,7 @@ import std/[json, os, osproc, strutils]
 import ./analysis_pipeline
 import ./sample_values
 import ./types
-import ../../../.iron/metaPragmas
+import ../../../meta/metaPragmas
 
 const
   OtterRunMarker = "__OTTER_RUN_RESULT__"

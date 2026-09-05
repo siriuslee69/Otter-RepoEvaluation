@@ -19,7 +19,7 @@ import ./test_scan
 import ./types
 import ../repo_graph/io_utils
 import ../repo_graph/types as graphTypes
-import ../../../.iron/metaPragmas
+import ../../../meta/metaPragmas
 
 const
   roleLabels*: array[12, array[2, string]] = [

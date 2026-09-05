@@ -1,6 +1,6 @@
 # Contributing
 
-Read `.iron/CONVENTIONS.md` first.
+Read the Agent-Conventions repo first.
 
 ## Repo Intent
 - Keep Otter deterministic and easy to read.
@@ -22,7 +22,7 @@ Read `.iron/CONVENTIONS.md` first.
 - Does the repo graph stay deterministic on the same source tree?
 - Do helper groups stay subordinate to orchestrators instead of flattening the whole repo?
 - Does the VS Code bridge still fall back cleanly when Codex commands are unavailable?
-- Did you update `README.md` and `.iron/PROGRESS.md` for public behavior changes?
+- Did you update `README.md` and `agents/PROGRESS.md` for public behavior changes?
 
 ## Commands
 - `nimble test`

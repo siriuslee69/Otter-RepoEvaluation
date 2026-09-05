@@ -40,7 +40,7 @@ nimble buildgraphcli
 
 ```sh
 nimble stats                      # the summary, on this repository
-nimble statsjson                  # the whole shape, to builds/analysis
+nimble statsjson                  # the whole shape, to evaluation/statistics
 ./bin/otter-repo-graph stats <dir>
 ./bin/otter-repo-graph stats <dir> --json
 ```
@@ -127,7 +127,7 @@ Open that folder in VS Code and run the `Otter Repo Graph: Open` command.
 
 The runnable annotation example lives at
 [`examples/test_ui_catalog.nim`](examples/test_ui_catalog.nim). A parent
-repository places the same kind of file below its own `tests/` directory.
+repository places the same kind of file below its own `evaluation/tests/` directory.
 
 Minimal parent layout:
 
@@ -155,7 +155,7 @@ if dirExists(otterSrc):
   switch("path", otterSrc.replace('\\', '/'))
 ```
 
-Annotate zero-argument routines in `tests/test_otter_catalog.nim`:
+Annotate zero-argument routines in `evaluation/tests/test_otter_catalog.nim`:
 
 ```nim
 import std/unittest
@@ -286,7 +286,7 @@ The aggregate `durationMs` remains in job JSON for diagnostics, while
 On first discovery, Otter creates these paths when they are absent:
 
 ```text
-tests/.otter/
+evaluation/tests/.otter/
 |-- config.toml
 `-- config.css
 ```
@@ -306,12 +306,12 @@ tests/
 `-- test_example.nim
 ```
 
-`tests/.otter/config.toml` supports:
+`evaluation/tests/.otter/config.toml` supports:
 
 ```toml
 title = "My Project Tests"
 banner = "Choose a test and inspect its isolated result."
-output_path = "tests/.otter/results"
+output_path = "evaluation/tests/.otter/results"
 default_flags = ["*"]
 ```
 
@@ -608,5 +608,5 @@ Released under [The Unlicense](LICENSE.txt).
 - Keep timing capture monotonic, process-local, and source-location aware.
 - Keep graph parsing deterministic and comment-preserving.
 - Prefer one shared graph model for CLI, WebUI, and VS Code instead of parallel feature copies.
-- Update `.iron/PROGRESS.md` and this README when public behavior changes.
-- Follow the full workspace rules in `.iron/CONVENTIONS.md`.
+- Update `agents/PROGRESS.md` and this README when public behavior changes.
+- Follow the full workspace rules in the Agent-Conventions repo.

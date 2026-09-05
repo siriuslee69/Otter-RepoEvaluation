@@ -5,7 +5,7 @@
 
 import std/[algorithm, os, sets, strutils]
 
-import ../../../.iron/metaPragmas
+import ../../../meta/metaPragmas
 import ./[config, types]
 
 const

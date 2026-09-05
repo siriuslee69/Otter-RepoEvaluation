@@ -7,7 +7,7 @@ import std/[algorithm, json, sets, strutils, tables]
 
 import ./grouping
 import ./types
-import ../../../.iron/metaPragmas
+import ../../../meta/metaPragmas
 
 proc escapeText(s: string): string {.role: helper, metaTags: {tagGraph}.} =
   result = s.replace("\\", "\\\\")

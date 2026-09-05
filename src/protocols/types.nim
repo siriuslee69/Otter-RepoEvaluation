@@ -3,7 +3,7 @@
 # | -> Timing tuples and in-memory timing store             |
 # ============================================================
 
-import ../../.iron/metaPragmas
+import ../../meta/metaPragmas
 
 type
   OtterTimingTuple* {.role: memory, metaTags: {tagTiming, tagState}.} = tuple

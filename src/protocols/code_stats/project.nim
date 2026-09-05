@@ -33,7 +33,7 @@ import ../repo_graph/graph_builder
 import ../repo_graph/io_utils
 import ../repo_graph/nim_parser
 import ../repo_graph/types as graphTypes
-import ../../../.iron/metaPragmas
+import ../../../meta/metaPragmas
 
 proc parseTree*(rootDir: string, files: seq[string]): seq[FunctionInfo]
     {.role: parser, metaTags: {tagStats}.} =

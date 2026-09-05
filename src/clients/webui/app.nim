@@ -6,7 +6,7 @@
 import std/[json, os, osproc, strutils]
 
 import webui
-import ../../../.iron/metaPragmas
+import ../../../meta/metaPragmas
 import ../../otter_repo_evaluation
 
 const

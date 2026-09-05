@@ -44,7 +44,7 @@ import std/[algorithm, sets, strutils, tables]
 
 import ../repo_graph/types as graphTypes
 import ../repo_graph/io_utils
-import ../../../.iron/metaPragmas
+import ../../../meta/metaPragmas
 
 const
   configEndings*: array[6, string] = [

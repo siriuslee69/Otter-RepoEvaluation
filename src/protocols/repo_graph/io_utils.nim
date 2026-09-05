@@ -83,7 +83,8 @@ proc toImportModulePath*(modulePath: string): string =
   var
     p: string = ""
   p = normalizeSlashes(modulePath)
-  for prefix in ["src/", "tests/", "tools/"]:
+  for prefix in ["evaluation/tests/", "evaluation/benchmarks/",
+                 "evaluation/statistics/", "src/", "tests/", "tools/"]:
     if p.startsWith(prefix):
       p = p[prefix.len .. ^1]
       break

@@ -34,10 +34,9 @@ proc captureCommand(command: string; args: openArray[string]): string =
 
 proc progressCommitMessage(): string =
   const
-    candidatePaths: array[3, string] = [
-      ".iron/PROGRESS.md",
-      ".iron/progress.md",
-      "iron/progress.md"
+    candidatePaths: array[2, string] = [
+      "agents/PROGRESS.md",
+      "agents/progress.md"
     ]
   var
     path: string = ""
@@ -80,23 +79,23 @@ proc branchDivergenceCounts(): tuple[ahead: int, behind: int] =
       discard
 
 task test, "Run smoke tests":
-  exec "nim c --path:src -r tests/test_evaluation.nim"
-  exec "nim c --path:src -r tests/test_smoke.nim"
-  exec "nim c --path:src -r tests/test_repo_graph.nim"
-  exec "nim c --path:src -r tests/test_code_stats.nim"
-  exec "nim c --path:src -r tests/test_test_ui.nim"
-  exec "nim c --path:src -r tests/test_insights.nim"
+  exec "nim c --path:src -r evaluation/tests/test_evaluation.nim"
+  exec "nim c --path:src -r evaluation/tests/test_smoke.nim"
+  exec "nim c --path:src -r evaluation/tests/test_repo_graph.nim"
+  exec "nim c --path:src -r evaluation/tests/test_code_stats.nim"
+  exec "nim c --path:src -r evaluation/tests/test_test_ui.nim"
+  exec "nim c --path:src -r evaluation/tests/test_insights.nim"
 
 task buildtests, "Build smoke tests in release mode":
-  exec "nim c --path:src -d:release tests/test_evaluation.nim"
-  exec "nim c --path:src -d:release tests/test_smoke.nim"
-  exec "nim c --path:src -d:release tests/test_repo_graph.nim"
-  exec "nim c --path:src -d:release tests/test_code_stats.nim"
-  exec "nim c --path:src -d:release tests/test_test_ui.nim"
-  exec "nim c --path:src -d:release tests/test_insights.nim"
+  exec "nim c --path:src -d:release evaluation/tests/test_evaluation.nim"
+  exec "nim c --path:src -d:release evaluation/tests/test_smoke.nim"
+  exec "nim c --path:src -d:release evaluation/tests/test_repo_graph.nim"
+  exec "nim c --path:src -d:release evaluation/tests/test_code_stats.nim"
+  exec "nim c --path:src -d:release evaluation/tests/test_test_ui.nim"
+  exec "nim c --path:src -d:release evaluation/tests/test_insights.nim"
 
 task testevaluation, "Run statistical evaluation and stable benchmark tests":
-  exec "nim c --path:src -r tests/test_evaluation.nim"
+  exec "nim c --path:src -r evaluation/tests/test_evaluation.nim"
 
 task buildTestUi, "Build the pragma-driven test WebUI":
   mkDir("bin")
@@ -120,7 +119,7 @@ task stats, "Measure this repository and print the code statistics":
   exec "mkdir -p build && nim c -r --path:src -o:build/otter-repo-graph-stats src/clients/cli/otter_repo_graph.nim stats ."
 
 task statsjson, "Write the code statistics of this repository as JSON":
-  exec "mkdir -p builds/analysis && nim c -r --path:src -o:build/otter-repo-graph-stats src/clients/cli/otter_repo_graph.nim stats . --json > builds/analysis/code_stats.json"
+  exec "mkdir -p evaluation/statistics && nim c -r --path:src -o:build/otter-repo-graph-stats src/clients/cli/otter_repo_graph.nim stats . --json > evaluation/statistics/code_stats.json"
 
 task buildgraphcli, "Build the repo graph CLI":
   exec "mkdir -p bin && nim c -d:release --path:src -o:bin/otter-repo-graph src/clients/cli/otter_repo_graph.nim"
@@ -140,7 +139,7 @@ task buildvscode, "Build the VS Code extension":
 task packagevscode, "Package the VS Code extension":
   echo "The VS Code extension is source-only. Open src/clients/vscode_extension in VS Code or package it with your local VSIX tooling."
 
-task autopush, "Add, commit, and push the current branch with message from .iron/PROGRESS.md":
+task autopush, "Add, commit, and push the current branch with message from agents/PROGRESS.md":
   var
     msg: string = progressCommitMessage()
     staged: string = ""

@@ -9,15 +9,15 @@
 
 import std/[sets, strutils, tables, unittest]
 
-import ../src/protocols/code_stats/shape
-import ../src/protocols/code_stats/placeholders
-import ../src/protocols/code_stats/secrets
-import ../src/protocols/code_stats/config_touch
-import ../src/protocols/code_stats/timeline
-import ../src/protocols/code_stats/unused
-import ../src/protocols/code_stats/call_depth
-import ../src/protocols/code_stats/coupling
-import ../src/protocols/repo_graph/types as graphTypes
+import ../../src/protocols/code_stats/shape
+import ../../src/protocols/code_stats/placeholders
+import ../../src/protocols/code_stats/secrets
+import ../../src/protocols/code_stats/config_touch
+import ../../src/protocols/code_stats/timeline
+import ../../src/protocols/code_stats/unused
+import ../../src/protocols/code_stats/call_depth
+import ../../src/protocols/code_stats/coupling
+import ../../src/protocols/repo_graph/types as graphTypes
 
 proc fn(name: string, body: seq[string], params: seq[string] = @[],
     sockets: seq[FunctionSocket] = @[], ret: string = "",

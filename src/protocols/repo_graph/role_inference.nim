@@ -6,7 +6,7 @@
 import std/[math, strutils, tables]
 
 import ./types
-import ../../../.iron/metaPragmas
+import ../../../meta/metaPragmas
 
 proc countBranches(ls: seq[string]): int {.role: helper, metaTags: {tagGraph, tagParsing}.} =
   var
