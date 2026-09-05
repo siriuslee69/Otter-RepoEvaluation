@@ -51,7 +51,6 @@ proc rankProbability*(r, c, k: int): float64 =
       logNum = logNum + lnPow2MinusPow2(rows, i) + lnPow2MinusPow2(cols, i)
       logDen = logDen + lnPow2MinusPow2(k, i)
       i = i + 1
-    logNum = logNum + float64((rows - k) * (cols - k)) * ln2
     logAll = float64(rows * cols) * ln2 + logDen
     result = exp(logNum - logAll)
 

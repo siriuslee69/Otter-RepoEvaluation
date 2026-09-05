@@ -57,9 +57,11 @@ button:disabled { cursor: default; opacity: 0.4; }
 .path-field { min-width: 180px; max-width: 760px; flex: 1; height: 36px; display: flex; align-items: center; background-image: radial-gradient(ellipse at bottom, var(--otter-color-primary), transparent 68%); background-repeat: no-repeat; background-size: 100% 1px; }
 .path-field input { width: 100%; height: 100%; border: 0; outline: 0; color: var(--otter-color-text); background: transparent; font: 10px var(--mono); }
 .path-field input::placeholder { color: color-mix(in srgb, var(--otter-color-muted) 50%, transparent); }
-.folder-button { height: 36px; flex: 0 0 auto; padding: 0 11px; border-radius: 4px; color: var(--otter-color-text); background: color-mix(in srgb, var(--otter-color-primary) 13%, transparent); font: 650 10px var(--mono); }
+.folder-button, .flag-button { height: 36px; flex: 0 0 auto; padding: 0 11px; border-radius: 4px; color: var(--otter-color-text); background: color-mix(in srgb, var(--otter-color-primary) 13%, transparent); font: 650 10px var(--mono); }
 .folder-button span { margin-right: 4px; color: var(--otter-color-secondary); }
-.folder-button:hover { background: color-mix(in srgb, var(--otter-color-primary) 24%, transparent); }
+.folder-button:hover, .flag-button:hover { background: color-mix(in srgb, var(--otter-color-primary) 24%, transparent); }
+.flag-button span { color: var(--otter-color-primary); }
+.flag-button b { min-width: 16px; margin-left: 4px; padding: 2px 4px; color: var(--otter-color-background); background: var(--otter-color-secondary); font: 700 8px var(--mono); }
 .path-state { max-width: 250px; overflow: hidden; color: var(--otter-color-muted); font: 9px var(--mono); text-overflow: ellipsis; white-space: nowrap; }
 .menus, .tools { min-height: 54px; margin-top: 8px; padding: 6px 7px 6px 14px; border-radius: 8px; display: flex; align-items: center; gap: 10px; }
 .rail-label { color: var(--otter-color-secondary); font: 700 9px var(--mono); letter-spacing: 0.18em; writing-mode: vertical-rl; transform: rotate(180deg); }
@@ -134,7 +136,7 @@ button:disabled { cursor: default; opacity: 0.4; }
 .panel.is-fail { border-color: var(--otter-color-failure); }
 .panel.is-stopped { border-color: var(--otter-color-secondary); }
 .panel header { display: flex; align-items: flex-start; gap: 8px; padding-right: 34px; }
-.panel header > div { min-width: 0; }
+.panel header > div { min-width: 0; flex: 1; }
 .card-select { width: 18px; height: 18px; flex: 0 0 auto; position: relative; cursor: pointer; }
 .card-select input { position: absolute; opacity: 0; pointer-events: none; }
 .card-select span { position: absolute; inset: 2px; border: 1px solid var(--otter-color-border); transform: rotate(45deg); transition: background 0.3s, border-color 0.3s, box-shadow 0.3s; }
@@ -142,7 +144,7 @@ button:disabled { cursor: default; opacity: 0.4; }
 .card-select input:checked + span::after { content: ""; position: absolute; width: 3px; height: 7px; left: 4px; top: 1px; border: solid var(--otter-color-background); border-width: 0 2px 2px 0; transform: rotate(0deg); }
 .menu-name { color: var(--otter-color-muted); font: 9px var(--mono); letter-spacing: 0.09em; text-transform: uppercase; }
 .copy-row { min-width: 0; display: flex; align-items: center; gap: 5px; }
-.panel h2 { min-width: 0; margin: 10px 0 8px; overflow: hidden; font-size: 19px; line-height: 1.05; letter-spacing: -0.035em; text-overflow: ellipsis; white-space: nowrap; }
+.panel h2 { min-width: 0; min-height: 35px; margin: 7px 0 5px; overflow: hidden; font-size: 16px; line-height: 1.08; letter-spacing: -0.025em; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .tiny-copy { width: 20px; height: 20px; flex: 0 0 auto; padding: 0; border-radius: 50%; color: var(--otter-color-primary); background: color-mix(in srgb, var(--otter-color-primary) 13%, transparent); font: 12px/20px var(--mono); text-align: center; cursor: copy; transition: color 0.3s, background 0.3s, transform 0.3s; }
 .tiny-copy:hover { color: var(--otter-color-text); background: color-mix(in srgb, var(--otter-color-primary) 28%, transparent); transform: scale(1.08); }
 .tiny-copy.is-copied { color: var(--otter-color-background); background: var(--otter-color-success); }
@@ -151,9 +153,9 @@ button:disabled { cursor: default; opacity: 0.4; }
 .panel.is-fail .badge { color: var(--otter-color-background); background: var(--otter-color-failure); }
 .panel.is-stopped .badge { color: var(--otter-color-background); background: var(--otter-color-secondary); }
 .panel.is-running .badge, .panel.is-queued .badge { color: var(--otter-color-background); background: var(--otter-color-running); box-shadow: 0 0 12px color-mix(in srgb, var(--otter-color-running) 30%, transparent); }
-.versions { height: 29px; display: flex; gap: 2px; margin-top: 5px; }
+.versions { height: 34px; display: flex; gap: 2px; margin-top: 5px; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; scrollbar-color: var(--otter-color-primary) color-mix(in srgb, var(--otter-color-background) 55%, transparent); }
 .versions:empty { display: none; }
-.versions button { min-width: 72px; height: 27px; flex: 1; padding: 0 9px; color: var(--otter-color-muted); background: color-mix(in srgb, var(--otter-color-background) 55%, transparent); font: 700 9px var(--mono); }
+.versions button { min-width: 72px; max-width: 150px; height: 27px; flex: 0 0 auto; padding: 0 9px; overflow: hidden; color: var(--otter-color-muted); background: color-mix(in srgb, var(--otter-color-background) 55%, transparent); font: 700 9px var(--mono); text-overflow: ellipsis; white-space: nowrap; }
 .versions button:hover, .versions button.is-active { color: var(--otter-color-text); background: color-mix(in srgb, var(--otter-color-primary) 13%, transparent); }
 .version-glyph { display: inline-block; width: 12px; margin-right: 4px; color: var(--otter-color-muted); text-align: center; }
 .versions button.is-queued .version-glyph, .versions button.is-running .version-glyph { color: var(--otter-color-running); text-shadow: 0 0 8px var(--otter-color-running); }
@@ -167,7 +169,7 @@ button:disabled { cursor: default; opacity: 0.4; }
 .tags { height: 19px; display: flex; gap: 3px; margin-top: 10px; overflow: hidden; }
 .tags span { padding: 2px 5px; color: var(--otter-color-muted); background: color-mix(in srgb, var(--otter-color-primary) 13%, transparent); font: 8px var(--mono); text-transform: uppercase; }
 .result { display: flex; justify-content: space-between; gap: 10px; margin-top: 20px; color: var(--otter-color-muted); font: 10px var(--mono); }
-.result b { color: var(--otter-color-primary); font-weight: 500; }
+.result b { max-width: 68%; color: var(--otter-color-primary); font-weight: 500; text-align: right; }
 .panel.is-pass [data-result] { color: var(--otter-color-success); }
 .panel.is-fail [data-result] { color: var(--otter-color-failure); }
 .panel.is-stopped [data-result] { color: var(--otter-color-secondary); }
@@ -207,6 +209,32 @@ button:disabled { cursor: default; opacity: 0.4; }
 .copy-button.json { background: color-mix(in srgb, var(--otter-color-secondary) 13%, transparent); border-color: color-mix(in srgb, var(--otter-color-secondary) 24%, transparent); }
 .copy-button.json span { color: var(--otter-color-secondary); }
 .copy-button:hover { filter: brightness(1.18); }
+.flag-dialog { width: min(560px, calc(100% - 32px)); padding: 0; border-radius: 9px; color: var(--otter-color-text); }
+.flag-dialog::backdrop { background: color-mix(in srgb, var(--otter-color-background) 80%, transparent); backdrop-filter: blur(5px); }
+.flag-dialog form { display: grid; grid-template-rows: auto auto 1fr auto; }
+.flag-dialog header { min-height: 68px; padding: 13px 16px; border-bottom: 1px solid color-mix(in srgb, var(--otter-color-border) 20%, transparent); }
+.flag-dialog header span { color: var(--otter-color-primary); font: 700 9px var(--mono); letter-spacing: 0.15em; }
+.flag-dialog h2 { margin: 5px 0 0; font-size: 21px; }
+.flag-dialog p { margin: 0; padding: 14px 16px; color: var(--otter-color-muted); font-size: 11px; }
+.flag-dialog code { color: var(--otter-color-primary); font-family: var(--mono); }
+.flag-field { padding: 0 16px 15px; display: grid; gap: 7px; color: var(--otter-color-secondary); font: 700 9px var(--mono); text-transform: uppercase; letter-spacing: 0.1em; }
+.flag-dropdown { width: 100%; color: var(--otter-color-text); background: color-mix(in srgb, var(--otter-color-background) 72%, transparent); font: 11px var(--mono); text-transform: none; letter-spacing: 0; }
+.flag-dropdown summary { height: 38px; padding: 0 10px; display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; }
+.flag-dropdown summary::-webkit-details-marker { display: none; }
+.flag-dropdown summary span { min-width: 0; flex: 1; overflow: hidden; color: var(--otter-color-muted); text-overflow: ellipsis; white-space: nowrap; }
+.flag-dropdown summary b { color: var(--otter-color-primary); transition: transform 0.3s; }
+.flag-dropdown[open] summary b { transform: rotate(180deg); }
+.flag-dropdown > div { max-height: 230px; padding: 4px; overflow-y: auto; border-top: 1px solid color-mix(in srgb, var(--otter-color-border) 18%, transparent); scrollbar-color: var(--otter-color-primary) var(--otter-color-background); }
+.flag-dropdown label { height: 29px; padding: 0 7px; display: flex; align-items: center; gap: 8px; color: var(--otter-color-muted); cursor: pointer; }
+.flag-dropdown label:hover { color: var(--otter-color-text); background: color-mix(in srgb, var(--otter-color-primary) 9%, transparent); }
+.flag-dropdown input { position: absolute; opacity: 0; pointer-events: none; }
+.flag-dropdown label span { width: 12px; height: 12px; border: 1px solid var(--otter-color-border); transform: rotate(45deg); }
+.flag-dropdown input:checked + span { border-color: var(--otter-color-primary); background: var(--otter-color-primary); box-shadow: 0 0 7px color-mix(in srgb, var(--otter-color-primary) 35%, transparent); }
+.flag-dropdown label b { font-weight: 500; }
+.flag-dialog footer { min-height: 55px; padding: 8px 12px; display: flex; justify-content: flex-end; gap: 7px; border-top: 1px solid color-mix(in srgb, var(--otter-color-border) 20%, transparent); }
+.flag-clear, .flag-apply { min-width: 110px; height: 36px; font: 700 10px var(--mono); }
+.flag-clear { color: var(--otter-color-muted); background: transparent; }
+.flag-apply { color: var(--otter-color-background); background: var(--otter-color-primary); }
 
 @media (max-width: 680px) {
   .shell { width: min(100% - 18px, 1440px); padding-top: 9px; }

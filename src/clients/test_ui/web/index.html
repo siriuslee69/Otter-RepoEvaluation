@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Otter Test UI</title>
-  <link rel="stylesheet" href="css/app.css?v=10" />
+  <link rel="stylesheet" href="css/app.css?v=11" />
   <script src="/webui.js"></script>
 </head>
 <body>
@@ -21,6 +21,7 @@
       </label>
       <button type="button" class="folder-button" data-pick-output title="Choose a test output directory"><span>&#9635;</span> Folder</button>
       <span class="path-state" data-path-state>initializing output</span>
+      <button type="button" class="flag-button" data-open-flags title="Choose optional Nim compile flags"><span>&#9881;</span> Flags <b data-flag-count>0</b></button>
     </section>
 
     <nav class="menus glass" data-menus aria-label="Test menus">
@@ -66,6 +67,26 @@
     </article>
   </dialog>
 
+  <dialog class="flag-dialog glass" data-flag-dialog>
+    <form method="dialog">
+      <header>
+        <div><span>OPTIONAL COMPILATION</span><h2>Select Nim flags</h2></div>
+      </header>
+      <p>Otter found these project-controlled <code>defined(...)</code> conditions. Selected values are compiled as <code>-d:name</code> for every launched test.</p>
+      <label class="flag-field">
+        <span>Available flags</span>
+        <details class="flag-dropdown" data-flag-dropdown>
+          <summary><span data-flag-summary>No optional flags</span><b>&#9662;</b></summary>
+          <div data-flag-options></div>
+        </details>
+      </label>
+      <footer>
+        <button type="button" class="flag-clear" data-clear-flags>Clear</button>
+        <button type="submit" class="flag-apply" data-apply-flags>Use selected</button>
+      </footer>
+    </form>
+  </dialog>
+
   <template data-panel-template>
     <article class="panel glass is-idle">
       <header><label class="card-select" title="Select this test card"><input type="checkbox" data-card-select /><span></span></label><div><span class="menu-name"></span><div class="copy-row"><h2></h2><button type="button" class="tiny-copy" data-copy-name title="Copy test name">&#10697;</button></div></div><span class="badge">IDLE</span></header>
@@ -79,6 +100,6 @@
     </article>
   </template>
 
-  <script type="module" src="js/app.js?v=10"></script>
+  <script type="module" src="js/app.js?v=14"></script>
 </body>
 </html>

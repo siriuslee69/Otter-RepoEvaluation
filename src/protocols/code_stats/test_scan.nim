@@ -33,30 +33,9 @@ const
     "stays fixed"]
   bugWords*: array[3, string] = ["bugfix", "bug #", "issue #"]
 
-proc isTestPath*(path: string): bool {.role: parser, metaTags: {tagStats}.} =
-  ## path: one source path. Tests live under a tests folder or are
-  ## named for what they are.
-  ##
-  ## Only the file's own name and the folders right above it are read.
-  ## A tree that happens to sit in a folder called `my_test_repo` is
-  ## not a tree of tests, and looking for the word anywhere in the path
-  ## would say that it is.
-  var
-    parts: seq[string] = normalizeSlashes(path).toLowerAscii().split('/')
-    i: int = 0
-  result = false
-  if parts.len == 0:
-    return
-  if parts[^1].startsWith("test_") or parts[^1].endsWith("_test.nim"):
-    result = true
-    return
-  i = max(0, parts.len - 4)
-  while i < parts.len - 1:
-    if parts[i] == "tests" or parts[i] == "test":
-      result = true
-      return
-    i = i + 1
-
+# `isTestPath` now lives in `repo_graph/io_utils`, which this file
+# already imports, so that the history reader can use the same one
+# rather than keeping a second copy of the same rule.
 
 proc quotedName*(line: string): string {.role: parser,
     metaTags: {tagStats}.} =

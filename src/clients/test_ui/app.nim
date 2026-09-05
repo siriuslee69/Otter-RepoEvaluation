@@ -1,22 +1,28 @@
 # ============================================================
 # | Otter Test UI App                                        |
-# | -> Supervisor, WebUI host, spawner, and worker modes     |
+# | -> Main supervisor, WebUI, relay, test backend, workers  |
 # ============================================================
 
-import std/[json, os, osproc, strutils]
+import std/[atomics, json, monotimes, os, osproc, strutils]
 
 import webui
+from webui/bindings import set_custom_parameters
+
+when not defined(windows):
+  import std/posix
 
 import ../../../.iron/metaPragmas
 import ../../otter_repo_evaluation
 
 const
   NormalExitFile = "ui-normal-exit"
+  ReadyFile = "ui-ready"
 
 var
   GRepoRoot: string = ""
   GRuntimeDir: string = ""
   GResultsPath: string = ""
+  GLastBrowserHeartbeat: Atomic[int64]
 
 proc argumentValue(A: openArray[string], prefix: string): string {.role: parser,
     metaTags: {tagExecution, tagTesting, tagUi}.} =
@@ -33,46 +39,16 @@ proc appMode(A: openArray[string]): string {.role: parser,
   ## A: command arguments containing an optional Otter process mode.
   result = argumentValue(A, "--otter-mode:")
 
-proc configJson(c: OtterUiConfig): JsonNode {.role: dataWriter,
-    metaTags: {tagTesting, tagUi}.} =
-  ## c: loaded project display and output settings.
-  result = %*{
-    "repoRoot": c.repoRoot.replace('\\', '/'),
-    "title": c.title,
-    "banner": c.banner,
-    "outputPath": c.outputPath.replace('\\', '/'),
-    "customCss": c.customCss
-  }
-
-proc entryJson(e: OtterUiTestEntry): JsonNode {.role: dataWriter,
-    metaTags: {tagTesting, tagUi}.} =
-  ## e: one discovered pragma exposed to the browser.
-  result = %*{
-    "id": e.id,
-    "testName": e.testName,
-    "menu": e.menu,
-    "filters": e.filters,
-    "version": e.version,
-    "routine": e.routine,
-    "line": e.line,
-    "sourcePath": e.relativePath
-  }
-
-proc bootstrapPayload(): string {.role: dataWriter,
-    metaTags: {tagTesting, tagUi}.} =
+proc argumentList(A: openArray[string], prefix: string): seq[string]
+    {.role: parser, metaTags: {tagExecution, tagTesting, tagUi}.} =
+  ## A/prefix: command arguments and comma-separated value prefix.
   var
-    C: OtterUiCatalog = discoverOtterUiTests(GRepoRoot)
-    entries: JsonNode = newJArray()
-  if GResultsPath.len == 0:
-    GResultsPath = C.config.outputPath
-  C.config.outputPath = GResultsPath
-  for entry in C.entries:
-    entries.add(entryJson(entry))
-  result = $(%*{
-    "ok": true,
-    "config": configJson(C.config),
-    "entries": entries
-  })
+    value: string = argumentValue(A, prefix)
+    item: string = ""
+  for candidate in value.split(','):
+    item = candidate.strip()
+    if item.len > 0:
+      result.add(item)
 
 proc normalizeResultsPath(path: string): string {.role: helper,
     metaTags: {tagExecution, tagTesting, tagUi}.} =
@@ -147,7 +123,7 @@ proc actionPayload(request: JsonNode): string {.role: actor,
     if action == "chooseResultsPath":
       GResultsPath = chooseResultsPath()
       return $(%*{"ok": true, "path": GResultsPath.replace('\\', '/')})
-    response = spawnerRequest(GRuntimeDir, request)
+    response = orchestratorRequest(GRuntimeDir, request)
     result = $response
   except CatchableError as exc:
     result = $(%*{"ok": false, "error": exc.msg})
@@ -157,7 +133,9 @@ proc otterUiBootstrap(request: JsonNode): string {.webuiCb, role: dataFetcher,
   ## request: explicit browser payload used to keep the WebUI call serializable.
   discard request
   try:
-    result = bootstrapPayload()
+    result = $orchestratorRequest(GRuntimeDir, %*{"action": "bootstrap"})
+    if GResultsPath.len == 0:
+      GResultsPath = parseJson(result){"config"}{"outputPath"}.getStr("")
   except CatchableError as exc:
     result = $(%*{"ok": false, "error": exc.msg})
 
@@ -165,24 +143,73 @@ proc otterUiAction(request: JsonNode): string {.webuiCb, role: actor,
     metaTags: {tagExecution, tagTesting, tagUi}.} =
   result = actionPayload(request)
 
+proc otterUiHeartbeat(request: JsonNode): string {.webuiCb, role: dataFetcher,
+    metaTags: {tagExecution, tagTesting, tagUi, tagTiming}.} =
+  ## request: explicit browser ping proving the WebUI client is still alive.
+  discard request
+  GLastBrowserHeartbeat.store(getMonoTime().ticks)
+  writeHeartbeat(GRuntimeDir, "webui")
+  result = $(%*{"ok": true})
+
 proc webRoot(): string {.role: helper, metaTags: {tagTesting, tagUi}.} =
   result = joinPath(currentSourcePath().splitFile.dir, "web")
+
+proc browserProfile(): string {.role: helper,
+    metaTags: {tagExecution, tagTesting, tagUi}.} =
+  ## Returns the private browser profile used by this Otter UI process.
+  result = joinPath(GRuntimeDir, "browser-profile")
+
+proc showUi(window: Window): bool {.role: actor,
+    metaTags: {tagExecution, tagTesting, tagUi}.} =
+  ## window: prepared WebUI window opened with the first available renderer.
+  var
+    Browsers: array[5, WebuiBrowser] = [
+      WebuiBrowser(13),
+      WebuiBrowser(9),
+      WebuiBrowser(3),
+      WebuiBrowser(8),
+      WebuiBrowser(2)
+    ]
+    i: int = 0
+  while i < Browsers.len:
+    if Browsers[i] == WebuiBrowser(13) or browserExist(Browsers[i]):
+      if window.show("index.html", Browsers[i]):
+        return true
+    i = i + 1
 
 proc runUi() {.role: metaOrchestrator,
     metaTags: {tagExecution, tagTesting, tagUi}.} =
   var
     window: Window = newWindow()
+    profile: string = browserProfile()
     rootOk: bool = false
+    shown: bool = false
+  createDir(profile)
   window.setSize(1440, 920)
+  window.setProfile("OtterTestUi", profile)
+  set_custom_parameters(csize_t(int(window)),
+    "--disable-background-networking --disable-component-update " &
+    "--disable-sync --disable-default-apps --disable-extensions")
   setTimeout(0)
   rootOk = (window.rootFolder = webRoot())
   if not rootOk:
     raise newException(IOError, "unable to set Otter test UI web root")
   window.bindCb("otterUiBootstrap", otterUiBootstrap)
   window.bindCb("otterUiAction", otterUiAction)
-  if not window.show("index.html"):
-    raise newException(IOError, "unable to open Otter test UI")
-  wait()
+  window.bindCb("otterUiHeartbeat", otterUiHeartbeat)
+  shown = showUi(window)
+  if not shown:
+    raise newException(IOError,
+      "unable to open Otter test UI in WebView, Vivaldi, Firefox, Brave, or Chrome")
+  GLastBrowserHeartbeat.store(getMonoTime().ticks)
+  writeHeartbeat(GRuntimeDir, "webui")
+  writeFile(joinPath(GRuntimeDir, ReadyFile), "ready\n")
+  while waitAsync():
+    if getMonoTime().ticks - GLastBrowserHeartbeat.load() >=
+        HeartbeatTimeoutMs.int64 * 1_000_000'i64:
+      window.close()
+      break
+    sleep(25)
   clean()
   writeFile(joinPath(GRuntimeDir, NormalExitFile), "closed\n")
 
@@ -194,8 +221,9 @@ proc terminateChild(process: Process) {.role: actor,
   when defined(windows):
     discard execCmd("taskkill /PID " & $processID(process) & " /T /F")
   else:
-    discard execCmd("pkill -TERM -P " & $processID(process))
-    process.terminate()
+    discard posix.kill(Pid(-processID(process)), SIGKILL)
+    if process.running():
+      process.kill()
 
 proc childArguments(mode, repoRoot, runtimeDir: string): seq[string]
     {.role: truthBuilder, metaTags: {tagExecution, tagTesting, tagUi}.} =
@@ -203,44 +231,108 @@ proc childArguments(mode, repoRoot, runtimeDir: string): seq[string]
   result = @["--otter-mode:" & mode, "--repo-root:" & repoRoot,
     "--runtime-path:" & runtimeDir]
 
+proc startBackend(mode, repoRoot, runtimeDir: string): Process {.role: actor,
+    metaTags: {tagExecution, tagTesting, tagUi}.} =
+  ## mode/repoRoot/runtimeDir: persistent backend role and launch context.
+  var
+    options: set[ProcessOption] = {poParentStreams}
+    launchArgs: seq[string] = @[]
+  when defined(linux):
+    launchArgs = @[getAppFilename()]
+    launchArgs.add(childArguments(mode, repoRoot, runtimeDir))
+    options.incl(poUsePath)
+    result = startProcess("setsid", workingDir = repoRoot, args = launchArgs,
+      options = options)
+  else:
+    when not defined(windows):
+      options.incl(poDaemon)
+    result = startProcess(getAppFilename(), workingDir = repoRoot,
+      args = childArguments(mode, repoRoot, runtimeDir),
+      options = options)
+
+proc restartBackend(process: var Process, mode, repoRoot, runtimeDir: string)
+    {.role: actor, metaTags: {tagExecution, tagTesting, tagUi}.} =
+  ## process/mode/repoRoot/runtimeDir: monitored backend and restart context.
+  if process != nil and process.running():
+    return
+  if process != nil:
+    discard process.waitForExit(100)
+    process.close()
+  echo "Otter ", mode, " exited unexpectedly; restarting."
+  process = startBackend(mode, repoRoot, runtimeDir)
+
+proc stopBackend(process: var Process) {.role: actor,
+    metaTags: {tagExecution, tagTesting, tagUi}.} =
+  ## process: persistent backend handle stopped during supervisor shutdown.
+  terminateChild(process)
+  if process != nil:
+    discard process.waitForExit(3000)
+    process.close()
+    process = nil
+
 proc runSupervisor(repoRoot: string) {.role: metaOrchestrator,
     metaTags: {tagExecution, tagTesting, tagUi}.} =
   var
     runtimeDir: string = joinPath(getTempDir(), "otter-test-ui-" &
       $getCurrentProcessId())
     normalExitPath: string = joinPath(runtimeDir, NormalExitFile)
-    spawner: Process
+    readyPath: string = joinPath(runtimeDir, ReadyFile)
+    orchestrator: Process
+    testBackend: Process
     ui: Process
     response: JsonNode
     exitCode: int = 0
+    startupFailed: bool = false
+    serviceFailed: bool = false
   ensureRuntimeDirectories(runtimeDir)
-  spawner = startProcess(getAppFilename(), workingDir = repoRoot,
-    args = childArguments("spawner", repoRoot, runtimeDir),
-    options = {poParentStreams})
+  writeProcessIdentity(runtimeDir, "main")
+  testBackend = startBackend("test-backend", repoRoot, runtimeDir)
+  orchestrator = startBackend("orchestrator", repoRoot, runtimeDir)
+  writeHeartbeat(runtimeDir, "webui")
+  writeHeartbeat(runtimeDir, "orchestrator")
   try:
-    while spawner.running():
+    while true:
       if fileExists(normalExitPath):
         removeFile(normalExitPath)
-      ui = startProcess(getAppFilename(), workingDir = repoRoot,
-        args = childArguments("ui", repoRoot, runtimeDir),
-        options = {poParentStreams})
+      if fileExists(readyPath):
+        removeFile(readyPath)
+      ui = startBackend("ui", repoRoot, runtimeDir)
+      while ui.running():
+        if not fileExists(readyPath):
+          writeHeartbeat(runtimeDir, "webui")
+        restartBackend(testBackend, "test-backend", repoRoot, runtimeDir)
+        if orchestrator == nil or not orchestrator.running():
+          echo "Otter orchestrator exited; closing the Test UI and active tests."
+          serviceFailed = true
+          terminateChild(ui)
+          break
+        sleep(100)
       exitCode = ui.waitForExit()
       ui.close()
+      ui = nil
+      if serviceFailed:
+        break
+      if not fileExists(readyPath):
+        startupFailed = true
+        break
       if fileExists(normalExitPath):
         break
-      echo "Otter test UI host exited unexpectedly (", exitCode, "); relaunching."
+      echo "Otter test UI host exited unexpectedly (", exitCode,
+        "); relaunching."
       sleep(300)
   finally:
     try:
-      response = spawnerRequest(runtimeDir, %*{"action": "shutdown"})
+      response = orchestratorRequest(runtimeDir, %*{"action": "shutdown"})
       discard response
     except CatchableError:
       discard
     sleep(100)
-    terminateChild(spawner)
-    if spawner != nil:
-      discard spawner.waitForExit(3000)
-      spawner.close()
+    stopBackend(orchestrator)
+    stopBackend(testBackend)
+    stopBackend(ui)
+  if startupFailed:
+    raise newException(IOError,
+      "Otter test UI renderer failed during startup; see the preceding WebUI error")
 
 when isMainModule:
   var
@@ -252,11 +344,14 @@ when isMainModule:
     GRepoRoot = getCurrentDir()
   GRepoRoot = absolutePath(GRepoRoot)
   case mode
-  of "spawner":
-    runSpawner(getAppFilename(), GRepoRoot, GRuntimeDir)
+  of "spawner", "test-backend":
+    runTestBackend(getAppFilename(), GRepoRoot, GRuntimeDir)
+  of "orchestrator":
+    runOrchestrator(GRuntimeDir)
   of "worker":
     runWorker(GRepoRoot, GRuntimeDir, argumentValue(args, "--test-id:"),
-      argumentValue(args, "--results-path:"))
+      argumentValue(args, "--results-path:"),
+      argumentList(args, "--compile-flags:"))
   of "ui":
     runUi()
   else:
