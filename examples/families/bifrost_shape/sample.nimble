@@ -1,0 +1,5 @@
+version = "0.1.0"
+author = "otter sample"
+description = "A family that wants one parameter"
+license = "Unlicense"
+srcDir = "src"

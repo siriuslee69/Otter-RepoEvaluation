@@ -18,6 +18,7 @@ import ./shape
 import ./placeholders
 import ./secrets
 import ./embedded
+import ./families
 import ./config_touch
 import ./timeline
 import ./unused
@@ -260,6 +261,9 @@ type
     callDepth*: CallDepthStats
       ## how deep a chain of calls can get, and who sits at each
       ## depth. See `call_depth.nim`.
+    families*: FamilyReport
+      ## groups of sibling routines that are one routine with a knob
+      ## on it. See `families.nim`.
     embedded*: EmbeddedReport
       ## strings that hold another language entirely, and which
       ## comment marks that language uses. See `embedded.nim`.
