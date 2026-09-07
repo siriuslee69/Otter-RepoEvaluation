@@ -109,9 +109,11 @@ suite "state writes: who may change an entry":
     ## Pins the second thing this got wrong. Every "make one and fill
     ## it in" routine counted as a writer, which turned sixty ordinary
     ## constructors into writers of every entry they touched.
-    var f: FunctionInfo = FunctionInfo(name: "build",
-      signature: "proc build(p: float): Feed =",
-      returnType: "Feed", bodyLines: @["  result.price = p"])
+    var f: FunctionInfo = FunctionInfo()
+    f.name = "build"
+    f.signature = "proc build(p: float): Feed ="
+    f.returnType = "Feed"
+    f.bodyLines = @["  result.price = p"]
     check writeReceivers(f, "Feed", initHashSet[string]()).len == 0
     check "result" in readReceivers(f, "Feed", initHashSet[string](),
       initHashSet[string]())

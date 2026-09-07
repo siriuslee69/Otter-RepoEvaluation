@@ -225,6 +225,36 @@ proc codeOf*(s: string): string {.role: sanitizer,
       return s[0 ..< i]
     i = i + 1
 
+proc withoutStrings*(s: string): string {.role: sanitizer,
+    metaTags: {tagGraph, tagState}.} =
+  ## s: one line of code, its comment already cut off.
+  ## The same line with the inside of every double-quoted string
+  ## blanked out. A name written inside a string is a word, not a
+  ## reference, and reading it as one invents findings:
+  ##
+  ##   row.startsWith("doAssert false")   <- does not assert anything
+  ##   S.name = "price is high"           <- does not write S.price
+  var
+    i: int = 0
+    inStr: bool = false
+  result = s
+  while i < s.len:
+    if s[i] == '"' and (i == 0 or s[i - 1] != '\\'):
+      inStr = not inStr
+      i = i + 1
+      continue
+    if inStr:
+      result[i] = ' '
+    i = i + 1
+
+proc bareCode*(s: string): string {.role: sanitizer,
+    metaTags: {tagGraph, tagState}.} =
+  ## s: one line as written. What is left once the comment and the
+  ## inside of every string are gone: only the code that does
+  ## something. This is what every scanner in this file and the next
+  ## one reads, so none of them can be fooled by prose.
+  result = withoutStrings(codeOf(s))
+
 proc rootIdentAt(s: string, at: int): string {.role: parser,
     metaTags: {tagGraph, tagState}.} =
   ## s: one line   at: the index of a dot.
@@ -312,7 +342,7 @@ proc fieldUses*(line: string, recvs: HashSet[string], field: string):
   ## is a write and the second is a read, so both are counted and the
   ## routine comes out as a folding writer.
   var
-    s: string = codeOf(line)
+    s: string = bareCode(line)
     needle: string = "." & field
     at: int = 0
     from0: int = 0
@@ -448,7 +478,7 @@ proc localsTypedAs(f: FunctionInfo, tName: string,
     tail: string = ""
   result = @[]
   for raw in f.bodyLines:
-    s = codeOf(raw).strip()
+    s = bareCode(raw).strip()
     if s.startsWith("for ") and " in " in s:
       tail = s[s.find(" in ") + 4 .. ^1].strip(chars = {' ', ':'})
       n = tail.split({'.', '(', '[', ' '})[^1]
@@ -527,7 +557,7 @@ proc replacesWholeObject(f: FunctionInfo, recvs: HashSet[string],
     s: string = ""
   result = false
   for raw in f.bodyLines:
-    s = codeOf(raw).strip()
+    s = bareCode(raw).strip()
     for r in recvs:
       if s.startsWith(r & " = " & tName & "(") or
           s.startsWith(r & " = default(" & tName):
@@ -618,7 +648,7 @@ proc objectTypesIn*(path: string, lines: seq[string]): seq[StateType]
     got: tuple[name, typ: string] = ("", "")
   result = @[]
   while i < lines.len:
-    s = codeOf(lines[i]).strip()
+    s = bareCode(lines[i]).strip()
     if open and s.len > 0 and indentOf(lines[i]) <= openIndent:
       result.add(st)
       open = false
@@ -661,7 +691,7 @@ proc globalsIn(lines: seq[string]): seq[tuple[name, typ: string]]
     got: tuple[name, typ: string] = ("", "")
   result = @[]
   while i < lines.len:
-    s = codeOf(lines[i]).strip()
+    s = bareCode(lines[i]).strip()
     if indentOf(lines[i]) == 0 and s.len > 0:
       inBlock = (s == "var")
       if s.startsWith("var "):
@@ -828,7 +858,7 @@ proc callOffsets(f: FunctionInfo, names: seq[string]):
     k: int = 0
   result = @[]
   while k < f.bodyLines.len:
-    s = codeOf(f.bodyLines[k])
+    s = bareCode(f.bodyLines[k])
     for n in names:
       at = s.find(n & "(")
       if at < 0:
@@ -854,7 +884,7 @@ proc readsBetween(f: FunctionInfo, recvs: HashSet[string], field: string,
     at: int = 0
   result = false
   while k < j:
-    s = codeOf(f.bodyLines[k])
+    s = bareCode(f.bodyLines[k])
     if fieldUses(s, recvs, field).reads > 0:
       return true
     for n in readers:

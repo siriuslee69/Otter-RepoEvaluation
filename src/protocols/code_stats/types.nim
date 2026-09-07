@@ -20,6 +20,7 @@ import ./secrets
 import ./embedded
 import ./families
 import ./state_writes
+import ./yields
 import ./config_touch
 import ./timeline
 import ./unused
@@ -271,6 +272,9 @@ type
     state*: StateReport
       ## who may change each entry of a shared object, and where two
       ## of them lose each other's work. See `state_writes.nim`.
+    aborts*: seq[AbortReach]
+      ## routines that can stop the program because of something two
+      ## or three levels below them. See `yields.nim`.
     coupling*: CouplingStats
       ## whether every routine taking input from outside is paired
       ## with a sanitizer, and whether those sanitizers are

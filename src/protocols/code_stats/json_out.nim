@@ -13,6 +13,7 @@ import ./embedded
 import ./families
 import ./blast
 import ./state_writes
+import ./yields
 import ./ui_depth
 import ../../../meta/metaPragmas
 
@@ -333,6 +334,17 @@ proc couplingJson*(S: CouplingStats): JsonNode {.role: dataWriter,
     "regressionCovered": S.regressionCovered
   }
 
+proc statsJsonAborts(s: ProjectStats): JsonNode {.role: dataWriter,
+    metaTags: {tagGraph}.} =
+  ## s: one measured repository. The routines that can stop the
+  ## program because of something well below them.
+  var
+    rows: JsonNode = newJArray()
+  for a in s.aborts:
+    rows.add(%*{"routine": a.routine, "path": a.path, "line": a.line,
+      "how": a.how, "via": a.via})
+  result = rows
+
 proc statsJsonState(s: ProjectStats): JsonNode {.role: dataWriter,
     metaTags: {tagGraph, tagState}.} =
   ## s: one measured repository. Its state findings, trimmed to what a
@@ -423,6 +435,7 @@ proc statsJson*(S: ProjectStats): JsonNode {.role: dataWriter,
     "embedded": embeddedJson(S.embedded),
     "families": familyJson(S.families),
     "state": statsJsonState(S),
+    "aborts": statsJsonAborts(S),
     "secrets": secretsJson(S.secrets),
     "config": configJson(S.config),
     "timeline": timelineJson(S.timeline),
@@ -503,4 +516,21 @@ proc stateJson*(r: StateReport): JsonNode {.role: dataWriter,
   result = %*{
     "rootDir": r.rootDir, "states": states, "hazards": hazards,
     "unread": r.unread, "notes": r.notes, "error": r.error
+  }
+
+proc yieldJson*(r: YieldPaths): JsonNode {.role: dataWriter,
+    metaTags: {tagGraph}.} =
+  ## r: one yield-paths answer, as a tool reads it.
+  var
+    outcomes: JsonNode = newJArray()
+  for o in r.outcomes:
+    outcomes.add(%*{"name": o.name,
+      "kind": (if o.kind == okAbort: "abort" else: "raise"),
+      "via": o.via, "source": o.source})
+  result = %*{
+    "target": r.target, "path": r.path, "line": r.line,
+    "returnType": r.returnType, "carriesError": r.carriesError,
+    "errorField": r.errorField, "outcomes": outcomes,
+    "caught": r.caught, "barrier": r.barrier, "declared": r.declared,
+    "notes": r.notes, "error": r.error
   }
