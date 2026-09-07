@@ -71,7 +71,7 @@ srcDir        = "src"
 """)
   writeFile(dir / "src" / "work.nim", cleanSource)
   discard git(dir, "init -q")
-  discard git(dir, "config user.email test@example.com")
+  discard git(dir, "config user.email otter-test")
   discard git(dir, "config user.name test")
   discard git(dir, "add -A")
   discard git(dir, "commit -q -m first")
