@@ -14,6 +14,7 @@ import ./families
 import ./blast
 import ./state_writes
 import ./yields
+import ./diff_review
 import ./ui_depth
 import ../../../meta/metaPragmas
 
@@ -532,5 +533,35 @@ proc yieldJson*(r: YieldPaths): JsonNode {.role: dataWriter,
     "returnType": r.returnType, "carriesError": r.carriesError,
     "errorField": r.errorField, "outcomes": outcomes,
     "caught": r.caught, "barrier": r.barrier, "declared": r.declared,
+    "notes": r.notes, "error": r.error
+  }
+
+proc diffJson*(r: DiffReview): JsonNode {.role: dataWriter,
+    metaTags: {tagStats}.} =
+  ## r: one diff review, as a tool reads it.
+  var
+    metrics: JsonNode = newJArray()
+    appeared: JsonNode = newJArray()
+    went: JsonNode = newJArray()
+    reach: JsonNode = newJArray()
+    hot: JsonNode = newJArray()
+  for m in r.metrics:
+    metrics.add(%*{"name": m.name, "before": m.before, "after": m.after,
+      "worseWhenUp": m.worseWhenUp})
+  for f in r.appeared:
+    appeared.add(%*{"kind": f.kind, "what": f.what, "path": f.path,
+      "line": f.line})
+  for f in r.went:
+    went.add(%*{"kind": f.kind, "what": f.what, "path": f.path,
+      "line": f.line})
+  for row in r.reach:
+    reach.add(%*{"routine": row.routine, "path": row.path, "line": row.line,
+      "callers": row.callers, "names": row.names, "notes": row.notes})
+  for f in r.hotFiles:
+    hot.add(%*{"path": f.path, "count": f.count})
+  result = %*{
+    "rootDir": r.rootDir, "baseRev": r.baseRev, "files": r.files,
+    "added": r.added, "removed": r.removed, "metrics": metrics,
+    "appeared": appeared, "went": went, "reach": reach, "hotFiles": hot,
     "notes": r.notes, "error": r.error
   }
