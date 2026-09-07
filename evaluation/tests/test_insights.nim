@@ -224,6 +224,43 @@ suite "secrets: things that should never have been typed in":
       "Hello there, this is ordinary prose.").score < secretFloor
 
   # {.testKind: tkUnit.}
+  test "a marker takes a written-down vector below the floor":
+    ## A known-answer test has to write the answer down. Both markers
+    ## say so, and either one is enough on its own.
+    var
+      S: seq[SecretFind] = @[]
+      vector: string = "  skHex: \"4852834d9d6b77dadeabaaf2e11dca66\","
+    scanLine(vector, "evaluation/tests/vectors.nim", "", 1, S)
+    check S.len == 1
+    S = @[]
+    scanLine(vector, "evaluation/tests/vectors.nim", "", 1, S,
+      bVectors = true)
+    check S.len == 0
+    S = @[]
+    scanLine(vector & "  # otter:allow", "evaluation/tests/vectors.nim",
+      "", 1, S)
+    check S.len == 0
+
+  # {.testKind: tkEdgeCase.}
+  test "a marker is relief, not an off switch":
+    ## The whole point of lowering rather than clearing. A test folder
+    ## is a normal place for a real credential to be forgotten, so a
+    ## marked file must still give one up.
+    var
+      S: seq[SecretFind] = @[]
+      live: string = "  apiKey = \"sk-live-4f9a2b8c7d6e5f0a1b2c3d4e5f60718293a4b5c6\""
+    scanLine(live, "evaluation/tests/vectors.nim", "", 1, S,
+      bVectors = true)
+    check S.len == 1
+
+  # {.testKind: tkUnit.}
+  test "the two markers do not stack":
+    check reliefOf("x # otter:allow", bVectors = true) == markerRelief
+    check reliefOf("x # otter:allow", bVectors = false) == markerRelief
+    check reliefOf("x", bVectors = true) == markerRelief
+    check reliefOf("x", bVectors = false) == 0.0
+
+  # {.testKind: tkUnit.}
   test "a home folder gives up whose it is":
     check userPathOf("readFile(\"/home/anna/keys\")").who == "anna"
     check userPathOf("path = \"C:\\\\Users\\\\Anna\\\\keys\"").hit
