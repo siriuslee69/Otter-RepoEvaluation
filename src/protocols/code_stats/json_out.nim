@@ -9,6 +9,7 @@
 import std/[json]
 
 import ./types
+import ./embedded
 import ../../../meta/metaPragmas
 
 proc fileJson*(f: FileStat): JsonNode {.role: dataWriter,
@@ -125,6 +126,27 @@ proc shapeJson*(S: ShapeReport): JsonNode {.role: dataWriter,
     "dims": S.dims, "duplicates": dupes,
     "duplicateCount": S.duplicateCount,
     "points": points, "groups": groups
+  }
+
+proc embeddedJson*(S: EmbeddedReport): JsonNode {.role: dataWriter,
+    metaTags: {tagStats}.} =
+  ## S: strings that hold another language.
+  var
+    items: JsonNode = newJArray()
+    langs: JsonNode = newJArray()
+  for row in S.blocks:
+    items.add(%*{
+      "path": row.path, "line": row.line, "lines": row.lines,
+      "language": row.language, "comment": row.comment,
+      "score": row.score, "reasons": row.reasons
+    })
+  for row in S.byLanguage:
+    langs.add(%*{
+      "language": row.name, "blocks": row.count, "lines": row.lines
+    })
+  result = %*{
+    "items": items, "byLanguage": langs, "total": S.total,
+    "totalLines": S.totalLines, "error": S.error
   }
 
 proc placeholderJson*(S: PlaceholderReport): JsonNode {.role: dataWriter,
@@ -357,6 +379,7 @@ proc statsJson*(S: ProjectStats): JsonNode {.role: dataWriter,
     "tests": testsJson(S.tests),
     "shape": shapeJson(S.shape),
     "placeholders": placeholderJson(S.placeholders),
+    "embedded": embeddedJson(S.embedded),
     "secrets": secretsJson(S.secrets),
     "config": configJson(S.config),
     "timeline": timelineJson(S.timeline),

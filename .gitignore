@@ -17,14 +17,11 @@ bin/
 *.ilk
 *.exp
 *.log
-evaluation/tests/test_smoke
-evaluation/tests/test_child_enabled
-evaluation/tests/test_repo_graph
-evaluation/tests/test_test_ui
-evaluation/tests/test_ui_examples
-evaluation/tests/test_code_stats
-evaluation/tests/test_evaluation
-evaluation/tests/test_insights
+# Compiled test runners, by shape rather than by name. Listing them one
+# at a time meant a new test shipped its 447 KB binary the first time it
+# was committed, because nobody remembers to add a line here.
+evaluation/tests/test_*
+!evaluation/tests/test_*.nim
 evaluation/tests/.otter/results/
 evaluation/tests/samples/*_otter_wrapped
 evaluation/tests/build/
