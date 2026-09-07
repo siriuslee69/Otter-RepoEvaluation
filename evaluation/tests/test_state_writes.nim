@@ -111,7 +111,7 @@ suite "state writes: who may change an entry":
     ## constructors into writers of every entry they touched.
     var f: FunctionInfo = FunctionInfo()
     f.name = "build"
-    f.signature = "proc build(p: float): Feed ="
+    f.signature = "proc build(): Feed ="
     f.returnType = "Feed"
     f.bodyLines = @["  result.price = p"]
     check writeReceivers(f, "Feed", initHashSet[string]()).len == 0
