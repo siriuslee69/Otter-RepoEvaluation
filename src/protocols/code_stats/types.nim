@@ -17,6 +17,7 @@
 import ./shape
 import ./placeholders
 import ./secrets
+import ./embedded
 import ./config_touch
 import ./timeline
 import ./unused
@@ -259,6 +260,9 @@ type
     callDepth*: CallDepthStats
       ## how deep a chain of calls can get, and who sits at each
       ## depth. See `call_depth.nim`.
+    embedded*: EmbeddedReport
+      ## strings that hold another language entirely, and which
+      ## comment marks that language uses. See `embedded.nim`.
     coupling*: CouplingStats
       ## whether every routine taking input from outside is paired
       ## with a sanitizer, and whether those sanitizers are

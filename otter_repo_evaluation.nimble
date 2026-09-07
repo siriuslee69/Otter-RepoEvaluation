@@ -85,6 +85,7 @@ task test, "Run smoke tests":
   exec "nim c --path:src -r evaluation/tests/test_code_stats.nim"
   exec "nim c --path:src -r evaluation/tests/test_test_ui.nim"
   exec "nim c --path:src -r evaluation/tests/test_insights.nim"
+  exec "nim c --path:src -r evaluation/tests/test_embedded.nim"
 
 task buildtests, "Build smoke tests in release mode":
   exec "nim c --path:src -d:release evaluation/tests/test_evaluation.nim"

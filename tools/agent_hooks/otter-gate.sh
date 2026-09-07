@@ -87,6 +87,12 @@ REPO="$root" CHANGED="$changed" THRESH="$THRESHOLD" FORCED="$force" jq -r '
       ["SECRETS — \(.secrets.total) candidate(s). Remove or move behind config:"]
       + ([.secrets.items[]? | "  \(.path):\(.line)  \(.kind)  \(.preview)"] | top(8))
      else [] end)
+  + (if nz([.embedded.items[]? | select((.path // "") | test("\\.(html|htm|css)$") | not)] | length) then
+      ["EMBEDDED CODE — \(.embedded.total) string(s) hold another language (\(.embedded.totalLines) line(s)).",
+       "  Rule: another language belongs in its own file. While it is inline, a comment on those lines is written the way THAT language writes one."]
+      + ([.embedded.items[]? | select((.path // "") | test("\\.(html|htm|css)$") | not)
+          | "  \(.path):\(.line)  \(.lines) line(s) of \(.language), comments are \(if (.comment // "") == "" then "not known - check before adding one" else .comment end)"] | top(8))
+     else [] end)
   + (if nz(.placeholders.total) then
       ["PLACEHOLDERS — \(.placeholders.total) routine(s) that do not do the job yet.",
        "  Rule: a placeholder MUST be named with a ph_ prefix, or be finished."]
