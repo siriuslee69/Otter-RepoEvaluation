@@ -525,6 +525,223 @@ support linear-invariant certificates over bit matrices.
 The benchmark and NIST-style statistical evaluation protocols live inside
 Otter. They have no Sigma package or submodule dependency.
 
+╭⟢ Asking one question at a time 🌊
+
+The `stats` command measures everything and says a lot. Most of the
+time the question is smaller than that, and asking it small is what
+keeps the answer readable. Each command below answers one question and
+prints nothing else. Every one of them also takes `--json`.
+
+**Def. 1: a *finding*** is one thing a command noticed, in one place,
+that somebody may want to do something about.
+
+**Def. 2: a *chain*** is a list of routine names written with arrows -
+`seal -> gcmSeal -> init` - meaning the first calls the second, which
+calls the third. Chains are read left to right, nearest first.
+
+### Before changing a routine: what can it reach
+
+```sh
+./bin/otter-repo-graph blast <dir> <name> [--callers:n] [--feeders:m]
+```
+
+Two directions, with their own depths, because they answer different
+questions. `n` is how far **up** through callers; `m` is how far
+**down** into the arguments handed in.
+
+```
+myfunc(t(), x(a(b())))     m = 1  ->  t, x
+                           m = 2  ->  t, x, a
+                           m = 3  ->  t, x, a, b
+```
+
+Going up is worth more, so `n = 2, m = 1` is the default. Two mistakes
+this is meant to stop: cleaning a value a caller already cleaned, and
+guessing the range of a parameter that only ever receives 0, 1 and 2.
+
+### Before writing a call: how can it end
+
+```sh
+./bin/otter-repo-graph yields <dir> <name>
+```
+
+A signature names one of the answers. This names the rest.
+
+```
+loadWidth  src/config.nim:32
+  yields on success: int
+  can end with:
+    RangeDefect     loadWidth                              [a defect]
+    IOError         loadWidth -> readRaw -> readFile       [library]
+    ValueError      loadWidth -> parseWidth -> parseInt    [library]
+```
+
+The important line is the one that is not an exception at all:
+
+```
+    doAssert        seal -> gcmSeal -> check   STOPS THE PROGRAM
+```
+
+An exception three levels down can be caught here. A `quit` or a
+failed `doAssert` three levels down cannot be caught anywhere, so
+those are listed on their own in `stats --json` under `aborts`.
+
+### Before adding a writer: who else changes this
+
+```sh
+./bin/otter-repo-graph state <dir> [typeName]
+```
+
+```
+Feed  (truth_state)  src/feed.nim:15   5 entrie(s)
+    entry         replaced by         folded by     read by
+    price         ingest, resample                  render     ! overwrite
+    volume        ingest              accumulate    render
+    lastSeen      ingest, resample                             ! never read
+```
+
+**Def. 3: a *blind write*** replaces an entry without reading it
+first - `S.price = p`. **Def. 4: a *folding write*** reads it and puts
+it back changed - `S.volume = S.volume + 1`, `S.rows.add(row)`. Only
+two blind writes can lose information; a folding write carries the
+other's work forward.
+
+A loss is proven rather than guessed. Two blind writers are a shape,
+not a bug, so a **witness** is looked for - a routine calling one and
+then the other with nothing between them that reads the entry:
+
+```
+  ! Feed.price - ingest and resample each replace it without reading it first.
+    runFeed calls ingest (src/feed.nim:60) then resample (:61) and nothing
+    reads price in between, so what ingest stored is gone.
+```
+
+If only the newest value matters - a live feed where older readings
+are meant to fall on the floor - say so on the entry and it stops
+being reported:
+
+```nim
+type Feed = object
+  ticker*: string   ## otter:latest
+```
+
+### Before saying a change is finished: what did it do
+
+```sh
+./bin/otter-repo-graph diff <dir> [rev]
+```
+
+Measures the tree twice and subtracts, so what comes back is what the
+change did rather than what the repository is like.
+
+```
+what changed   working tree vs HEAD
+  4 file(s), +212 -38 lines
+
+  what appeared
+    NESTING       parseFrame is 4 blocks deep (if)   src/net/client.nim:88
+    STATE         Feed.price is written twice in runFeed with no read between
+
+  what the changed routines reach
+    parseFrame            6 caller(s) within 2 hop(s): handshake, session, runLoop
+
+  read these first
+    src/net/client.nim                            3 new finding(s)
+```
+
+The tree as it was is unpacked into a scratch folder with `git archive
+| tar`. Nothing is checked out, stashed or reset, so this is safe to
+run on a folder somebody is in the middle of editing. ʕ•́ᴥ•̀ʔっ♡
+
+Findings are matched by path, routine name and kind - never by line -
+so adding ten lines at the top of a file does not report everything
+in it as new.
+
+### Two more
+
+```sh
+./bin/otter-repo-graph ui <dir>       # how many clicks to each control
+```
+
+Counts, for every button, input, select and link of a front end, how
+many things a person must open first. It reads text, not a running
+page, so it can show a priority inversion but cannot promise there is
+not one it missed. Controls reachable only by a key are counted apart:
+nothing hides them, but somebody who does not know the key cannot
+reach them at all.
+
+Routine families and embedded code have no command of their own; both
+appear in `stats` and in the gate script. A **family** is a group of
+routines that are one routine with a knob on it. **Embedded code** is
+a string holding another language - the report names which, because a
+comment written on those lines has to be written the way *that*
+language writes one.
+
+╭⟢ Promises a routine has to keep 🐦‍🔥
+
+`src/protocols/invariants.nim` is not a measurement. It is a small
+library a repository imports so that a sentence a signature cannot say
+gets checked instead of rotting in a comment.
+
+```nim
+import otter_repo_evaluation/protocols/invariants
+
+proc withdraw(balance, amount: int): int {.
+  needs: amount <= balance,
+  gives: result >= 0
+.} =
+  balance - amount
+```
+
+| written | checked while building | checked while running |
+|---|---|---|
+| `needs` / `gives` / `keeps` | yes | no |
+| `needsRun` / `givesRun` / `keepsRun` | yes | yes |
+
+`needs` is what must hold on the way in, `gives` what must hold on the
+way out, `keeps` what must hold at both ends. `result` names what
+comes back.
+
+The first three cost **nothing**. Not almost nothing: the check sits
+inside `when nimvm:`, a branch the compiler keeps for its own
+interpreter and never writes into the program. Two programs, one with
+the promises and one without, build to the same number of bytes, and
+`nimble test` compiles both and compares them.
+
+A build-time check runs wherever the compiler runs the routine - in a
+`const`, in a `static:` block, inside a macro:
+
+```nim
+static:
+  discard withdraw(100, 40)     # checked, and passes
+  discard withdraw(40, 100)     # the build stops here, and says why
+```
+
+```
+needs failed in `withdraw`: amount <= balance [ContractDefect]
+```
+
+The `Run` three add the check to the program too, raising a
+`ContractDefect`. They are on in an ordinary build, off with
+`-d:danger` or `-d:noOtterContracts`, and on again with
+`-d:otterContracts`.
+
+Saying something about many values at once, or about the way in:
+
+```nim
+gives: forall(i in 1 ..< A.len, A[i - 1] <= A[i])   # A comes back sorted
+needs: exists(c in s, c == '=')                     # s has an equals sign
+givesRun: S.len == old(S).len + 1                   # exactly one was added
+```
+
+**Why the names are not `requires` and `ensures`.** ୨୧ Those two are
+pragmas the Nim compiler already knows: they belong to DrNim, a
+separate build of the compiler that proves them with a solver. The
+ordinary compiler reads them, checks that what is written makes sense,
+and then does nothing with it. Written that way a broken promise
+builds cleanly and nobody is told, which is worse than having no
+promise at all. So these are called something else.
+
 ## Repo Graph Surface
 
 The merged graph layer ports the Ratatoskr parser into Otter and extends it with:

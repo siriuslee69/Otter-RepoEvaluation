@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: move the repository onto the conventional layout.
+Commit Message: show what a change did to the tree, not what the tree is like.
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.
@@ -11,6 +11,23 @@ Features (Planned):
 - Parent-repo adoption of the pragma-driven test UI after Otter example validation.
 
 Features (Done):
+- Diff review: `otter_repo_graph diff` measures the tree twice - the
+  working copy, and the tree at a revision unpacked into a scratch
+  folder with `git archive` - and subtracts, so what comes back is what
+  the change did rather than what the repository is like. Findings are
+  matched by path, routine name and kind, never by line, so moved lines
+  are not reported as new work.
+- Contracts: `needs` / `gives` / `keeps` are checked wherever the
+  compiler runs the routine and cost nothing - the check sits in the
+  `nimvm` branch, which is never written into the program - and the
+  `Run` three add the check at run time as well. `forall`, `exists` and
+  `old(x)` work in either tier.
+- Yield paths: `otter_repo_graph yields` names every way a routine can
+  end, followed along the resolved call edges, with what stops the
+  program told apart from what merely raises.
+- State writes: `otter_repo_graph state` names who may change each entry
+  of a shared object, and proves a lost write by naming the routine that
+  calls two blind writers in a row.
 - Code statistics: one pass over a tree gives per-file routine lengths
   and health bands, blocks inside blocks with the code in each last
   layer, declared-role tallies, unreachable routines, and how many
@@ -61,5 +78,21 @@ Features (In Progress):
 - Keep extending parent-repo test metadata and runtime flag coverage as new suites are adopted.
 
 Notes:
-- Last change/problem: Test runners could not expose optional compile-time branches, and long card names were truncated before distinguishing native and WASM targets.
-- Fix attempts: Added validated project-flag discovery and selection, propagated flags through isolated workers and nested runners, and gave card names a smaller two-line area above target tabs.
+- Last change/problem: the four new modules each read code as text, and
+  each was wrong the first time in a way only a real tree showed. A
+  string holding the words `doAssert false` read as an assertion; a
+  `static:` block read as a crash that could stop a running program; a
+  routine building its own object read as a writer of everybody's
+  state; `clear` then `init` read as a lost write across a whole
+  cryptography library; and hops taken along matching names told a
+  repository with its own `open` about a chain that does not exist.
+- Fix attempts: every scanner now reads a line with its comment and the
+  inside of its strings gone; writers are strict while readers stay
+  generous, since a reader counted by mistake only silences a finding
+  while a writer counted by mistake invents one; and propagation follows
+  the call edges the graph already resolved. Each of the five is pinned
+  by a regression test. Two further things stand open: the parser hands
+  a trailing `when isMainModule` block to the last routine above it,
+  worked around in `yields.nim` rather than fixed where it belongs, and
+  the unused-routine report does not count a macro used as a pragma, so
+  every contract macro reads as uncalled.
