@@ -39,9 +39,11 @@
 ## | that was published, and it still has to be rotated.         |
 ## ==============================================================
 
-import std/[algorithm, math, os, osproc, strutils, tables]
+import std/[algorithm, math, os, osproc, sets, strutils, tables]
 
 import ../../../meta/metaPragmas
+
+import ../repo_graph/io_utils
 
 const
   secretFloor*: float = 0.55
@@ -80,6 +82,15 @@ const
     ## Words that say "this is not real". They pull a score down
     ## rather than clearing it, because a value labelled `example`
     ## occasionally turns out to be anything but.
+  neverSecretNames*: array[6, string] = [
+    "importc", "importcpp", "importjs", "exportc", "dynlib", "header"
+  ]
+    ## Names that say the value is a symbol for the linker, not a value
+    ## for a person. `proc f() {.importc: "PQCLEAN_..._keypair".}` names
+    ## a function inside a C library: it is long, it is jumbled, it is
+    ## made of key characters, and it is published in that library's
+    ## header file. Every signal the scoring uses fires, and every one
+    ## of them is wrong, so the name settles it before scoring starts.
   vectorsMarker*: string = "otter:vectors"
     ## Written once in a file whose fixed values are published test
     ## vectors. A cryptography suite is mostly such values, and they
@@ -336,6 +347,9 @@ proc scoreValue*(name, value: string):
   result = (score: 0.0, entropy: 0.0, reasons: @[])
   if value.len < minValueLen or value.len > maxValueLen:
     return
+  for row in neverSecretNames:
+    if name.toLowerAscii() == row:
+      return
   if looksLikePath(value) and not nameLooksSecret(name):
     return
   ent = entropyOf(value)
@@ -519,7 +533,44 @@ proc scanWorking*(dir: string, files: seq[string],
       n = n + 1
       scanLine(line, rel, "", n, S, bVectors)
 
-proc scanHistory*(dir: string, S: var seq[SecretFind]): int
+proc markedPaths*(dir: string, files: seq[string]): HashSet[string]
+    {.role: dataFetcher, metaTags: {tagStats}.} =
+  ## dir <- the repository   files <- every source file in it
+  ## The repository-relative paths of files that carry `otter:vectors`
+  ## today.
+  ##
+  ## The history is read afterwards, and the lines it finds were written
+  ## before anyone added a marker. Judging them by the marker the file
+  ## carries *now* is the right way round: the marker says what the file
+  ## is, and a file of published vectors was a file of published vectors
+  ## in the commit that added them. A real key in that history is still
+  ## reported, because relief lowers a score rather than clearing it.
+  var
+    rel: string = ""
+    text: string = ""
+  result = initHashSet[string]()
+  for path in files:
+    rel = path.replace('\\', '/')
+    if dir.len > 0 and rel.startsWith(dir.replace('\\', '/')):
+      rel = rel[dir.len .. ^1]
+    if rel.startsWith("/"):
+      rel = rel[1 .. ^1]
+    try:
+      text = readFile(path)
+    except OSError, IOError:
+      continue
+    if vectorsMarker in text:
+      result.incl(rel)
+      # The file name goes in as well as the path, because the history
+      # records the path a file had at the time. Tyr-Crypto moved its
+      # whole suite from `tests/` to `evaluation/tests/`, so every
+      # vector file appears in the history under a path that no longer
+      # exists. Matching the name too follows the file across that move
+      # without asking git to trace renames commit by commit.
+      result.incl(extractFilename(rel))
+
+proc scanHistory*(dir: string, S: var seq[SecretFind],
+    marked: HashSet[string] = initHashSet[string]()): int
     {.role: orchestrator, input: thirdParty, risk: low, speed: long,
     metaTags: {tagStats}.} =
   ## dir <- the repository   S <- the list being grown
@@ -538,6 +589,7 @@ proc scanHistory*(dir: string, S: var seq[SecretFind]): int
     path: string = ""
     n: int = 0
     body: string = ""
+    bScan: bool = false
   result = 0
   try:
     got = execCmdEx("git -C " & quoteShell(dir) &
@@ -556,6 +608,10 @@ proc scanHistory*(dir: string, S: var seq[SecretFind]): int
     if line.startsWith("+++ b/"):
       path = line[6 .. ^1].strip()
       n = 0
+      # The folder walk never offers a PDF or a vendored RFC to the
+      # scorer; the history must not either, or a repository is judged
+      # on documents nobody wrote by hand.
+      bScan = isScannablePath(path)
       continue
     if line.startsWith("@@"):
       # `@@ -1,0 +42,3 @@` says the added lines start at 42.
@@ -577,7 +633,10 @@ proc scanHistory*(dir: string, S: var seq[SecretFind]): int
       continue
     if line.startsWith("+") and not line.startsWith("+++"):
       n = n + 1
-      scanLine(line[1 .. ^1], path, commit, n, S)
+      if not bScan:
+        continue
+      scanLine(line[1 .. ^1], path, commit, n, S,
+        path in marked or extractFilename(path) in marked)
 
 proc dedupe*(A: seq[SecretFind]): seq[SecretFind] {.role: sanitizer,
     metaTags: {tagStats}.} =
@@ -612,7 +671,7 @@ proc secretsOf*(dir: string, files: seq[string],
     return
   scanWorking(dir, files, found)
   if withHistory and (dirExists(dir / ".git") or fileExists(dir / ".git")):
-    result.commitsRead = scanHistory(dir, found)
+    result.commitsRead = scanHistory(dir, found, markedPaths(dir, files))
   found = dedupe(found)
   found.sort(byScore)
   result.total = found.len
