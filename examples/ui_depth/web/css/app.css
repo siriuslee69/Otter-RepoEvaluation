@@ -1,0 +1,16 @@
+/* Gates: each of these must be opened before what is inside is seen. */
+.panel { display: none; }
+.drawer { display: none; }
+.submenu { display: none; }
+.dialog { display: none; }
+
+/* NOT a gate: the stage is the page. It is only hidden on a narrow
+   screen, which is a shape, not a click. */
+@media (max-width: 40rem) {
+  .stage { display: none; }
+}
+
+/* NOT a gate either: this hides the stage only while the body carries
+   a state class, so the stage is still the first thing on a normal
+   page. */
+body.busy .stage { display: none; }

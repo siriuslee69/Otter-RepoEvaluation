@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><link rel="stylesheet" href="css/app.css"></head>
+<body>
+  <!-- On screen the moment the page opens. Nothing hides these. -->
+  <main class="stage">
+    <button id="about" aria-label="About this program">About</button>
+    <a href="#credits">Credits</a>
+  </main>
+
+  <!-- One click: the settings panel has to be opened. -->
+  <div class="panel" id="settings">
+    <input placeholder="Display name">
+    <select aria-label="Theme"><option>dark</option></select>
+  </div>
+
+  <!-- Three clicks: a drawer, inside it a submenu, inside that a
+       dialog. The thing at the bottom is the one people need most,
+       which is the inversion this whole module exists to show. -->
+  <div class="drawer">
+    <div class="submenu">
+      <div class="dialog">
+        <button aria-label="Export every account">Export all</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- No gate above it, but only a key handler ever shows it. -->
+  <input id="palette" placeholder="Type a command">
+  <script src="js/app.js"></script>
+</body>
+</html>

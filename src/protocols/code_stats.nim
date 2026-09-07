@@ -12,6 +12,7 @@ import ./code_stats/types
 import ./code_stats/embedded
 import ./code_stats/families
 import ./code_stats/blast
+import ./code_stats/ui_depth
 import ./code_stats/nesting
 import ./code_stats/test_scan
 import ./code_stats/pipeline
@@ -22,6 +23,7 @@ export types
 export embedded
 export families
 export blast
+export ui_depth
 export nesting
 export test_scan
 export pipeline

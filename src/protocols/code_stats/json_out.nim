@@ -12,6 +12,7 @@ import ./types
 import ./embedded
 import ./families
 import ./blast
+import ./ui_depth
 import ../../../meta/metaPragmas
 
 proc fileJson*(f: FileStat): JsonNode {.role: dataWriter,
@@ -442,4 +443,22 @@ proc blastJson*(r: BlastRadius): JsonNode {.role: dataWriter,
     "consumers": consumers, "arguments": arguments,
     "sanitizersAbove": r.sanitizersAbove, "notes": r.notes,
     "error": r.error
+  }
+
+proc uiDepthJson*(r: UiDepthReport): JsonNode {.role: dataWriter,
+    metaTags: {tagStats}.} =
+  ## r: how deeply the controls of a front end are buried.
+  var
+    controls: JsonNode = newJArray()
+    depths: JsonNode = newJArray()
+  for c in r.controls:
+    controls.add(%*{"path": c.path, "line": c.line, "tag": c.tag,
+      "label": c.label, "depth": c.depth, "gates": c.gates,
+      "keyboardOnly": c.keyboardOnly})
+  for d in r.byDepth:
+    depths.add(%*{"depth": d.depth, "count": d.count})
+  result = %*{
+    "controls": controls, "byDepth": depths, "total": r.total,
+    "deepest": r.deepest, "keyboardOnly": r.keyboardOnly,
+    "hiddenClasses": r.hiddenClasses, "error": r.error
   }
