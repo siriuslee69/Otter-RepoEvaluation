@@ -18,6 +18,7 @@ proc printUsage() {.role: helper, metaTags: {tagGraph, tagExecution}.} =
   echo "  otter_repo_graph ui [repoRoot] [--json]"
   echo "  otter_repo_graph state [repoRoot] [typeName] [--json]"
   echo "  otter_repo_graph yields [repoRoot] <name> [--json]"
+  echo "  otter_repo_graph diff [repoRoot] [rev] [--json]"
 
 
 proc flagPresent(args: seq[string], flag: string): bool {.role: helper, metaTags: {tagGraph, tagExecution}.} =
@@ -217,6 +218,29 @@ proc runYields(args: seq[string]) {.role: actor,
   if r.error.len > 0:
     quit(1)
 
+proc runDiff(args: seq[string]) {.role: actor,
+    metaTags: {tagGraph, tagStats, tagExecution}.} =
+  ## args: the words after `diff`. What this change did to the tree,
+  ## rather than what the tree is like.
+  var
+    items: seq[string] = @[]
+    rootDir: string = "."
+    rev: string = "HEAD"
+    r: DiffReview
+  items = positionalArgs(args)
+  if items.len > 0:
+    rootDir = items[0]
+  if items.len > 1:
+    rev = items[1]
+  r = diffReview(rootDir, rev)
+  if flagPresent(args, "--json"):
+    echo diffJson(r)
+    return
+  for line in diffLines(r):
+    echo line
+  if r.error.len > 0:
+    quit(1)
+
 proc runStats(args: seq[string]) {.role: actor,
     metaTags: {tagGraph, tagStats, tagExecution}.} =
   ## args: the words after `stats`. Prints the summary a person reads,
@@ -269,6 +293,8 @@ proc runCli*() {.role: orchestrator, metaTags: {tagGraph, tagExecution}.} =
     runState(rest)
   of "yields":
     runYields(rest)
+  of "diff":
+    runDiff(rest)
   else:
     printUsage()
     quit(1)

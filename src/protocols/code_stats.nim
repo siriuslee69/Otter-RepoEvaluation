@@ -14,6 +14,7 @@ import ./code_stats/families
 import ./code_stats/blast
 import ./code_stats/state_writes
 import ./code_stats/yields
+import ./code_stats/diff_review
 import ./code_stats/ui_depth
 import ./code_stats/nesting
 import ./code_stats/test_scan
@@ -27,6 +28,7 @@ export families
 export blast
 export state_writes
 export yields
+export diff_review
 export ui_depth
 export nesting
 export test_scan

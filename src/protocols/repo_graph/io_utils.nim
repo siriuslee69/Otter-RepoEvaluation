@@ -185,3 +185,12 @@ proc isSrcPath*(path: string): bool =
   var
     p: string = normalizeSlashes(path)
   result = (p.startsWith("src/") or "/src/" in p) and not isTestPath(p)
+
+proc padTo*(s: string, n: int): string {.inline.} =
+  ## s: any text   n: the width of the column it sits in.
+  ## The same text with spaces after it, so that what follows lines
+  ## up. Here rather than in each report because three reports wanted
+  ## it and three copies of four lines is how a tree starts to rot.
+  result = s
+  while result.len < n:
+    result = result & " "

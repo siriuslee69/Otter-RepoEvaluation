@@ -1079,11 +1079,6 @@ proc stateWritesOf*(g: RepoGraph, focus: string = ""): StateReport
     "`ref`, or reaching it as a module-level name, count as writing it; " &
     "a routine building its own copy is not writing anybody's state")
 
-proc padTo(s: string, n: int): string {.inline.} =
-  result = s
-  while result.len < n:
-    result = result & " "
-
 proc entryLine(e: FieldTraffic): string {.role: dataWriter,
     metaTags: {tagGraph, tagState}.} =
   ## e: one entry. Its row of the table, and the one word that says
