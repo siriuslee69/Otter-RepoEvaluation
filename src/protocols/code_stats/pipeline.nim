@@ -441,7 +441,9 @@ proc langOf(ext: string): string {.inline, role: helper, metaTags: {tagStats}.} 
 
 proc listAllSourceFiles*(rootDir: string): seq[string] {.role: dataFetcher,
     metaTags: {tagStats}.} =
-  ## Recursively find all source and config files in rootDir, skipping ignored dirs
+  ## Recursively find all source and config files in rootDir, skipping the
+  ## vendored folders named in `vendoredDirs`. Tests are kept: a repository's
+  ## own tests are its own code, and the coverage figures need them.
   result = @[]
   if not dirExists(rootDir): return
   try:
@@ -449,11 +451,7 @@ proc listAllSourceFiles*(rootDir: string): seq[string] {.role: dataFetcher,
       var rel = path[rootDir.len .. ^1]
       rel = rel.replace('\\', '/')
       if rel.startsWith("/"): rel = rel[1 .. ^1]
-      if rel.startsWith(".git/") or rel.contains("/.git/") or
-         rel.startsWith("nimcache/") or rel.contains("/nimcache/") or
-         rel.startsWith("build/") or rel.contains("/build/") or
-         rel.startsWith("builds/") or rel.contains("/builds/") or
-         rel.startsWith("node_modules/") or rel.contains("/node_modules/"):
+      if isIgnoredPath(rel, bIncludeTests = true):
         continue
       let ext = extOf(rel)
       if ext in ["nim", "c", "h", "cpp", "hpp", "js", "ts", "html", "css", "json", "toml", "md", "py", "sh"]:
@@ -501,7 +499,7 @@ proc gatherGitignoreStats*(rootDir: string): GitignoreStat {.role: truthBuilder,
     for path in walkDirRec(rootDir, yieldFilter = {pcFile}):
       var rel = path[rootDir.len .. ^1].replace('\\', '/')
       if rel.startsWith("/"): rel = rel[1 .. ^1]
-      if rel.startsWith(".git/"): continue
+      if isIgnoredPath(rel, bIncludeTests = true): continue
       var matched = false
       for p in patterns:
         let pat = p.replace("*", "").replace("/", "")
