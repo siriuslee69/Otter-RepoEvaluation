@@ -25,6 +25,7 @@ import ./shape
 import ./placeholders
 import ./embedded
 import ./families
+import ./state_writes
 import ./secrets
 import ./config_touch
 import ./timeline
@@ -247,6 +248,8 @@ proc analyzeProject*(rootDir: string): ProjectStats {.role: orchestrator,
   result.secrets = secretsOf(normDir, allSourceFiles)
   result.embedded = embeddedOf(normDir, allSourceFiles)
   result.families = familiesOf(result.shape.shapes, parts.src)
+  result.state = stateWritesOf(RepoGraph(rootDir: normDir,
+    functions: parts.src, edges: graph.edges))
   result.timeline = timelineOf(normDir)
 
   # Two more, both reading the call graph rather than the files:

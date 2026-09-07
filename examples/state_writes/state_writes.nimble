@@ -1,0 +1,5 @@
+version       = "0.1.0"
+author        = "siriuslee69"
+description   = "A state with two writers that lose each other's work."
+license       = "Unlicense"
+srcDir        = "src"
