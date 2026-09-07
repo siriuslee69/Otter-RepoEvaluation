@@ -1,0 +1,5 @@
+version = "0.1.0"
+author = "otter sample"
+description = "A tree shaped to show what a blast radius answers"
+license = "Unlicense"
+srcDir = "src"
