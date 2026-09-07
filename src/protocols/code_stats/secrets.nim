@@ -80,6 +80,37 @@ const
     ## Words that say "this is not real". They pull a score down
     ## rather than clearing it, because a value labelled `example`
     ## occasionally turns out to be anything but.
+  vectorsMarker*: string = "otter:vectors"
+    ## Written once in a file whose fixed values are published test
+    ## vectors. A cryptography suite is mostly such values, and they
+    ## are meant to be read: a known-answer test is worthless unless
+    ## the answer is written down. One marker covers the whole file.
+  allowMarker*: string = "otter:allow"
+    ## Written at the end of a single line whose value only looks like
+    ## a secret - a domain separator, a find-and-replace token.
+  markerRelief*: float = 0.40
+    ## How much either marker takes off. Like `safeWords` it lowers a
+    ## score rather than clearing it, so a marked file still gives up a
+    ## real credential:
+    ##
+    ##   value                  raw    marked   floor 0.55
+    ##   ---------------------  -----  -------  -------------
+    ##   hex vector, `skHex`     0.90    0.50    not reported
+    ##   TOTP secret, decimal    0.62    0.22    not reported
+    ##   domain separator        0.65    0.25    not reported
+    ##   live `sk-live-...` key  0.99    0.59    REPORTED
+    ##   `-----BEGIN` block      0.99    0.59    REPORTED
+    ##
+    ## The size is not free to choose. `scoreValue` never returns more
+    ## than 0.99, so relief must leave the top of the range above the
+    ## floor while pulling a vector under it:
+    ##
+    ##   0.99 - relief >= 0.55  ->  relief <= 0.44
+    ##   0.90 - relief <  0.55  ->  relief >  0.35
+    ##
+    ## 0.40 sits in the middle of that window. At 0.45 - the value
+    ## `safeWords` uses - a live key lands on 0.54 and the marker
+    ## becomes what it must never be: a way to switch the check off.
 
 type
   SecretKind* {.role: other, metaTags: {tagStats}.} = enum
@@ -380,11 +411,29 @@ proc splitAssignment*(line: string): tuple[name: string, value: string]
     head = head.splitWhitespace()[^1]
   result = (name: head, value: tail[a + 1 ..< b])
 
+proc reliefOf*(line: string, bVectors: bool): float {.role: parser,
+    metaTags: {tagStats}.} =
+  ## line <- one line of source.
+  ## bVectors: whether the whole file carries `otter:vectors`.
+  ## How much to take off this line's score, and why:
+  ##
+  ##   the file says otter:vectors  -> markerRelief
+  ##   the line says otter:allow    -> markerRelief
+  ##   neither                      -> nothing
+  ##
+  ## The two never stack. One marker is a statement about the value,
+  ## and saying it twice does not make it truer.
+  result = 0.0
+  if bVectors or allowMarker in line:
+    result = markerRelief
+
 proc scanLine*(line, path, commit: string, n: int,
-    S: var seq[SecretFind]) {.role: actor, metaTags: {tagStats}.} =
+    S: var seq[SecretFind], bVectors: bool = false) {.role: actor,
+    metaTags: {tagStats}.} =
   ## line <- one line of source   path <- where it lives
   ## commit <- "" for the working folder, or which commit added it
   ## n <- which line   S <- the list being grown
+  ## bVectors: the file declared itself a vector file.
   ##
   ## One line can hold more than one kind of find, so every test is
   ## run rather than stopping at the first.
@@ -393,6 +442,7 @@ proc scanLine*(line, path, commit: string, n: int,
     got: tuple[score: float, entropy: float, reasons: seq[string]]
     who: tuple[hit: bool, who: string]
     mail: string = ""
+    relief: float = reliefOf(line, bVectors)
   if line.len > 4000:
     return
   # A line that is only a comment is left alone. Documentation is
@@ -406,6 +456,9 @@ proc scanLine*(line, path, commit: string, n: int,
   pair = splitAssignment(line)
   if pair.value.len > 0:
     got = scoreValue(pair.name, pair.value)
+    got.score = got.score - relief
+    if relief > 0.0:
+      got.reasons.add("but the source marks this value as a written-down one")
     if got.score >= secretFloor:
       S.add(SecretFind(kind: "key", name: pair.name,
         preview: maskOf(pair.value), path: path, commit: commit,
@@ -413,18 +466,18 @@ proc scanLine*(line, path, commit: string, n: int,
         score: got.score, entropy: got.entropy,
         inHistory: commit.len > 0))
   who = userPathOf(line)
-  if who.hit:
+  if who.hit and 0.8 - relief >= secretFloor:
     S.add(SecretFind(kind: "user path", name: who.who,
       preview: maskOf(who.who), path: path, commit: commit,
       reasons: @["a home folder with somebody's name in it"],
-      line: n, length: who.who.len, score: 0.8, entropy: 0.0,
+      line: n, length: who.who.len, score: 0.8 - relief, entropy: 0.0,
       inHistory: commit.len > 0))
   mail = looksLikeEmail(line)
-  if mail.len > 0:
+  if mail.len > 0 and 0.7 - relief >= secretFloor:
     S.add(SecretFind(kind: "email", name: "email", preview: maskOf(mail),
       path: path, commit: commit,
       reasons: @["an email address written into the source"],
-      line: n, length: mail.len, score: 0.7, entropy: 0.0,
+      line: n, length: mail.len, score: 0.7 - relief, entropy: 0.0,
       inHistory: commit.len > 0))
 
 proc byScore(a, b: SecretFind): int {.role: helper,
@@ -446,6 +499,7 @@ proc scanWorking*(dir: string, files: seq[string],
     rel: string = ""
     n: int = 0
     text: string = ""
+    bVectors: bool = false
   for path in files:
     rel = path.replace('\\', '/')
     if dir.len > 0 and rel.startsWith(dir.replace('\\', '/')):
@@ -456,10 +510,14 @@ proc scanWorking*(dir: string, files: seq[string],
       text = readFile(path)
     except OSError, IOError:
       continue
+    # The whole file is read before any line is weighed, so the marker
+    # may sit anywhere in it. Putting it at the top is the habit worth
+    # keeping, because that is where a reader looks for it.
+    bVectors = vectorsMarker in text
     n = 0
     for line in text.splitLines():
       n = n + 1
-      scanLine(line, rel, "", n, S)
+      scanLine(line, rel, "", n, S, bVectors)
 
 proc scanHistory*(dir: string, S: var seq[SecretFind]): int
     {.role: orchestrator, input: thirdParty, risk: low, speed: long,
