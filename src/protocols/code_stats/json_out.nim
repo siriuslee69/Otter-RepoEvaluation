@@ -11,6 +11,7 @@ import std/[json]
 import ./types
 import ./embedded
 import ./families
+import ./blast
 import ../../../meta/metaPragmas
 
 proc fileJson*(f: FileStat): JsonNode {.role: dataWriter,
@@ -410,4 +411,35 @@ proc statsJson*(S: ProjectStats): JsonNode {.role: dataWriter,
     "unusedFuncs": unusedFuncsJson(S.unusedFuncs),
     "callDepth": callDepthJson(S.callDepth),
     "coupling": couplingJson(S.coupling)
+  }
+
+proc blastJson*(r: BlastRadius): JsonNode {.role: dataWriter,
+    metaTags: {tagGraph}.} =
+  ## r: one blast radius, as a tool reads it.
+  var
+    callers: JsonNode = newJArray()
+    feeders: JsonNode = newJArray()
+    producers: JsonNode = newJArray()
+    consumers: JsonNode = newJArray()
+    arguments: JsonNode = newJArray()
+  for row in r.callers:
+    callers.add(%*{"name": row.name, "path": row.path, "line": row.line,
+      "depth": row.depth, "role": row.role})
+  for row in r.feeders:
+    feeders.add(%*{"name": row.name, "path": row.path, "line": row.line,
+      "depth": row.depth})
+  for row in r.producers:
+    producers.add(%*{"name": row.name, "path": row.path, "line": row.line})
+  for row in r.consumers:
+    consumers.add(%*{"name": row.name, "path": row.path, "line": row.line})
+  for row in r.arguments:
+    arguments.add(%*{"position": row.position, "literals": row.literals,
+      "fromVariables": row.fromVariables})
+  result = %*{
+    "target": r.target, "kind": r.kind, "path": r.path, "line": r.line,
+    "callerDepth": r.callerDepth, "feederDepth": r.feederDepth,
+    "callers": callers, "feeders": feeders, "producers": producers,
+    "consumers": consumers, "arguments": arguments,
+    "sanitizersAbove": r.sanitizersAbove, "notes": r.notes,
+    "error": r.error
   }

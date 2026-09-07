@@ -14,6 +14,7 @@ proc printUsage() {.role: helper, metaTags: {tagGraph, tagExecution}.} =
   echo "  otter_repo_graph artifacts [repoRoot] [outputDir] [--include-tests]"
   echo "  otter_repo_graph run [repoRoot] [functionId] [--include-tests]"
   echo "  otter_repo_graph stats [repoRoot] [--json]"
+  echo "  otter_repo_graph blast [repoRoot] <name> [--callers:n] [--feeders:m] [--json]"
 
 
 proc flagPresent(args: seq[string], flag: string): bool {.role: helper, metaTags: {tagGraph, tagExecution}.} =
@@ -96,6 +97,52 @@ proc runSample(args: seq[string]) {.role: actor, metaTags: {tagGraph, tagExecuti
     quit(1)
 
 
+proc flagValue(args: seq[string], flag: string, fallback: int): int
+    {.role: parser, metaTags: {tagGraph, tagExecution}.} =
+  ## args: the words after the command   flag: what to look for
+  ## fallback: what to use when it is absent or unreadable.
+  var prefix: string = flag & ":"
+  result = fallback
+  for a in args:
+    if not a.startsWith(prefix):
+      continue
+    try:
+      result = parseInt(a[prefix.len .. ^1])
+    except ValueError:
+      result = fallback
+
+proc runBlast(args: seq[string]) {.role: actor,
+    metaTags: {tagGraph, tagExecution}.} =
+  ## args: the words after `blast`. What one change to a routine or a
+  ## type can reach, up through its callers and down into what is
+  ## handed to it.
+  var
+    items: seq[string] = @[]
+    rootDir: string = "."
+    name: string = ""
+    n: int = 0
+    m: int = 0
+    r: BlastRadius
+    g: RepoGraph
+  items = positionalArgs(args)
+  if items.len < 2:
+    echo "Usage: otter_repo_graph blast <repoRoot> <name> " &
+      "[--callers:n] [--feeders:m] [--json]"
+    quit(1)
+  rootDir = items[0]
+  name = items[1]
+  n = flagValue(args, "--callers", defaultCallerDepth)
+  m = flagValue(args, "--feeders", defaultFeederDepth)
+  g = analyzeRepo(rootDir)
+  r = blastRadius(g, name, n, m)
+  if flagPresent(args, "--json"):
+    echo blastJson(r)
+    return
+  for line in blastLines(r):
+    echo line
+  if r.error.len > 0:
+    quit(1)
+
 proc runStats(args: seq[string]) {.role: actor,
     metaTags: {tagGraph, tagStats, tagExecution}.} =
   ## args: the words after `stats`. Prints the summary a person reads,
@@ -140,6 +187,8 @@ proc runCli*() {.role: orchestrator, metaTags: {tagGraph, tagExecution}.} =
     runSample(rest)
   of "stats":
     runStats(rest)
+  of "blast":
+    runBlast(rest)
   else:
     printUsage()
     quit(1)
