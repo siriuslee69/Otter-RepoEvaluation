@@ -15,6 +15,7 @@ proc printUsage() {.role: helper, metaTags: {tagGraph, tagExecution}.} =
   echo "  otter_repo_graph run [repoRoot] [functionId] [--include-tests]"
   echo "  otter_repo_graph stats [repoRoot] [--json]"
   echo "  otter_repo_graph blast [repoRoot] <name> [--callers:n] [--feeders:m] [--json]"
+  echo "  otter_repo_graph ui [repoRoot] [--json]"
 
 
 proc flagPresent(args: seq[string], flag: string): bool {.role: helper, metaTags: {tagGraph, tagExecution}.} =
@@ -143,6 +144,26 @@ proc runBlast(args: seq[string]) {.role: actor,
   if r.error.len > 0:
     quit(1)
 
+proc runUi(args: seq[string]) {.role: actor,
+    metaTags: {tagGraph, tagStats, tagExecution}.} =
+  ## args: the words after `ui`. How many things a person must open
+  ## before each control of a front end can be reached.
+  var
+    items: seq[string] = @[]
+    rootDir: string = "."
+    r: UiDepthReport
+  items = positionalArgs(args)
+  if items.len > 0:
+    rootDir = items[0]
+  r = uiDepthOf(rootDir, listAllSourceFiles(rootDir))
+  if flagPresent(args, "--json"):
+    echo uiDepthJson(r)
+    return
+  for line in uiDepthLines(r):
+    echo line
+  if r.error.len > 0:
+    quit(1)
+
 proc runStats(args: seq[string]) {.role: actor,
     metaTags: {tagGraph, tagStats, tagExecution}.} =
   ## args: the words after `stats`. Prints the summary a person reads,
@@ -189,6 +210,8 @@ proc runCli*() {.role: orchestrator, metaTags: {tagGraph, tagExecution}.} =
     runStats(rest)
   of "blast":
     runBlast(rest)
+  of "ui":
+    runUi(rest)
   else:
     printUsage()
     quit(1)
