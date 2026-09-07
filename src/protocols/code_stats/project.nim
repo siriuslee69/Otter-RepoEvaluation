@@ -24,6 +24,7 @@ import ./types
 import ./shape
 import ./placeholders
 import ./embedded
+import ./families
 import ./secrets
 import ./config_touch
 import ./timeline
@@ -245,6 +246,7 @@ proc analyzeProject*(rootDir: string): ProjectStats {.role: orchestrator,
   result.config = configReportOf(normDir, files, all)
   result.secrets = secretsOf(normDir, allSourceFiles)
   result.embedded = embeddedOf(normDir, allSourceFiles)
+  result.families = familiesOf(result.shape.shapes, parts.src)
   result.timeline = timelineOf(normDir)
 
   # Two more, both reading the call graph rather than the files:

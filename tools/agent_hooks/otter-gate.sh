@@ -87,6 +87,12 @@ REPO="$root" CHANGED="$changed" THRESH="$THRESHOLD" FORCED="$force" jq -r '
       ["SECRETS — \(.secrets.total) candidate(s). Remove or move behind config:"]
       + ([.secrets.items[]? | "  \(.path):\(.line)  \(.kind)  \(.preview)"] | top(8))
      else [] end)
+  + (if nz(.families.total) then
+      ["FAMILIES — \(.families.total) group(s) of routines that are one routine with a knob on it (\(.families.routinesInFamilies) routines, about \(.families.linesSaved) lines).",
+       "  Rule: no complex logic; build modular, parallel, multipass logic. Siblings differing in one or two places want one routine and a parameter."]
+      + ([.families.items[]?
+          | "  \(.level)  \(.members|join(", "))\n      varies in \(.varyingDims) direction(s)\(if (.axisNames|length) > 0 then " (" + (.axisNames|join(", ")) + ")" else "" end), \(.agreement*100|floor)% alike, \(.evidence)\n      -> \(.remedy)"] | top(4))
+     else [] end)
   + (if nz([.embedded.items[]? | select((.path // "") | test("\\.(html|htm|css)$") | not)] | length) then
       ["EMBEDDED CODE — \(.embedded.total) string(s) hold another language (\(.embedded.totalLines) line(s)).",
        "  Rule: another language belongs in its own file. While it is inline, a comment on those lines is written the way THAT language writes one."]

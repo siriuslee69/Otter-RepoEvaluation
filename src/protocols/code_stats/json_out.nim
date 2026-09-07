@@ -10,6 +10,7 @@ import std/[json]
 
 import ./types
 import ./embedded
+import ./families
 import ../../../meta/metaPragmas
 
 proc fileJson*(f: FileStat): JsonNode {.role: dataWriter,
@@ -126,6 +127,28 @@ proc shapeJson*(S: ShapeReport): JsonNode {.role: dataWriter,
     "dims": S.dims, "duplicates": dupes,
     "duplicateCount": S.duplicateCount,
     "points": points, "groups": groups
+  }
+
+proc familyJson*(S: FamilyReport): JsonNode {.role: dataWriter,
+    metaTags: {tagStats}.} =
+  ## S: groups of siblings that are one routine with a knob on it.
+  var
+    items: JsonNode = newJArray()
+    axisNames: array[FamilyAxis, string] = ["type", "value", "term"]
+  for row in S.families:
+    items.add(%*{
+      "level": row.level, "members": row.members, "paths": row.paths,
+      "lines": row.lines, "axis": axisNames[row.axis],
+      "axisNames": row.axisNames, "varyingDims": row.varyingDims,
+      "agreement": row.agreement, "totalLines": row.totalLines,
+      "collapsedLines": row.collapsedLines, "score": row.score,
+      "remedy": row.remedy, "evidence": row.evidence,
+      "byDispatch": row.byDispatch
+    })
+  result = %*{
+    "items": items, "total": S.total,
+    "routinesInFamilies": S.routinesInFamilies,
+    "linesSaved": S.linesSaved, "error": S.error
   }
 
 proc embeddedJson*(S: EmbeddedReport): JsonNode {.role: dataWriter,
@@ -380,6 +403,7 @@ proc statsJson*(S: ProjectStats): JsonNode {.role: dataWriter,
     "shape": shapeJson(S.shape),
     "placeholders": placeholderJson(S.placeholders),
     "embedded": embeddedJson(S.embedded),
+    "families": familyJson(S.families),
     "secrets": secretsJson(S.secrets),
     "config": configJson(S.config),
     "timeline": timelineJson(S.timeline),
