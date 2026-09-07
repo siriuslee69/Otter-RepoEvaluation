@@ -99,6 +99,12 @@ REPO="$root" CHANGED="$changed" THRESH="$THRESHOLD" FORCED="$force" jq -r '
       + ([.embedded.items[]? | select((.path // "") | test("\\.(html|htm|css)$") | not)
           | "  \(.path):\(.line)  \(.lines) line(s) of \(.language), comments are \(if (.comment // "") == "" then "not known - check before adding one" else .comment end)"] | top(8))
      else [] end)
+  + (if nz([.aborts[]?] | length) then
+      ["ENDINGS — \(.aborts|length) routine(s) can stop the program because of something well below them.",
+       "  Rule: a raise three levels down can be caught here; a quit or a doAssert three levels down cannot be caught anywhere."]
+      + ([.aborts[]?
+          | "  \(.path):\(.line)  \(.routine)  \(.how) via \(.via|join(" -> "))"] | top(6))
+     else [] end)
   + (if nz([.state.proven[]?] | length) then
       ["STATE — \(.state.proven|length) entry(s) where one write lands on another and is lost.",
        "  Rule: perceive data, build truth state, act on parsed data. A value written twice with no read between never reached anybody."]

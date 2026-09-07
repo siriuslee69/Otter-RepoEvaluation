@@ -17,6 +17,7 @@ proc printUsage() {.role: helper, metaTags: {tagGraph, tagExecution}.} =
   echo "  otter_repo_graph blast [repoRoot] <name> [--callers:n] [--feeders:m] [--json]"
   echo "  otter_repo_graph ui [repoRoot] [--json]"
   echo "  otter_repo_graph state [repoRoot] [typeName] [--json]"
+  echo "  otter_repo_graph yields [repoRoot] <name> [--json]"
 
 
 proc flagPresent(args: seq[string], flag: string): bool {.role: helper, metaTags: {tagGraph, tagExecution}.} =
@@ -190,6 +191,32 @@ proc runState(args: seq[string]) {.role: actor,
   if r.error.len > 0:
     quit(1)
 
+proc runYields(args: seq[string]) {.role: actor,
+    metaTags: {tagGraph, tagExecution}.} =
+  ## args: the words after `yields`. Every way one routine can end,
+  ## followed as far down through the repository as it goes.
+  var
+    items: seq[string] = @[]
+    rootDir: string = "."
+    name: string = ""
+    r: YieldPaths
+    g: RepoGraph
+  items = positionalArgs(args)
+  if items.len < 2:
+    echo "Usage: otter_repo_graph yields <repoRoot> <name> [--json]"
+    quit(1)
+  rootDir = items[0]
+  name = items[1]
+  g = analyzeRepo(rootDir)
+  r = yieldPathsOf(g, name, escapingOf(g))
+  if flagPresent(args, "--json"):
+    echo yieldJson(r)
+    return
+  for line in yieldLines(r):
+    echo line
+  if r.error.len > 0:
+    quit(1)
+
 proc runStats(args: seq[string]) {.role: actor,
     metaTags: {tagGraph, tagStats, tagExecution}.} =
   ## args: the words after `stats`. Prints the summary a person reads,
@@ -240,6 +267,8 @@ proc runCli*() {.role: orchestrator, metaTags: {tagGraph, tagExecution}.} =
     runUi(rest)
   of "state":
     runState(rest)
+  of "yields":
+    runYields(rest)
   else:
     printUsage()
     quit(1)

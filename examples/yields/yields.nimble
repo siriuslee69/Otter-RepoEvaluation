@@ -1,0 +1,5 @@
+version       = "0.1.0"
+author        = "siriuslee69"
+description   = "A chain of routines whose ways of ending are worth knowing."
+license       = "Unlicense"
+srcDir        = "src"
