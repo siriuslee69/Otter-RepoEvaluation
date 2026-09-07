@@ -36,8 +36,29 @@ const
     ## end, so "/build/" matches a top-level `build` and a nested one, and
     ## never matches a file merely named `build.nim`.
 
+const
+  sourceExts*: array[14, string] = [
+    "nim", "c", "h", "cpp", "hpp", "js", "ts",
+    "html", "css", "json", "toml", "md", "py", "sh"
+  ]
+    ## Endings of files a person writes by hand. Everything else is
+    ## either compiled output or a document that happens to live in the
+    ## tree: a PDF read a line at a time yields long jumbled runs of
+    ## bytes that score exactly as a key does, and a vendored RFC is
+    ## full of published test vectors and author addresses.
+
 proc normalizeSlashes*(s: string): string {.inline.} =
   result = s.replace('\\', '/')
+
+proc extensionOf*(p: string): string {.inline.} =
+  ## p: any path. The ending in lower case and without its dot, or ""
+  ## when the name carries none.
+  var
+    at: int = p.rfind('.')
+    slash: int = max(p.rfind('/'), p.rfind('\\'))
+  result = ""
+  if at > slash and at >= 0 and at < p.len - 1:
+    result = p[at + 1 .. ^1].toLowerAscii()
 
 
 proc isIgnoredPath*(relPath: string, bIncludeTests: bool): bool {.role: parser,
@@ -54,6 +75,15 @@ proc isIgnoredPath*(relPath: string, bIncludeTests: bool): bool {.role: parser,
   if not bIncludeTests and "/tests/" in t:
     return true
   result = false
+
+proc isScannablePath*(relPath: string): bool {.role: parser,
+    metaTags: {tagGraph}.} =
+  ## relPath: one path below the repository root.
+  ## True when the file is this repository's own, and of a kind a person
+  ## writes by hand. This is the one question both the folder walk and
+  ## the history reader ask, so they answer it the same way.
+  result = not isIgnoredPath(relPath, bIncludeTests = true) and
+    extensionOf(relPath) in sourceExts
 
 
 proc listNimFiles*(rootDir: string, bIncludeTests: bool = false): seq[string] =

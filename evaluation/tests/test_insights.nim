@@ -12,6 +12,7 @@ import std/[sets, strutils, tables, unittest]
 import ../../src/protocols/code_stats/shape
 import ../../src/protocols/code_stats/placeholders
 import ../../src/protocols/code_stats/secrets
+import ../../src/protocols/repo_graph/io_utils
 import ../../src/protocols/code_stats/config_touch
 import ../../src/protocols/code_stats/timeline
 import ../../src/protocols/code_stats/unused
@@ -253,12 +254,39 @@ suite "secrets: things that should never have been typed in":
       bVectors = true)
     check S.len == 1
 
+  # {.testKind: tkRegression.}
+  test "a C symbol named for the linker is not a secret":
+    ## pins: `{.importc: "PQCLEAN_NTRUHPS2048509_CLEAN_crypto_kem_keypair".}`
+    ## scored on length, key characters and jumbledness at once, so
+    ## every C binding in a repository was reported.
+    check scoreValue("importc",
+      "PQCLEAN_NTRUHPS2048509_CLEAN_crypto_kem_keypair").score < secretFloor
+    check scoreValue("dynlib", "libcrypto.so.3.0.0.something").score <
+      secretFloor
+    ## The name has to be the whole name, or `importcKey` would be let
+    ## through as well.
+    check scoreValue("importcApiKey",
+      "sk-live-4f9a2b8c7d6e5f0a1b2c3d4e5f60718293a4b5c6").score >= secretFloor
+
   # {.testKind: tkUnit.}
   test "the two markers do not stack":
     check reliefOf("x # otter:allow", bVectors = true) == markerRelief
     check reliefOf("x # otter:allow", bVectors = false) == markerRelief
     check reliefOf("x", bVectors = true) == markerRelief
     check reliefOf("x", bVectors = false) == 0.0
+
+  # {.testKind: tkRegression.}
+  test "only hand-written files are worth scanning":
+    ## pins: the folder walk skipped PDFs and vendored RFCs, the history
+    ## reader did not, and a handbook PDF read a line at a time gave up
+    ## a 118-character run of binary that scored as a key.
+    check isScannablePath("src/tyr/kems/material.nim")
+    check isScannablePath("evaluation/tests/test_otp.nim")
+    check not isScannablePath("docs/handbook/Volume_0.pdf")
+    check not isScannablePath("docs/research/references/rfc8032.txt")
+    check not isScannablePath("app/src/main/AndroidManifest.xml")
+    check not isScannablePath("submodules/openssl/crypto/evp/evp_key.c")
+    check not isScannablePath("build/nimcache_x/thing.nim")
 
   # {.testKind: tkUnit.}
   test "a home folder gives up whose it is":

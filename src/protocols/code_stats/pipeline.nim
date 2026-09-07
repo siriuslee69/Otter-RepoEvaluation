@@ -451,10 +451,7 @@ proc listAllSourceFiles*(rootDir: string): seq[string] {.role: dataFetcher,
       var rel = path[rootDir.len .. ^1]
       rel = rel.replace('\\', '/')
       if rel.startsWith("/"): rel = rel[1 .. ^1]
-      if isIgnoredPath(rel, bIncludeTests = true):
-        continue
-      let ext = extOf(rel)
-      if ext in ["nim", "c", "h", "cpp", "hpp", "js", "ts", "html", "css", "json", "toml", "md", "py", "sh"]:
+      if isScannablePath(rel):
         result.add(path)
   except CatchableError:
     discard
