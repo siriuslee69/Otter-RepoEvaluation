@@ -5,35 +5,55 @@
 
 import std/[algorithm, os, strutils]
 
+import ../../../meta/metaPragmas
+
+const
+  vendoredDirs*: array[9, string] = [
+    "/.git/",           # git storage
+    "/build/",          # compiler output
+    "/builds/",         # compiler output, plural spelling
+    "/nimcache/",       # intermediate C files
+    "/.nimble_cache/",  # one copy of every dependency source
+    "/dist/",           # bundled javascript output
+    "/node_modules/",   # javascript dependencies
+    "/submodules/",     # other repositories, pinned here
+    "/.otter/"          # scratch space belonging to this tool
+  ]
+    ## Folders whose contents are not the measured repository's own code.
+    ##
+    ## Measuring them is worse than useless. A pinned copy of OpenSSL
+    ## carries tens of thousands of test vectors that read as leaked keys,
+    ## and a nimble cache holds several versions of every dependency at
+    ## once, so one routine is counted three times. Both drown the findings
+    ## that belong to the repository being measured:
+    ##
+    ##   with vendored code      without
+    ##   ------------------      -------
+    ##   106323 secrets          the few that are actually the repo's
+    ##   8122 routines           the ones someone here wrote
+    ##
+    ## The list is matched against a path with one slash forced onto each
+    ## end, so "/build/" matches a top-level `build` and a nested one, and
+    ## never matches a file merely named `build.nim`.
+
 proc normalizeSlashes*(s: string): string {.inline.} =
   result = s.replace('\\', '/')
 
 
-proc isIgnoredPath(relPath: string, bIncludeTests: bool): bool =
+proc isIgnoredPath*(relPath: string, bIncludeTests: bool): bool {.role: parser,
+    metaTags: {tagGraph}.} =
+  ## relPath: one path below the repository root, either slash style.
+  ## bIncludeTests: keep `tests/` when true.
+  ## True when the path belongs to something this repository did not write.
   var
     t: string = ""
   t = "/" & normalizeSlashes(relPath).toLowerAscii() & "/"
-  if "/.git/" in t:
-    result = true
-    return
-  if "/build/" in t or "/builds/" in t:
-    result = true
-    return
-  if "/nimcache/" in t:
-    result = true
-    return
-  if "/dist/" in t or "/node_modules/" in t:
-    result = true
-    return
-  if "/submodules/" in t:
-    result = true
-    return
-  if "/.otter/" in t:
-    result = true
-    return
+  for d in vendoredDirs:
+    if d in t:
+      return true
   if not bIncludeTests and "/tests/" in t:
-    result = true
-    return
+    return true
+  result = false
 
 
 proc listNimFiles*(rootDir: string, bIncludeTests: bool = false): seq[string] =
