@@ -19,6 +19,7 @@ import ./placeholders
 import ./secrets
 import ./embedded
 import ./families
+import ./state_writes
 import ./config_touch
 import ./timeline
 import ./unused
@@ -267,6 +268,9 @@ type
     embedded*: EmbeddedReport
       ## strings that hold another language entirely, and which
       ## comment marks that language uses. See `embedded.nim`.
+    state*: StateReport
+      ## who may change each entry of a shared object, and where two
+      ## of them lose each other's work. See `state_writes.nim`.
     coupling*: CouplingStats
       ## whether every routine taking input from outside is paired
       ## with a sanitizer, and whether those sanitizers are

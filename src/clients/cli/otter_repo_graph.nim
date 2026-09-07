@@ -16,6 +16,7 @@ proc printUsage() {.role: helper, metaTags: {tagGraph, tagExecution}.} =
   echo "  otter_repo_graph stats [repoRoot] [--json]"
   echo "  otter_repo_graph blast [repoRoot] <name> [--callers:n] [--feeders:m] [--json]"
   echo "  otter_repo_graph ui [repoRoot] [--json]"
+  echo "  otter_repo_graph state [repoRoot] [typeName] [--json]"
 
 
 proc flagPresent(args: seq[string], flag: string): bool {.role: helper, metaTags: {tagGraph, tagExecution}.} =
@@ -164,6 +165,31 @@ proc runUi(args: seq[string]) {.role: actor,
   if r.error.len > 0:
     quit(1)
 
+proc runState(args: seq[string]) {.role: actor,
+    metaTags: {tagGraph, tagStats, tagExecution}.} =
+  ## args: the words after `state`. Who may change each entry of a
+  ## shared object, and where two of them lose each other's work.
+  var
+    items: seq[string] = @[]
+    rootDir: string = "."
+    focus: string = ""
+    r: StateReport
+    g: RepoGraph
+  items = positionalArgs(args)
+  if items.len > 0:
+    rootDir = items[0]
+  if items.len > 1:
+    focus = items[1]
+  g = analyzeRepo(rootDir)
+  r = stateWritesOf(g, focus)
+  if flagPresent(args, "--json"):
+    echo stateJson(r)
+    return
+  for line in stateLines(r):
+    echo line
+  if r.error.len > 0:
+    quit(1)
+
 proc runStats(args: seq[string]) {.role: actor,
     metaTags: {tagGraph, tagStats, tagExecution}.} =
   ## args: the words after `stats`. Prints the summary a person reads,
@@ -212,6 +238,8 @@ proc runCli*() {.role: orchestrator, metaTags: {tagGraph, tagExecution}.} =
     runBlast(rest)
   of "ui":
     runUi(rest)
+  of "state":
+    runState(rest)
   else:
     printUsage()
     quit(1)

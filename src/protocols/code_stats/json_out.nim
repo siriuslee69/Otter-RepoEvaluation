@@ -12,6 +12,7 @@ import ./types
 import ./embedded
 import ./families
 import ./blast
+import ./state_writes
 import ./ui_depth
 import ../../../meta/metaPragmas
 
@@ -332,6 +333,21 @@ proc couplingJson*(S: CouplingStats): JsonNode {.role: dataWriter,
     "regressionCovered": S.regressionCovered
   }
 
+proc statsJsonState(s: ProjectStats): JsonNode {.role: dataWriter,
+    metaTags: {tagGraph, tagState}.} =
+  ## s: one measured repository. Its state findings, trimmed to what a
+  ## reader has to act on: the proven losses and the dead entries.
+  var
+    hazards: JsonNode = newJArray()
+  for h in s.state.hazards:
+    if h.witness.len == 0:
+      continue
+    hazards.add(%*{"type": h.typeName, "field": h.field, "first": h.first,
+      "second": h.second, "witness": h.witness, "path": h.path,
+      "firstLine": h.firstLine, "secondLine": h.secondLine})
+  result = %*{"proven": hazards, "unread": s.state.unread,
+    "states": s.state.states.len}
+
 proc statsJson*(S: ProjectStats): JsonNode {.role: dataWriter,
     metaTags: {tagStats}.} =
   ## S: one whole measured repository.
@@ -406,6 +422,7 @@ proc statsJson*(S: ProjectStats): JsonNode {.role: dataWriter,
     "placeholders": placeholderJson(S.placeholders),
     "embedded": embeddedJson(S.embedded),
     "families": familyJson(S.families),
+    "state": statsJsonState(S),
     "secrets": secretsJson(S.secrets),
     "config": configJson(S.config),
     "timeline": timelineJson(S.timeline),
@@ -461,4 +478,29 @@ proc uiDepthJson*(r: UiDepthReport): JsonNode {.role: dataWriter,
     "controls": controls, "byDepth": depths, "total": r.total,
     "deepest": r.deepest, "keyboardOnly": r.keyboardOnly,
     "hiddenClasses": r.hiddenClasses, "error": r.error
+  }
+
+proc stateJson*(r: StateReport): JsonNode {.role: dataWriter,
+    metaTags: {tagGraph, tagState}.} =
+  ## r: one state-writes answer, as a tool reads it.
+  var
+    states: JsonNode = newJArray()
+    entries: JsonNode = newJArray()
+    hazards: JsonNode = newJArray()
+  for st in r.states:
+    entries = newJArray()
+    for e in st.entries:
+      entries.add(%*{"field": e.field, "type": e.typeName, "line": e.line,
+        "replacedBy": e.blindWriters, "foldedBy": e.foldingWriters,
+        "readBy": e.readers, "allowed": e.allowed, "hazard": e.hazard})
+    states.add(%*{"name": st.name, "path": st.path, "line": st.line,
+      "role": st.role, "entries": entries,
+      "wholeWriters": st.wholeWriters})
+  for h in r.hazards:
+    hazards.add(%*{"type": h.typeName, "field": h.field, "first": h.first,
+      "second": h.second, "witness": h.witness, "path": h.path,
+      "firstLine": h.firstLine, "secondLine": h.secondLine})
+  result = %*{
+    "rootDir": r.rootDir, "states": states, "hazards": hazards,
+    "unread": r.unread, "notes": r.notes, "error": r.error
   }

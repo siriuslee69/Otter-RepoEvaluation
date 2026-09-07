@@ -99,6 +99,17 @@ REPO="$root" CHANGED="$changed" THRESH="$THRESHOLD" FORCED="$force" jq -r '
       + ([.embedded.items[]? | select((.path // "") | test("\\.(html|htm|css)$") | not)
           | "  \(.path):\(.line)  \(.lines) line(s) of \(.language), comments are \(if (.comment // "") == "" then "not known - check before adding one" else .comment end)"] | top(8))
      else [] end)
+  + (if nz([.state.proven[]?] | length) then
+      ["STATE — \(.state.proven|length) entry(s) where one write lands on another and is lost.",
+       "  Rule: perceive data, build truth state, act on parsed data. A value written twice with no read between never reached anybody."]
+      + ([.state.proven[]?
+          | "  \(.path):\(.firstLine)  \(.witness) calls \(.first) then \(.second) (:\(.secondLine)) and nothing reads \(.type).\(.field) in between\n      -> fold the two into one writer, read it in between, or mark the entry `## otter:latest`"] | top(6))
+     else [] end)
+  + (if nz([.state.unread[]?] | length) then
+      ["STATE — \(.state.unread|length) entry(s) written and never read.",
+       "  Rule: every write is a claim about the world. A claim nobody reads is dead weight."]
+      + ([.state.unread[]? | "  \(.)"] | top(6))
+     else [] end)
   + (if nz(.placeholders.total) then
       ["PLACEHOLDERS — \(.placeholders.total) routine(s) that do not do the job yet.",
        "  Rule: a placeholder MUST be named with a ph_ prefix, or be finished."]
