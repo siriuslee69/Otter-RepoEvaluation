@@ -104,7 +104,7 @@ suite "otter repo graph: where a routine ends":
     ## inside the block from being found at all.
     var
       root: string = joinPath(getCurrentDir(), "build", "test_parser_end")
-      g: RepoGraph
+      g: RepoGraph = RepoGraph()
       byName: Table[string, FunctionInfo] = initTable[string, FunctionInfo]()
     if dirExists(root):
       removeDir(root)
@@ -147,7 +147,7 @@ when isMainModule:
     ## top level has no caller either. Both used to read as dead.
     var
       root: string = joinPath(getCurrentDir(), "build", "test_parser_uses")
-      s: ProjectStats
+      s: ProjectStats = ProjectStats()
       dead: seq[string] = @[]
     if dirExists(root):
       removeDir(root)
