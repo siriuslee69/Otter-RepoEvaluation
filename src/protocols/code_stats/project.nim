@@ -238,10 +238,33 @@ proc analyzeProject*(rootDir: string): ProjectStats {.role: orchestrator,
   #
   # `calledNames` is every name anything in the tree calls, lowered.
   # Two of the reports need it and neither should build it again.
+  #
+  # Three kinds of use count, not one. A routine reads as dead only
+  # when none of them names it:
+  #
+  #   something calls it        parseWidth(s)
+  #   a pragma applies it       {.needs: b <= a.}   <- never "called"
+  #   top-level code calls it   when isMainModule: stream(1)
+  #
+  # The last two used to be invisible, so every macro written to be
+  # used as a pragma, and every routine only ever reached from a
+  # module's own top level, was reported as dead weight.
   var
     calledNames: HashSet[string] = initHashSet[string]()
+    perFile: Table[string, seq[FunctionInfo]] = initTable[string,
+      seq[FunctionInfo]]()
+    lines: seq[string] = @[]
   for fn in all:
     for name in fn.calls:
+      calledNames.incl(name.toLowerAscii())
+    if not perFile.hasKey(fn.sourcePath):
+      perFile[fn.sourcePath] = @[]
+    perFile[fn.sourcePath].add(fn)
+  for p in listNimFiles(normDir, bIncludeTests = true):
+    lines = readLinesSafe(p)
+    for name in pragmaNamesIn(lines):
+      calledNames.incl(name.toLowerAscii())
+    for name in topLevelCalls(lines, perFile.getOrDefault(p, @[])):
       calledNames.incl(name.toLowerAscii())
   result.shape = shapeReport(parts.src, normDir)
   result.placeholders = placeholdersOf(all, calledNames, normDir)
