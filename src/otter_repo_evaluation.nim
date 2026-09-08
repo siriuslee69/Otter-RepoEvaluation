@@ -7,6 +7,7 @@ import ./protocols/types
 import ./protocols/evaluation
 import ./protocols/state
 import ./protocols/invariants
+import ./protocols/visibility
 import ./protocols/instrumentation
 import ./protocols/repo_graph
 import ./protocols/code_stats
@@ -16,6 +17,7 @@ export types
 export evaluation
 export state
 export invariants
+export visibility
 export instrumentation
 export repo_graph
 export code_stats
