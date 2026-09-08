@@ -18,7 +18,7 @@ proc printUsage() {.role: helper, metaTags: {tagGraph, tagExecution}.} =
   echo "  otter_repo_graph ui [repoRoot] [--json]"
   echo "  otter_repo_graph state [repoRoot] [typeName] [--json]"
   echo "  otter_repo_graph yields [repoRoot] <name> [--json]"
-  echo "  otter_repo_graph diff [repoRoot] [rev] [--json]"
+  echo "  otter_repo_graph diff [repoRoot] [rev] [--json] [--out:FILE]"
 
 
 proc flagPresent(args: seq[string], flag: string): bool {.role: helper, metaTags: {tagGraph, tagExecution}.} =
@@ -114,6 +114,16 @@ proc flagValue(args: seq[string], flag: string, fallback: int): int
       result = parseInt(a[prefix.len .. ^1])
     except ValueError:
       result = fallback
+
+proc textAfter(args: seq[string], flag: string): string {.role: parser,
+    metaTags: {tagGraph, tagExecution}.} =
+  ## args: the words after the command   flag: what to look for.
+  ## What was written after `--flag:`, or "" when it was not given.
+  var prefix: string = flag & ":"
+  result = ""
+  for a in args:
+    if a.startsWith(prefix):
+      result = a[prefix.len .. ^1]
 
 proc runBlast(args: seq[string]) {.role: actor,
     metaTags: {tagGraph, tagExecution}.} =
@@ -226,6 +236,7 @@ proc runDiff(args: seq[string]) {.role: actor,
     items: seq[string] = @[]
     rootDir: string = "."
     rev: string = "HEAD"
+    out0: string = ""
     r: DiffReview
   items = positionalArgs(args)
   if items.len > 0:
@@ -233,6 +244,11 @@ proc runDiff(args: seq[string]) {.role: actor,
   if items.len > 1:
     rev = items[1]
   r = diffReview(rootDir, rev)
+  out0 = textAfter(args, "--out")
+  if out0.len > 0:
+    writeFile(out0, pretty(diffJson(r)))
+    echo "wrote " & out0
+    return
   if flagPresent(args, "--json"):
     echo diffJson(r)
     return

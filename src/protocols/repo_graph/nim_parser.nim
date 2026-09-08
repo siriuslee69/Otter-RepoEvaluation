@@ -833,7 +833,10 @@ proc addCall(cs: var seq[string], hs: var HashSet[string], name: string) {.role:
     cs.add(t)
 
 
-proc extractCalls(bodyLines: seq[string]): seq[string] {.role: parser, metaTags: {tagGraph, tagParsing}.} =
+proc extractCalls*(bodyLines: seq[string]): seq[string] {.role: parser, metaTags: {tagGraph, tagParsing}.} =
+  ## bodyLines: any lines of Nim. Every name written with a bracket
+  ## after it. Exported because the diff review reads the lines a
+  ## change removed, which belong to no routine at all.
   var
     seen: HashSet[string]
     line: string = ""
