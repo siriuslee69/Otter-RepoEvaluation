@@ -55,6 +55,7 @@ proc build(dir, name, source, flags: string): tuple[ok: bool, output: string]
   createDir(dir)
   writeFile(src, source)
   got = execCmdEx("nim c --hints:off --path:" & quoteShell(root / "src") &
+    " --path:" & quoteShell(root / "meta") &
     " " & flags & " --nimcache:" & quoteShell(dir / ("n_" & name)) &
     " -o:" & quoteShell(dir / name) & " -r " & quoteShell(src))
   result = (ok: got.exitCode == 0, output: got.output)
@@ -74,6 +75,7 @@ proc sizeOf(dir, name, source, flags: string): int {.testKind: tkIntegration,
   createDir(dir)
   writeFile(src, source)
   if execCmd("nim c --hints:off --path:" & quoteShell(root / "src") &
+    " --path:" & quoteShell(root / "meta") &
       " -d:release " & flags & " --nimcache:" & quoteShell(dir / ("s_" & name)) &
       " -o:" & quoteShell(dir / name) & " " & quoteShell(src) &
       " > /dev/null 2>&1") != 0:
