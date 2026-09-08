@@ -631,31 +631,43 @@ type Feed = object
 ./bin/otter-repo-graph diff <dir> [rev]
 ```
 
-Measures the tree twice and subtracts, so what comes back is what the
-change did rather than what the repository is like.
+Measures the tree once and lets the diff decide which part of the
+answer is yours.
 
 ```
 what changed   working tree vs HEAD
-  4 file(s), +212 -38 lines
+  4 file(s), 9 hunk(s), +212 -38 lines
 
-  what appeared
-    NESTING       parseFrame is 4 blocks deep (if)   src/net/client.nim:88
-    STATE         Feed.price is written twice in runFeed with no read between
+  on lines you changed
+    NESTING        parseFrame is 4 blocks deep (if)
+                   src/net/client.nim:88   otter-repo-graph stats . --json   (.nest.sites)
+
+  what you may have cut off
+    DEAD CODE      you removed the last call to oldParse
+                   src/legacy.nim:12   otter-repo-graph blast . oldParse
 
   what the changed routines reach
     parseFrame            6 caller(s) within 2 hop(s): handshake, session, runLoop
 
   read these first
-    src/net/client.nim                            3 new finding(s)
+    src/net/client.nim                            2 on your lines, 1 nearby
 ```
 
-The tree as it was is unpacked into a scratch folder with `git archive
-| tar`. Nothing is checked out, stashed or reset, so this is safe to
-run on a folder somebody is in the middle of editing. ʕ•́ᴥ•̀ʔっ♡
+`git diff --unified=0` names the lines that moved, so a finding on one
+of them is yours, a finding elsewhere in a file you touched is worth a
+glance, and the rest is the repository rather than the change. Nothing
+is checked out, stashed, reset or unpacked, so this is safe to run on
+a folder somebody is in the middle of editing. ʕ•́ᴥ•̀ʔっ♡
 
-Findings are matched by path, routine name and kind - never by line -
-so adding ten lines at the top of a file does not report everything
-in it as new.
+Every finding carries **the command that found it**, because a reader
+who has to work out how to look again mostly does not look again.
+
+One measurement cannot notice a finding the change caused somewhere
+else. The commonest of those is caught anyway, and without a second
+tree: the lines a change *removes* name what they called, so any of
+those names that nothing calls any more is a routine just orphaned -
+usually in a file the author never opened. `--out:FILE` writes the
+whole answer as JSON.
 
 ### Two more
 
@@ -676,6 +688,34 @@ routines that are one routine with a knob on it. **Embedded code** is
 a string holding another language - the report names which, because a
 comment written on those lines has to be written the way *that*
 language writes one.
+
+### Several questions at once
+
+```sh
+./bin/otter-repo-graph checks <dir> stats state ui yields:seal [--parallel]
+```
+
+Reading the tree is most of the work; the checks on top of it are
+quick. So the reading happens once and every check is handed the same
+result, and only what is asked for is built — `checks . ui` never
+parses a routine.
+
+`--parallel` runs the checks at the same time, and the two readings at
+the same time as well. Without it they run one after another, which is
+the right choice on a small board, on a machine already busy, or where
+heat matters more than minutes. **Neither form changes a single line
+of any answer.** ʕ•́ᴥ•̀ʔっ♡
+
+```
+── state  (2316 ms)
+── ui     (1602 ms)
+── reading the tree, once: 32007 ms
+── 3 check(s), together, 3918 ms of work on top
+```
+
+The reading is timed apart from the checks on purpose. Folded into the
+first check it would make that one look slow and the rest look free,
+which is the opposite of what is true.
 
 ╭⟢ Promises a routine has to keep 🐦‍🔥
 
@@ -698,9 +738,16 @@ proc withdraw(balance, amount: int): int {.
 | `needs` / `gives` / `keeps` | yes | no |
 | `needsRun` / `givesRun` / `keepsRun` | yes | yes |
 
-`needs` is what must hold on the way in, `gives` what must hold on the
-way out, `keeps` what must hold at both ends. `result` names what
-comes back.
+| word | checked | what it says |
+|---|---|---|
+| `needs` | on the way in | "I refuse bad input." |
+| `gives` | on the way out | "I promise good output." |
+| `keeps` | at both ends | "I do not break this." |
+
+`keeps` is `needs` and `gives` in one word, with the same sentence at
+both ends - and that is what makes it an invariant rather than a
+precondition: it was true when we arrived, and this routine has not
+broken it. `result` names what comes back.
 
 The first three cost **nothing**. Not almost nothing: the check sits
 inside `when nimvm:`, a branch the compiler keeps for its own
@@ -741,6 +788,62 @@ ordinary compiler reads them, checks that what is written makes sense,
 and then does nothing with it. Written that way a broken promise
 builds cleanly and nobody is told, which is worse than having no
 promise at all. So these are called something else.
+
+╭⟢ Making a program say where it is 🍣
+
+`src/protocols/visibility.nim` puts the debugging echoes in for you,
+and takes them back out.
+
+```nim
+import otter_repo_evaluation/protocols/visibility
+
+proc parseFrame(b: seq[byte]): Frame {.visGroup: 3.} =
+  ...
+```
+
+```sh
+nim c -d:otterVis:3 app.nim
+```
+
+```
+[vis 3]      0.000 ms  -> parseFrame            src/net.nim:88
+[vis 3]      0.031 ms    | loop 1 begins        src/net.nim:94
+[vis 3]   4102.884 ms    | loop 1 ended after 65536 turn(s)
+[vis 3]   4102.901 ms  <- parseFrame  (4102.9 ms)
+```
+
+**Def. 5: a *group*** is a plain number written on a routine. A whole
+path through a program can carry one number, so lighting that path up
+means adding one switch and touching nothing else.
+
+| switch | what it does |
+|---|---|
+| `-d:otterVis:3` | group 3 talks |
+| `-d:otterVis:1,3,7` | three groups talk |
+| `-d:otterVis:all` | every group that carries the pragma |
+| *nothing* | nothing at all |
+| `-d:otterVisEvery:1000` | a word every 1000 turns of a loop |
+
+The time is milliseconds since the first message, so **the gaps are
+the thing to read**. A routine that never prints its `<-` line is the
+one that stalled. A loop that prints `begins` and never `ended` is the
+loop it stalled in. Depth is printed as indentation, so the shape of
+the calls reads down the left-hand edge, and a loop inside a loop is
+numbered after it and printed one step further in.
+
+Nothing asked for means nothing at all. ୨୧ The decision is made while
+the program is being built, so with the group off the routine is
+handed back exactly as it was written — no branch, no timer, no
+string. The runtime itself sits behind the same switch, so importing
+the module costs the same as not importing it. Two programs, one with
+the pragma and one without, build to the same number of bytes, and
+`nimble test` compiles both and compares them.
+
+The `<-` line is put in with `defer`, so it prints on an early
+`return` and on the way out of an exception too — a routine that threw
+is a routine somebody wants to see leave. A loop written inside a
+routine written inside the body is left alone: it belongs to that
+routine, which can carry its own pragma.
 
 ## Repo Graph Surface
 
