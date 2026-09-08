@@ -540,28 +540,29 @@ proc diffJson*(r: DiffReview): JsonNode {.role: dataWriter,
     metaTags: {tagStats}.} =
   ## r: one diff review, as a tool reads it.
   var
-    metrics: JsonNode = newJArray()
-    appeared: JsonNode = newJArray()
-    went: JsonNode = newJArray()
+    yours: JsonNode = newJArray()
+    nearby: JsonNode = newJArray()
+    orphaned: JsonNode = newJArray()
     reach: JsonNode = newJArray()
     hot: JsonNode = newJArray()
-  for m in r.metrics:
-    metrics.add(%*{"name": m.name, "before": m.before, "after": m.after,
-      "worseWhenUp": m.worseWhenUp})
-  for f in r.appeared:
-    appeared.add(%*{"kind": f.kind, "what": f.what, "path": f.path,
-      "line": f.line})
-  for f in r.went:
-    went.add(%*{"kind": f.kind, "what": f.what, "path": f.path,
-      "line": f.line})
+  for f in r.yours:
+    yours.add(%*{"kind": f.kind, "what": f.what, "path": f.path,
+      "line": f.line, "command": f.command})
+  for f in r.nearby:
+    nearby.add(%*{"kind": f.kind, "what": f.what, "path": f.path,
+      "line": f.line, "command": f.command})
+  for f in r.orphaned:
+    orphaned.add(%*{"kind": f.kind, "what": f.what, "path": f.path,
+      "line": f.line, "command": f.command})
   for row in r.reach:
     reach.add(%*{"routine": row.routine, "path": row.path, "line": row.line,
-      "callers": row.callers, "names": row.names, "notes": row.notes})
+      "callers": row.callers, "names": row.names, "notes": row.notes,
+      "command": row.command})
   for f in r.hotFiles:
-    hot.add(%*{"path": f.path, "count": f.count})
+    hot.add(%*{"path": f.path, "yours": f.yours, "nearby": f.nearby})
   result = %*{
     "rootDir": r.rootDir, "baseRev": r.baseRev, "files": r.files,
-    "added": r.added, "removed": r.removed, "metrics": metrics,
-    "appeared": appeared, "went": went, "reach": reach, "hotFiles": hot,
-    "notes": r.notes, "error": r.error
+    "hunks": r.hunks, "added": r.added, "removed": r.removed,
+    "yours": yours, "nearby": nearby, "orphaned": orphaned,
+    "reach": reach, "hotFiles": hot, "notes": r.notes, "error": r.error
   }
