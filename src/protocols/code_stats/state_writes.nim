@@ -86,7 +86,7 @@ import std/[algorithm, sets, strutils, tables]
 
 import ../repo_graph/types as graphTypes
 import ../repo_graph/io_utils
-import ../../../meta/metaPragmas
+import otterPragmas
 
 const
   latestMarker*: string = "otter:latest"

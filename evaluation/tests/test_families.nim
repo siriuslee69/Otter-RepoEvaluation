@@ -14,7 +14,7 @@ import std/[os, strutils, unittest]
 import ../../src/protocols/repo_graph
 import ../../src/protocols/code_stats/shape
 import ../../src/protocols/code_stats/families
-import ../../meta/metaPragmas
+import otterPragmas
 
 proc examplesRoot(): string {.testKind: tkUnit, covers: "familiesOf".} =
   ## Where the two shaped repositories live, found from this file so the

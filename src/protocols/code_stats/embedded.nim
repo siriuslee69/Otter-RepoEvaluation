@@ -42,7 +42,7 @@
 
 import std/[algorithm, os, strutils, tables]
 
-import ../../../meta/metaPragmas
+import otterPragmas
 import ../repo_graph/io_utils
 
 const

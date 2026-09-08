@@ -3,7 +3,7 @@
 # | -> Child process used to verify exit-log flushing       |
 # ============================================================
 
-import ../../meta/metaPragmas
+import otterPragmas
 import otter_repo_evaluation
 
 proc childLeaf*(a: int): int {.otterTimed, role: helper, metaTags: {tagTesting}.} =

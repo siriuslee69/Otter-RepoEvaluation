@@ -5,7 +5,7 @@
 
 import std/[exitprocs, locks, os, strutils]
 
-import ../../meta/metaPragmas
+import otterPragmas
 import ./types
 import ./evaluation/benchmarks
 

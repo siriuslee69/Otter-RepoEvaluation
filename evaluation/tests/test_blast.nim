@@ -10,7 +10,7 @@ import std/[os, strutils, unittest]
 
 import ../../src/protocols/repo_graph
 import ../../src/protocols/code_stats/blast
-import ../../meta/metaPragmas
+import otterPragmas
 
 proc sampleGraph(): RepoGraph {.testKind: tkUnit, covers: "blastRadius".} =
   ## The example tree, found from this file so the test runs anywhere.

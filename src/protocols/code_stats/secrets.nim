@@ -41,7 +41,7 @@
 
 import std/[algorithm, math, os, osproc, sets, strutils, tables]
 
-import ../../../meta/metaPragmas
+import otterPragmas
 
 import ../repo_graph/io_utils
 

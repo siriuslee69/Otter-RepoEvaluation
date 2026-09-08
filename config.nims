@@ -10,3 +10,7 @@ elif dirExists("../Fylgia-Utils/src"):
 # copy is actually there and carries the module that is wanted.
 if fileExists("submodules/Fylgia-Utils/src/protocols/math/vector_space.nim"):
   switch("define", "otterFylgiaSubmodule")
+
+## Pragma module, named for this repository so no other repo on the Nim
+## path can capture it. See CONTRIBUTING in Proto-RepoTemplate.
+switch("path", thisDir() & "/meta")

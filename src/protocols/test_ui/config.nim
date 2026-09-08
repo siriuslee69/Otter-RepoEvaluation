@@ -5,7 +5,7 @@
 
 import std/[os, strutils]
 
-import ../../../meta/metaPragmas
+import otterPragmas
 import ./types
 
 const

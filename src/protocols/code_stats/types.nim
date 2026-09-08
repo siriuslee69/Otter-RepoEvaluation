@@ -32,7 +32,7 @@ import ./coupling
 # that a caller importing this file gets the whole shape in one go.
 export shape, placeholders, secrets, config_touch, timeline, unused
 export call_depth, coupling
-import ../../../meta/metaPragmas
+import otterPragmas
 
 type
   HealthBand* {.role: other, metaTags: {tagStats}.} = enum

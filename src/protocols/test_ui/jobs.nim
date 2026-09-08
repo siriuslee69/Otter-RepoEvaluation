@@ -8,7 +8,7 @@ import std/[json, monotimes, os, osproc, strutils, tables, times]
 when not defined(windows):
   import std/posix
 
-import ../../../meta/metaPragmas
+import otterPragmas
 import ./[catalog, types]
 
 const

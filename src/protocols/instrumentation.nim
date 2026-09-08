@@ -5,7 +5,7 @@
 
 import std/macros
 
-import ../../meta/metaPragmas
+import otterPragmas
 import ./state
 import ./evaluation/benchmarks
 

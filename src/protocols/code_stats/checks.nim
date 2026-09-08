@@ -46,7 +46,7 @@ import ./state_writes
 import ./yields
 import ./blast
 import ./ui_depth
-import ../../../meta/metaPragmas
+import otterPragmas
 
 type
   CheckKind* {.role: other, metaTags: {tagStats}.} = enum

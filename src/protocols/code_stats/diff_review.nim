@@ -65,7 +65,7 @@ import ../repo_graph/analysis_pipeline
 import ./types
 import ./project
 import ./blast
-import ../../../meta/metaPragmas
+import otterPragmas
 
 const
   maxReach*: int = 12

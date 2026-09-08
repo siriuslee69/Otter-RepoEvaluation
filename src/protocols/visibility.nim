@@ -69,7 +69,7 @@
 
 import std/[macros, strutils]
 
-import ../../meta/metaPragmas
+import otterPragmas
 
 const
   otterVis* {.strdefine.}: string = ""

@@ -12,7 +12,7 @@ import std/[os, sets, strutils, unittest]
 
 import ../../src/protocols/code_stats/ui_depth
 import ../../src/protocols/code_stats/pipeline
-import ../../meta/metaPragmas
+import otterPragmas
 
 proc sampleReport(): UiDepthReport {.testKind: tkUnit,
     covers: "uiDepthOf".} =

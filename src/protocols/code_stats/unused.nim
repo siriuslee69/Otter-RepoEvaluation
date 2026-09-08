@@ -35,7 +35,7 @@
 import std/[algorithm, sets, strutils]
 
 import ../repo_graph/types as graphTypes
-import ../../../meta/metaPragmas
+import otterPragmas
 
 const
   leftoverLines*: int = 25

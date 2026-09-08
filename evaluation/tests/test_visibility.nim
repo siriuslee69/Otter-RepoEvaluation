@@ -11,7 +11,7 @@
 import std/[os, osproc, strutils, unittest]
 
 import ../../src/protocols/visibility
-import ../../meta/metaPragmas
+import otterPragmas
 
 const
   sample*: string = """
