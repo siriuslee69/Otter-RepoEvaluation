@@ -186,3 +186,41 @@ echo onlyFromTop(3), marked(1), spread(1, 2)
     check "wrapped" notin dead
     check "onlyFromTop" notin dead
     removeDir(root)
+
+suite "tag pragma shapes":
+  ## Tags used to be a per-repository enum, which forced the pragma file to
+  ## be copied per repository. They are strings now, and three shapes are in
+  ## the tree at once while the workspace catches up. All three have to reach
+  ## the charts as the same bare names, or a repo silently loses its tags.
+  # {.testKind: tkRegression.}
+  test "string, list and the older enum set all yield the same tags":
+    var
+      root: string = joinPath(getCurrentDir(), "build", "test_tag_shapes_repo")
+      srcDir: string = ""
+      g: RepoGraph
+      byName: Table[string, FunctionInfo] = initTable[string, FunctionInfo]()
+    if dirExists(root):
+      removeDir(root)
+    srcDir = joinPath(root, "src")
+    createDir(srcDir)
+    writeFile(joinPath(srcDir, "shapes.nim"), """
+proc viaString*() {.role: parser, tag: "ame|kdf".} =
+  discard
+
+proc viaList*() {.role: parser, tag: ["ame", "kdf"].} =
+  discard
+
+proc viaEnumSet*() {.role: parser, metaTags: {tagAme, tagKdf}.} =
+  discard
+""")
+    g = analyzeRepo(root)
+    for f in g.functions:
+      byName[f.name] = f
+    for name in ["viaString", "viaList", "viaEnumSet"]:
+      check byName.hasKey(name)
+      ## Bare names, whichever shape they were written in: no brackets, no
+      ## quotes, no braces, and no `tag` prefix left over from the enum.
+      check "ame" in byName[name].pragmaTags
+      check "kdf" in byName[name].pragmaTags
+      check "tagame" notin byName[name].pragmaTags
+      check "{tagame" notin byName[name].pragmaTags

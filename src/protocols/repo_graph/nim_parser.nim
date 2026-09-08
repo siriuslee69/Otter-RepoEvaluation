@@ -75,6 +75,31 @@ proc trimQuotes(s: string): string {.role: helper, metaTags: {tagGraph, tagParsi
   result = t.strip()
 
 
+proc tagItemName(s: string): string {.role: parser,
+    metaTags: {tagGraph, tagParsing}.} =
+  ## s: one item out of a tag list, in whichever shape it was written.
+  ##
+  ##   ` "ame" `      -> ame        a quoted string
+  ##   ` ["ame"  `    -> ame        the first item of a list
+  ##   ` {tagAme `    -> ame        the enum-set form, prefix and brace gone
+  ##
+  ## The `tag` prefix only ever existed because Nim enum values share one
+  ## namespace, so it is dropped: `tagAme` and `"ame"` are the same tag
+  ## written two ways, and a chart that showed them apart would be lying.
+  var
+    t: string = s.strip()
+    i: int = 0
+  while i < t.len and t[i] in {'[', ']', '{', '}', '"', '\'', '(', ')', ' '}:
+    i = i + 1
+  t = t[i .. ^1]
+  i = t.len
+  while i > 0 and t[i - 1] in {'[', ']', '{', '}', '"', '\'', '(', ')', ' '}:
+    i = i - 1
+  t = t[0 ..< i]
+  if t.len > 3 and t.startsWith("tag") and t[3] in {'A' .. 'Z'}:
+    t = toLowerAscii(t[3]) & t[4 .. ^1]
+  result = t.strip()
+
 proc stripComment(s: string): string {.role: helper, metaTags: {tagGraph, tagParsing}.} =
   var
     i: int = -1
@@ -530,11 +555,23 @@ proc parsePragmaToken(tok: string, f: var FunctionInfo) {.role: parser, metaTags
   elif key == "issue" or key == "issueref":
     addIssueRef(f, rawValue)
     addPragmaTag(f, "issue:" & rawValue.toLowerAscii())
-  elif key == "tag" or key == "tags":
-    addPragmaTag(f, key)
+  elif key == "tag" or key == "tags" or key == "metatags":
+    ## A tag list arrives in one of three shapes, and all three mean the same
+    ## thing:
+    ##
+    ##   tag: "ame|kdf"              one string, split on | , or ;
+    ##   tag: ["ame", "kdf"]         a list
+    ##   metaTags: {tagAme, tagKdf}  the older per-repo enum-set form
+    ##
+    ## Only the first was reaching the charts as separate tags. The second
+    ## kept its brackets and quotes; the third was not matched here at all
+    ## and fell through as one blob. `tagItemName` strips the punctuation and
+    ## the `tag` prefix the enum form carried, so every shape lands as the
+    ## same bare names.
+    addPragmaTag(f, "tag")
     for item in rawValue.split({'|', ',', ';'}):
-      if item.strip().len > 0:
-        addPragmaTag(f, item.strip())
+      if tagItemName(item).len > 0:
+        addPragmaTag(f, tagItemName(item))
   elif key == "user_input" or key == "userinput" or key == "input_handler":
     if parseBoolLike(rawValue, true):
       markUserInputDeclared(f, "pragma user_input")
