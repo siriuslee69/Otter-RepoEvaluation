@@ -970,11 +970,32 @@ proc parseFunctionBlock(ls: seq[string], modulePath, sourcePath: string,
   baseIndent = countIndent(ls[iStart])
   i = header.iEnd + 1
   f.bodyLines = @[]
+  # A routine's body is what is indented under it. Anything at the
+  # routine's own indentation, or further left, has ended it - not
+  # only the next routine:
+  #
+  #   proc stream(n: int): seq[byte] =    <- indent 0, the body opens
+  #     result = @[]                      <- indent 2, body
+  #                                       <- blank, still body
+  #   when isMainModule:                  <- indent 0. NOT this body.
+  #     doAssert stream(1).len == 1
+  #
+  # Reading only the next routine as the end handed every trailing
+  # `when isMainModule` block, and every `type` or `const` section
+  # written after the last routine of a file, to whoever came last.
+  # That routine then appeared to raise, to assert, to nest, and to
+  # be far longer than it is, and every count drawn from a body was
+  # wrong by however much sat below it.
   while i < ls.len:
-    if ls[i].strip().len > 0 and countIndent(ls[i]) <= baseIndent and isFunctionStartLine(ls[i]):
+    if ls[i].strip().len > 0 and countIndent(ls[i]) <= baseIndent:
       break
     f.bodyLines.add(ls[i])
     i = i + 1
+  # Blank lines between the body and whatever follows belong to
+  # neither, and counting them would put `lineEnd` past the routine.
+  while f.bodyLines.len > 0 and f.bodyLines[^1].strip().len == 0:
+    f.bodyLines.setLen(f.bodyLines.len - 1)
+    i = i - 1
   f.lineEnd = i
   f.id = f.modulePath & "::" & f.name & ":" & $f.lineStart
   f.calls = extractCalls(f.bodyLines)
@@ -1022,3 +1043,85 @@ proc parseNimFile*(rootDir, filePath: string): seq[FunctionInfo] {.role: parser,
           i = parsed.iNext
         continue
     i = i + 1
+
+proc pragmaNamesIn*(lines: seq[string]): seq[string] {.role: parser,
+    metaTags: {tagGraph, tagParsing}.} =
+  ## lines: one file.
+  ##
+  ## Every name written in a pragma anywhere in it. A macro used as a
+  ## pragma is applied by name and never called, so without this it
+  ## reads as a routine nothing uses:
+  ##
+  ##   proc withdraw(a, b: int): int {.needs: b <= a.} =
+  ##                                   ^^^^^ used here, called nowhere
+  ##
+  ## Only the leading name of each entry is taken. `{.needs: b <= a.}`
+  ## yields `needs`, not `b` - what follows the colon is the argument
+  ## and is read as ordinary code elsewhere.
+  ##
+  ## The whole file is read as one piece rather than a line at a time,
+  ## because a pragma is often written across two:
+  ##
+  ##   proc withdraw(a, b: int): int {.needs: b <= a,
+  ##       gives: result >= 0.} =
+  ##
+  ## Line by line, the opening brace never meets its closing one and
+  ## both names are missed - which is how the very macros this was
+  ## written for went on reading as dead.
+  var
+    stripped: seq[string] = @[]
+    text: string = ""
+    at: int = 0
+    close: int = 0
+    inside: string = ""
+    name: string = ""
+    k: int = 0
+  result = @[]
+  for raw in lines:
+    stripped.add(stripComment(raw))
+  text = stripped.join("\n")
+  block:
+    at = 0
+    while at < text.len:
+      at = text.find("{.", at)
+      if at < 0:
+        break
+      close = text.find(".}", at + 2)
+      if close < 0:
+        break
+      inside = text[at + 2 ..< close]
+      at = close + 2
+      for piece in inside.split(','):
+        name = piece.strip()
+        k = 0
+        while k < name.len and (name[k].isAlphaNumeric() or name[k] == '_'):
+          k = k + 1
+        name = name[0 ..< k]
+        if name.len > 0 and name notin result:
+          result.add(name)
+
+proc topLevelCalls*(lines: seq[string], A: seq[FunctionInfo]): seq[string]
+    {.role: parser, metaTags: {tagGraph, tagParsing}.} =
+  ## lines: one file   A: the routines declared in it.
+  ##
+  ## What is called from the parts of the file that belong to no
+  ## routine - a `when isMainModule` block, a module-level `var`
+  ## initialised by a call, a `static:` section at the foot. A call is
+  ## a call whoever makes it, and leaving these out made every routine
+  ## only ever called from such a place look like dead weight.
+  var
+    covered: HashSet[int] = initHashSet[int]()
+    rest: seq[string] = @[]
+    i: int = 0
+  result = @[]
+  for f in A:
+    i = f.lineStart - 1
+    while i < f.lineEnd and i < lines.len:
+      covered.incl(i)
+      i = i + 1
+  i = 0
+  while i < lines.len:
+    if i notin covered:
+      rest.add(lines[i])
+    i = i + 1
+  result = extractCalls(rest)

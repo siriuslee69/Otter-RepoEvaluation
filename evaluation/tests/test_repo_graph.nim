@@ -3,7 +3,7 @@
 # | -> Validate merged analysis and sample-runner flows      |
 # ============================================================
 
-import std/[json, os, tables, unittest]
+import std/[json, os, strutils, tables, unittest]
 
 import otter_repo_evaluation
 
@@ -89,4 +89,100 @@ proc addPair*(a: int, b: int): int =
     check r.ok
     check r.resultText == "84"
     check r.generatedArgs.len >= 2
+    removeDir(root)
+
+suite "otter repo graph: where a routine ends":
+
+  # {.testKind: tkRegression.}
+  test "a body stops at the routine's own indentation, not at the next proc":
+    ## Pins a parser bug that moved every number drawn from a body.
+    ## Only the next routine used to end a body, so a trailing
+    ## `when isMainModule` block, and any `type` or `const` section
+    ## written after the last routine of a file, were handed to
+    ## whoever came last. That routine then looked longer than it is,
+    ## looked as though it asserted, and hid any routine declared
+    ## inside the block from being found at all.
+    var
+      root: string = joinPath(getCurrentDir(), "build", "test_parser_end")
+      g: RepoGraph
+      byName: Table[string, FunctionInfo] = initTable[string, FunctionInfo]()
+    if dirExists(root):
+      removeDir(root)
+    createDir(joinPath(root, "src"))
+    writeFile(joinPath(root, "sample.nimble"), "srcDir = \"src\"\n")
+    writeFile(joinPath(root, "src", "edges.nim"), """
+proc stream*(n: int): seq[byte] =
+  ## n: how many bytes.
+  result = newSeq[byte](n)
+
+when defined(extras):
+  proc hidden*(a: int): int =
+    ## a: any number.
+    result = a
+
+type
+  Late* = object
+    width*: int
+
+when isMainModule:
+  doAssert stream(1).len == 1
+""")
+    g = analyzeRepo(root)
+    for f in g.functions:
+      byName[f.name] = f
+    check byName.hasKey("stream")
+    check byName["stream"].bodyLines.len == 2
+    for line in byName["stream"].bodyLines:
+      check "doAssert" notin line
+      check "Late" notin line
+    ## A routine written inside a `when` block used to be swallowed by
+    ## the routine above it and never found.
+    check byName.hasKey("hidden")
+    removeDir(root)
+
+  # {.testKind: tkRegression.}
+  test "a pragma and a top-level call both count as using a routine":
+    ## A macro written to be used as a pragma is applied by name and
+    ## never called, and a routine reached only from a module's own
+    ## top level has no caller either. Both used to read as dead.
+    var
+      root: string = joinPath(getCurrentDir(), "build", "test_parser_uses")
+      s: ProjectStats
+      dead: seq[string] = @[]
+    if dirExists(root):
+      removeDir(root)
+    createDir(joinPath(root, "src"))
+    writeFile(joinPath(root, "sample.nimble"), "srcDir = \"src\"\n")
+    writeFile(joinPath(root, "src", "uses.nim"), """
+import std/macros
+
+macro loud*(def: untyped): untyped =
+  ## def: a routine. Handed back unchanged.
+  result = def
+
+macro wrapped*(cond: untyped, def: untyped): untyped =
+  ## cond: anything   def: a routine. Handed back unchanged.
+  result = def
+
+proc onlyFromTop*(a: int): int =
+  ## a: any number.
+  result = a
+
+proc marked*(a: int): int {.loud.} =
+  ## a: any number.
+  result = a
+
+proc spread*(a, b: int): int {.wrapped: a <= b,
+    loud.} =
+  ## a, b: any numbers.
+  result = b - a
+
+echo onlyFromTop(3), marked(1), spread(1, 2)
+""")
+    s = analyzeProject(root)
+    for it in s.unusedFuncs.items:
+      dead.add(it.name)
+    check "loud" notin dead
+    check "wrapped" notin dead
+    check "onlyFromTop" notin dead
     removeDir(root)
