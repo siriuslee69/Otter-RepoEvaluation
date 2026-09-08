@@ -19,6 +19,8 @@ proc printUsage() {.role: helper, metaTags: {tagGraph, tagExecution}.} =
   echo "  otter_repo_graph state [repoRoot] [typeName] [--json]"
   echo "  otter_repo_graph yields [repoRoot] <name> [--json]"
   echo "  otter_repo_graph diff [repoRoot] [rev] [--json] [--out:FILE]"
+  echo "  otter_repo_graph checks [repoRoot] <check> [check...] [--parallel]"
+  echo "      checks: stats  state[:Type]  yields:name  blast:name  ui"
 
 
 proc flagPresent(args: seq[string], flag: string): bool {.role: helper, metaTags: {tagGraph, tagExecution}.} =
@@ -257,6 +259,38 @@ proc runDiff(args: seq[string]) {.role: actor,
   if r.error.len > 0:
     quit(1)
 
+proc runChecksCmd(args: seq[string]) {.role: actor,
+    metaTags: {tagGraph, tagStats, tagExecution}.} =
+  ## args: the words after `checks`. Several questions, one reading of
+  ## the tree, answered together or one after another.
+  var
+    items: seq[string] = @[]
+    rootDir: string = "."
+    R: seq[CheckRequest] = @[]
+    got: tuple[ok: bool, req: CheckRequest] = (false, CheckRequest())
+    bParallel: bool = false
+    got0: tuple[readMillis: int, rows: seq[CheckResult]] = (0, @[])
+    i: int = 1
+  items = positionalArgs(args)
+  if items.len < 2:
+    echo "Usage: otter_repo_graph checks <repoRoot> <check> [check...] " &
+      "[--parallel]"
+    echo "  checks: stats  state[:Type]  yields:name  blast:name  ui"
+    quit(1)
+  rootDir = items[0]
+  while i < items.len:
+    got = parseCheck(items[i])
+    if not got.ok:
+      echo "no check named " & items[i] &
+        "; the checks are stats, state, yields, blast, ui"
+      quit(1)
+    R.add(got.req)
+    i = i + 1
+  bParallel = flagPresent(args, "--parallel")
+  got0 = runChecks(rootDir, R, bParallel)
+  for line in checkLines(got0.readMillis, got0.rows, bParallel):
+    echo line
+
 proc runStats(args: seq[string]) {.role: actor,
     metaTags: {tagGraph, tagStats, tagExecution}.} =
   ## args: the words after `stats`. Prints the summary a person reads,
@@ -311,6 +345,8 @@ proc runCli*() {.role: orchestrator, metaTags: {tagGraph, tagExecution}.} =
     runYields(rest)
   of "diff":
     runDiff(rest)
+  of "checks":
+    runChecksCmd(rest)
   else:
     printUsage()
     quit(1)
