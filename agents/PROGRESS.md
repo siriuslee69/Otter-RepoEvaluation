@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: show what a change did to the tree, not what the tree is like.
+Commit Message: put the debugging echoes in, and take them back out.
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.
@@ -11,6 +11,20 @@ Features (Planned):
 - Parent-repo adoption of the pragma-driven test UI after Otter example validation.
 
 Features (Done):
+- Visibility: `{.visGroup: 3.}` and `-d:otterVis:3` make a routine say
+  when it starts, when it stops, and what every loop in it is doing,
+  timed from the first message. With no group asked for the routine is
+  handed back exactly as written and the runtime is not compiled in at
+  all, so importing the module costs the same as not importing it.
+- Multi-check runner: `otter_repo_graph checks . stats state ui
+  yields:seal [--parallel]` reads the tree once for every check, builds
+  only what is asked for, and can run the checks and the two readings
+  at once. Serial and parallel give identical answers.
+- Parser: a routine body ends at the routine's own indentation, not at
+  the next routine. Tyr went from 3443 routines to 3883 - the 440 were
+  written inside `when` blocks and had been swallowed whole.
+- Usage counting: a macro applied as a pragma, and a call made from a
+  module's own top level, both count as using a routine.
 - Diff review: `otter_repo_graph diff` measures the tree twice - the
   working copy, and the tree at a revision unpacked into a scratch
   folder with `git archive` - and subtracts, so what comes back is what
@@ -78,21 +92,18 @@ Features (In Progress):
 - Keep extending parent-repo test metadata and runtime flag coverage as new suites are adopted.
 
 Notes:
-- Last change/problem: the four new modules each read code as text, and
-  each was wrong the first time in a way only a real tree showed. A
-  string holding the words `doAssert false` read as an assertion; a
-  `static:` block read as a crash that could stop a running program; a
-  routine building its own object read as a writer of everybody's
-  state; `clear` then `init` read as a lost write across a whole
-  cryptography library; and hops taken along matching names told a
-  repository with its own `open` about a chain that does not exist.
-- Fix attempts: every scanner now reads a line with its comment and the
-  inside of its strings gone; writers are strict while readers stay
-  generous, since a reader counted by mistake only silences a finding
-  while a writer counted by mistake invents one; and propagation follows
-  the call edges the graph already resolved. Each of the five is pinned
-  by a regression test. Two further things stand open: the parser hands
-  a trailing `when isMainModule` block to the last routine above it,
-  worked around in `yields.nim` rather than fixed where it belongs, and
-  the unused-routine report does not count a macro used as a pragma, so
-  every contract macro reads as uncalled.
+- Last change/problem: both things left open last time are closed. The
+  parser now ends a body where Nim ends it, which moved every number
+  drawn from a body and uncovered 440 routines in Tyr that had never
+  been found at all; and a macro used as a pragma now counts as used,
+  which took reading each file as one piece rather than a line at a
+  time, since a pragma written across two lines never meets its own
+  closing brace otherwise.
+- Fix attempts: the diff review was rebuilt around the diff instead of
+  a second copy of the tree - `git archive | tar` is gone, along with
+  the scratch folder and the `.git` it had to be given. It now measures
+  once and lets the hunk ranges say which findings are the reader's,
+  and catches the one far-reaching case a single measurement misses by
+  reading the names on the lines the change removed. One thing stands
+  open: building the whole measurement of Tyr takes 32 seconds by
+  itself, which is most of any run, and nothing has been done about it.
