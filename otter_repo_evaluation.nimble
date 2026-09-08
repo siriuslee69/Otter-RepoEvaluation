@@ -94,6 +94,7 @@ task test, "Run smoke tests":
   exec "nim c --path:src -r evaluation/tests/test_invariants.nim"
   exec "nim c --path:src -r evaluation/tests/test_diff_review.nim"
   exec "nim c --path:src -r evaluation/tests/test_checks.nim"
+  exec "nim c --path:src -r evaluation/tests/test_visibility.nim"
 
 task buildtests, "Build smoke tests in release mode":
   exec "nim c --path:src -d:release evaluation/tests/test_evaluation.nim"

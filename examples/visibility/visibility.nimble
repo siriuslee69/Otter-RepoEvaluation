@@ -1,0 +1,5 @@
+version       = "0.1.0"
+author        = "siriuslee69"
+description   = "A program that can be made to say where it is."
+license       = "Unlicense"
+srcDir        = "src"
