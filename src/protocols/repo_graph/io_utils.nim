@@ -5,7 +5,7 @@
 
 import std/[algorithm, os, strutils]
 
-import ../../../meta/metaPragmas
+import otterPragmas
 
 const
   vendoredDirs*: array[9, string] = [

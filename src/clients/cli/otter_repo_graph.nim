@@ -5,7 +5,7 @@
 
 import std/[json, os, strutils]
 
-import ../../../meta/metaPragmas
+import otterPragmas
 import ../../otter_repo_evaluation
 
 proc printUsage() {.role: helper, metaTags: {tagGraph, tagExecution}.} =

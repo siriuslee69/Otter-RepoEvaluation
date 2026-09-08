@@ -6,7 +6,7 @@
 import std/[sets, tables]
 
 import ./types
-import ../../../meta/metaPragmas
+import otterPragmas
 
 proc collectOutMap(g: RepoGraph): Table[string, seq[string]] {.role: helper, metaTags: {tagGraph}.} =
   var

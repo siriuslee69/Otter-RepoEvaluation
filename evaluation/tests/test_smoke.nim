@@ -5,7 +5,7 @@
 
 import std/[os, osproc, strutils, unittest]
 
-import ../../meta/metaPragmas
+import otterPragmas
 import otter_repo_evaluation
 
 otterInstrument:

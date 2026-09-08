@@ -16,7 +16,7 @@ import ./state_writes
 import ./yields
 import ./diff_review
 import ./ui_depth
-import ../../../meta/metaPragmas
+import otterPragmas
 
 proc fileJson*(f: FileStat): JsonNode {.role: dataWriter,
     metaTags: {tagStats}.} =

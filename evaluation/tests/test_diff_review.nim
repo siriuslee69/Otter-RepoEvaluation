@@ -10,7 +10,7 @@
 import std/[os, osproc, strutils, unittest]
 
 import ../../src/protocols/code_stats/diff_review
-import ../../meta/metaPragmas
+import otterPragmas
 
 const
   cleanSource*: string = """

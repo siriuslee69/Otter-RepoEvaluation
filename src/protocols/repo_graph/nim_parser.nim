@@ -8,7 +8,7 @@ import std/[sets, strutils]
 import ./io_utils
 import ./sample_values
 import ./types
-import ../../../meta/metaPragmas
+import otterPragmas
 
 const
   NimFunctionKinds = [

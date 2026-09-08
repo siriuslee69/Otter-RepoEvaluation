@@ -5,7 +5,7 @@
 
 import std/[os, osproc, strutils]
 
-import ../../../meta/metaPragmas
+import otterPragmas
 
 const
   OtterCliSourcePath* {.role: helper, metaTags: {tagParentIntegration}.} = currentSourcePath()

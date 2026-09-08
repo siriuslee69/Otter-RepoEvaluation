@@ -5,7 +5,7 @@
 
 import std/[strutils]
 
-import ../../../meta/metaPragmas
+import otterPragmas
 
 type
   FunctionRole* {.role: other, metaTags: {tagGraph, tagParsing}.} = enum

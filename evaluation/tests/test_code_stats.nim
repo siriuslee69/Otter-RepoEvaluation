@@ -10,7 +10,7 @@
 import std/[os, unittest]
 
 import otter_repo_evaluation
-import ../../meta/metaPragmas
+import otterPragmas
 
 const
   sampleSource = """

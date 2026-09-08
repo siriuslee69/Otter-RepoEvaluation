@@ -3,7 +3,7 @@
 # | -> Discovered tests, display groups, and user settings   |
 # ============================================================
 
-import ../../../meta/metaPragmas
+import otterPragmas
 
 type
   OtterUiTestEntry* {.role: truthState, metaTags: {tagTesting, tagUi}.} = object
