@@ -16,6 +16,7 @@ import ./code_stats/state_writes
 import ./code_stats/yields
 import ./code_stats/diff_review
 import ./code_stats/checks
+import ./code_stats/conventions
 import ./code_stats/ui_depth
 import ./code_stats/nesting
 import ./code_stats/test_scan
@@ -31,6 +32,7 @@ export state_writes
 export yields
 export diff_review
 export checks
+export conventions
 export ui_depth
 export nesting
 export test_scan
