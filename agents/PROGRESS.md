@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: put the debugging echoes in, and take them back out.
+Commit Message: Own the text-level convention rules, so callers stop copying them
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.
