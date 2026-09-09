@@ -46,31 +46,31 @@ import ./state_writes
 import ./yields
 import ./blast
 import ./ui_depth
-import otterPragmas
+import runePragmas
 
 type
-  CheckKind* {.role: other, metaTags: {tagStats}.} = enum
+  CheckKind* {.role: other, tag: "stats".} = enum
     ckStats,
     ckState,
     ckYields,
     ckBlast,
     ckUi
 
-  CheckRequest* {.role: configurator, metaTags: {tagStats}.} = object
+  CheckRequest* {.role: configurator, tag: "stats".} = object
     ## One question to ask, and what to ask it about.
     kind*: CheckKind
     arg*: string
       ## A type name for `state`, a routine name for `yields` and
       ## `blast`, empty for the rest.
 
-  CheckResult* {.role: preparedData, metaTags: {tagStats}.} = object
+  CheckResult* {.role: preparedData, tag: "stats".} = object
     ## One answer, with what it cost.
     name*: string
     lines*: seq[string]
     millis*: int
     ok*: bool
 
-  CheckInputs* {.role: memory, metaTags: {tagStats}.} = object
+  CheckInputs* {.role: memory, tag: "stats".} = object
     ## The two expensive things, built at most once each.
     rootDir*: string
     graph*: RepoGraph
@@ -79,7 +79,7 @@ type
     haveStats*: bool
 
 proc parseCheck*(word: string): tuple[ok: bool, req: CheckRequest]
-    {.role: parser, metaTags: {tagStats}.} =
+    {.role: parser, tag: "stats".} =
   ## word: one word from the command line, `stats` or `yields:seal`.
   ##
   ## The check it names and what to ask it about. A colon separates
@@ -109,7 +109,7 @@ proc parseCheck*(word: string): tuple[ok: bool, req: CheckRequest]
     result.ok = false
 
 proc checkName*(r: CheckRequest): string {.role: helper,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## r: one question. What to head its answer with.
   case r.kind
   of ckStats: result = "stats"
@@ -127,7 +127,7 @@ proc needsStats(r: CheckRequest): bool {.inline.} =
   result = r.kind == ckStats
 
 proc gather*(rootDir: string, R: seq[CheckRequest]): CheckInputs
-    {.role: dataFetcher, metaTags: {tagStats}.} =
+    {.role: dataFetcher, tag: "stats".} =
   ## rootDir: the repository   R: everything being asked.
   ##
   ## Reads the tree, once, for whichever of the two expensive things
@@ -149,7 +149,7 @@ proc gather*(rootDir: string, R: seq[CheckRequest]): CheckInputs
     result.haveStats = true
 
 proc answer*(inputs: CheckInputs, r: CheckRequest): seq[string]
-    {.role: orchestrator, metaTags: {tagStats}.} =
+    {.role: orchestrator, tag: "stats".} =
   ## inputs: the tree, already read   r: one question.
   ## Its answer as plain lines. Pure: it reads what `gather` built and
   ## writes nothing, which is what lets several run at once.
@@ -184,7 +184,7 @@ var
     ## its own slot and the sequence is never grown while they run, so
     ## the slots do not move under one another.
 
-proc runOne(i: int) {.role: actor, metaTags: {tagStats}.} =
+proc runOne(i: int) {.role: actor, tag: "stats".} =
   ## i: which question. Answers it into slot `i`, timing it.
   var
     began: MonoTime = getMonoTime()
@@ -197,7 +197,7 @@ proc runOne(i: int) {.role: actor, metaTags: {tagStats}.} =
     sharedResults[i].ok = false
   sharedResults[i].millis = int(inMilliseconds(getMonoTime() - began))
 
-proc runOneThread(i: int) {.thread, role: actor, metaTags: {tagStats}.} =
+proc runOneThread(i: int) {.thread, role: actor, tag: "stats".} =
   ## i: which question. The same work, on a thread of its own.
   ##
   ## The cast is a promise, so here is the reasoning behind it. Three
@@ -215,14 +215,14 @@ var
     ## Where the two readings below happen. Written before either
     ## thread starts.
 
-proc readGraph(i: int) {.thread, role: dataFetcher, metaTags: {tagStats}.} =
+proc readGraph(i: int) {.thread, role: dataFetcher, tag: "stats".} =
   ## i: unused; a thread has to take something.
   ## Reads the routines of the tree into the shared inputs.
   {.cast(gcsafe).}:
     sharedInputs.graph = analyzeRepo(gatherRoot)
     sharedInputs.haveGraph = true
 
-proc readStats(i: int) {.thread, role: dataFetcher, metaTags: {tagStats}.} =
+proc readStats(i: int) {.thread, role: dataFetcher, tag: "stats".} =
   ## i: unused; a thread has to take something.
   ## Builds the whole measurement into the shared inputs.
   {.cast(gcsafe).}:
@@ -230,7 +230,7 @@ proc readStats(i: int) {.thread, role: dataFetcher, metaTags: {tagStats}.} =
     sharedInputs.haveStats = true
 
 proc gatherParallel(rootDir: string, R: seq[CheckRequest])
-    {.role: orchestrator, metaTags: {tagStats}.} =
+    {.role: orchestrator, tag: "stats".} =
   ## rootDir: the repository   R: the questions.
   ##
   ## The two readings are independent of each other and are most of
@@ -259,7 +259,7 @@ proc gatherParallel(rootDir: string, R: seq[CheckRequest])
 
 proc runChecks*(rootDir: string, R: seq[CheckRequest],
     bParallel: bool): tuple[readMillis: int, rows: seq[CheckResult]]
-    {.role: metaOrchestrator, metaTags: {tagStats}.} =
+    {.role: metaOrchestrator, tag: "stats".} =
   ## rootDir: the repository   R: the questions
   ## bParallel: whether to answer them at once.
   ##
@@ -299,7 +299,7 @@ proc runChecks*(rootDir: string, R: seq[CheckRequest],
   result.rows = sharedResults
 
 proc checkLines*(readMillis: int, A: seq[CheckResult],
-    bParallel: bool): seq[string] {.role: dataWriter, metaTags: {tagStats}.} =
+    bParallel: bool): seq[string] {.role: dataWriter, tag: "stats".} =
   ## readMillis: what reading the tree cost   A: every answer
   ## bParallel: how they were run, for the closing line.
   ##

@@ -7,14 +7,14 @@ import std/[algorithm, json, sets, strutils, tables]
 
 import ./grouping
 import ./types
-import otterPragmas
+import runePragmas
 
-proc escapeText(s: string): string {.role: helper, metaTags: {tagGraph}.} =
+proc escapeText(s: string): string {.role: helper, tag: "graph".} =
   result = s.replace("\\", "\\\\")
   result = result.replace("\"", "\\\"")
 
 
-proc sanitizeNodeId(s: string): string {.role: helper, metaTags: {tagGraph}.} =
+proc sanitizeNodeId(s: string): string {.role: helper, tag: "graph".} =
   var
     t: string = "n"
   for c in s:
@@ -25,7 +25,7 @@ proc sanitizeNodeId(s: string): string {.role: helper, metaTags: {tagGraph}.} =
   result = t
 
 
-proc sortedFunctions(g: RepoGraph): seq[FunctionInfo] {.role: helper, metaTags: {tagGraph}.} =
+proc sortedFunctions(g: RepoGraph): seq[FunctionInfo] {.role: helper, tag: "graph".} =
   result = g.functions
   result.sort(proc(a, b: FunctionInfo): int =
     if a.modulePath < b.modulePath:
@@ -44,7 +44,7 @@ proc sortedFunctions(g: RepoGraph): seq[FunctionInfo] {.role: helper, metaTags: 
   )
 
 
-proc tooltipLineFor(f: FunctionInfo): string {.role: helper, metaTags: {tagGraph}.} =
+proc tooltipLineFor(f: FunctionInfo): string {.role: helper, tag: "graph".} =
   var
     s: string = ""
   s = f.name & " [" & roleToString(f.role) & "]"
@@ -53,7 +53,7 @@ proc tooltipLineFor(f: FunctionInfo): string {.role: helper, metaTags: {tagGraph
   result = s
 
 
-proc toFunctionLayoutTree*(g: RepoGraph): string {.role: helper, metaTags: {tagGraph}.} =
+proc toFunctionLayoutTree*(g: RepoGraph): string {.role: helper, tag: "graph".} =
   var
     fs: seq[FunctionInfo] = @[]
     currentModule: string = ""
@@ -73,7 +73,7 @@ proc toFunctionLayoutTree*(g: RepoGraph): string {.role: helper, metaTags: {tagG
   result = lines.join("\n")
 
 
-proc toMermaidFlowchart*(g: RepoGraph): string {.role: helper, metaTags: {tagGraph}.} =
+proc toMermaidFlowchart*(g: RepoGraph): string {.role: helper, tag: "graph".} =
   var
     lines: seq[string] = @["flowchart TD"]
     nid: string = ""
@@ -89,7 +89,7 @@ proc toMermaidFlowchart*(g: RepoGraph): string {.role: helper, metaTags: {tagGra
   result = lines.join("\n")
 
 
-proc toDotGraph*(g: RepoGraph): string {.role: helper, metaTags: {tagGraph}.} =
+proc toDotGraph*(g: RepoGraph): string {.role: helper, tag: "graph".} =
   var
     lines: seq[string] = @[
       "digraph OtterRepoGraph {",
@@ -109,7 +109,7 @@ proc toDotGraph*(g: RepoGraph): string {.role: helper, metaTags: {tagGraph}.} =
   result = lines.join("\n")
 
 
-proc normalizeTags(tags: openArray[string]): seq[string] {.role: helper, metaTags: {tagGraph}.} =
+proc normalizeTags(tags: openArray[string]): seq[string] {.role: helper, tag: "graph".} =
   var
     seen: HashSet[string]
     t: string = ""
@@ -125,7 +125,7 @@ proc normalizeTags(tags: openArray[string]): seq[string] {.role: helper, metaTag
   result.sort(system.cmp[string])
 
 
-proc toCallTree*(g: RepoGraph, nDepthLimit: int = 8): string {.role: helper, metaTags: {tagGraph}.} =
+proc toCallTree*(g: RepoGraph, nDepthLimit: int = 8): string {.role: helper, tag: "graph".} =
   var
     outMap: Table[string, seq[string]]
     inDeg: Table[string, int]
@@ -191,7 +191,7 @@ proc toCallTree*(g: RepoGraph, nDepthLimit: int = 8): string {.role: helper, met
   result = lines.join("\n")
 
 
-proc socketToJson(s: FunctionSocket): JsonNode {.role: helper, metaTags: {tagGraph}.} =
+proc socketToJson(s: FunctionSocket): JsonNode {.role: helper, tag: "graph".} =
   result = %*{
     "name": s.name,
     "typeName": s.typeName,
@@ -200,14 +200,14 @@ proc socketToJson(s: FunctionSocket): JsonNode {.role: helper, metaTags: {tagGra
   }
 
 
-proc riskToJson(r: RiskTag): JsonNode {.role: helper, metaTags: {tagGraph}.} =
+proc riskToJson(r: RiskTag): JsonNode {.role: helper, tag: "graph".} =
   result = %*{
     "key": r.key,
     "value": r.value
   }
 
 
-proc groupToJson(g: OrchestratorGroup): JsonNode {.role: helper, metaTags: {tagGraph}.} =
+proc groupToJson(g: OrchestratorGroup): JsonNode {.role: helper, tag: "graph".} =
   result = %*{
     "id": g.id,
     "orchestratorId": g.orchestratorId,
@@ -217,7 +217,7 @@ proc groupToJson(g: OrchestratorGroup): JsonNode {.role: helper, metaTags: {tagG
   }
 
 
-proc toGraphJson*(g: RepoGraph): string {.role: helper, metaTags: {tagGraph}.} =
+proc toGraphJson*(g: RepoGraph): string {.role: helper, tag: "graph".} =
   var
     fnodes: seq[JsonNode] = @[]
     edges: seq[JsonNode] = @[]

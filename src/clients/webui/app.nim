@@ -6,17 +6,17 @@
 import std/[json, os, osproc, strutils]
 
 import webui
-import otterPragmas
+import runePragmas
 import ../../otter_repo_evaluation
 
 const
-  AppName {.role: helper, metaTags: {tagUi, tagGraph}.} = "Otter Repo Graph"
+  AppName {.role: helper, tag: "ui|graph".} = "Otter Repo Graph"
 
-proc resolveWebRoot(): string {.role: helper, metaTags: {tagUi, tagGraph}.} =
+proc resolveWebRoot(): string {.role: helper, tag: "ui|graph".} =
   result = joinPath(currentSourcePath().splitFile.dir, "web")
 
 
-proc pickerCommandAvailable(): bool {.role: helper, metaTags: {tagUi, tagGraph}.} =
+proc pickerCommandAvailable(): bool {.role: helper, tag: "ui|graph".} =
   when defined(windows):
     result = findExe("powershell.exe").len > 0 or findExe("powershell").len > 0
   elif defined(macosx):
@@ -25,7 +25,7 @@ proc pickerCommandAvailable(): bool {.role: helper, metaTags: {tagUi, tagGraph}.
     result = findExe("yad").len > 0 or findExe("zenity").len > 0 or findExe("kdialog").len > 0
 
 
-proc folderPickerCommand(): string {.role: helper, metaTags: {tagUi, tagGraph}.} =
+proc folderPickerCommand(): string {.role: helper, tag: "ui|graph".} =
   when defined(windows):
     result = "powershell -NoProfile -STA -Command \"Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description = 'Select Repo'; if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::Write($d.SelectedPath) } else { exit 1 }\""
   elif defined(macosx):
@@ -40,7 +40,7 @@ proc folderPickerCommand(): string {.role: helper, metaTags: {tagUi, tagGraph}.}
       result = "kdialog --getexistingdirectory . \"Select Repo\""
 
 
-proc firstPickerLine(output: string): string {.role: helper, metaTags: {tagUi, tagGraph}.} =
+proc firstPickerLine(output: string): string {.role: helper, tag: "ui|graph".} =
   var
     lines: seq[string] = @[]
     selected: string = ""
@@ -54,7 +54,7 @@ proc firstPickerLine(output: string): string {.role: helper, metaTags: {tagUi, t
   result = selected
 
 
-proc bootstrapPayload(): string {.role: helper, metaTags: {tagUi, tagGraph}.} =
+proc bootstrapPayload(): string {.role: helper, tag: "ui|graph".} =
   result = pretty(%*{
     "host": "webui",
     "appName": AppName,
@@ -64,7 +64,7 @@ proc bootstrapPayload(): string {.role: helper, metaTags: {tagUi, tagGraph}.} =
   })
 
 
-proc analyzePayload(rootDir: string, includeTests: bool): string {.role: actor, metaTags: {tagUi, tagGraph}.} =
+proc analyzePayload(rootDir: string, includeTests: bool): string {.role: actor, tag: "ui|graph".} =
   var
     g: RepoGraph
   g = analyzeRepo(rootDir, includeTests)
@@ -75,7 +75,7 @@ proc analyzePayload(rootDir: string, includeTests: bool): string {.role: actor, 
   })
 
 
-proc annotationPayload(rootDir: string, annotations: JsonNode): string {.role: actor, metaTags: {tagUi, tagGraph}.} =
+proc annotationPayload(rootDir: string, annotations: JsonNode): string {.role: actor, tag: "ui|graph".} =
   var
     lines: seq[string] = @[]
     i: int = 0
@@ -104,11 +104,11 @@ proc annotationPayload(rootDir: string, annotations: JsonNode): string {.role: a
   })
 
 
-proc viewSettingsPath(rootDir: string): string {.role: helper, metaTags: {tagUi, tagGraph}.} =
+proc viewSettingsPath(rootDir: string): string {.role: helper, tag: "ui|graph".} =
   result = joinPath(rootDir, ".otter", "repo_graph_view_settings.json")
 
 
-proc loadViewSettingsPayload(rootDir: string): string {.role: helper, metaTags: {tagUi, tagGraph}.} =
+proc loadViewSettingsPayload(rootDir: string): string {.role: helper, tag: "ui|graph".} =
   var
     path: string = ""
     settings: JsonNode
@@ -124,7 +124,7 @@ proc loadViewSettingsPayload(rootDir: string): string {.role: helper, metaTags: 
   })
 
 
-proc saveViewSettingsPayload(rootDir: string, settings: JsonNode): string {.role: actor, metaTags: {tagUi, tagGraph}.} =
+proc saveViewSettingsPayload(rootDir: string, settings: JsonNode): string {.role: actor, tag: "ui|graph".} =
   var
     path: string = ""
   path = viewSettingsPath(rootDir)
@@ -136,7 +136,7 @@ proc saveViewSettingsPayload(rootDir: string, settings: JsonNode): string {.role
   })
 
 
-proc chooseFolderPayload(): string {.role: actor, metaTags: {tagUi, tagGraph}.} =
+proc chooseFolderPayload(): string {.role: actor, tag: "ui|graph".} =
   var
     cmd: string = ""
     r: tuple[output: string, exitCode: int]
@@ -174,28 +174,28 @@ proc chooseFolderPayload(): string {.role: actor, metaTags: {tagUi, tagGraph}.} 
   })
 
 
-proc parseIncludeTests(req: JsonNode): bool {.role: helper, metaTags: {tagUi, tagGraph}.} =
+proc parseIncludeTests(req: JsonNode): bool {.role: helper, tag: "ui|graph".} =
   if req.hasKey("includeTests"):
     result = req["includeTests"].getBool(false)
 
 
-proc parseRootDir(req: JsonNode): string {.role: helper, metaTags: {tagUi, tagGraph}.} =
+proc parseRootDir(req: JsonNode): string {.role: helper, tag: "ui|graph".} =
   if req.hasKey("repoRoot"):
     result = req["repoRoot"].getStr("").strip()
   if result.len == 0:
     result = getCurrentDir()
 
 
-proc parseFunctionId(req: JsonNode): string {.role: helper, metaTags: {tagUi, tagGraph}.} =
+proc parseFunctionId(req: JsonNode): string {.role: helper, tag: "ui|graph".} =
   if req.hasKey("functionId"):
     result = req["functionId"].getStr("").strip()
 
 
-proc otterBootstrap(): string {.webuiCb, role: helper, metaTags: {tagUi, tagGraph}.} =
+proc otterBootstrap(): string {.webuiCb, role: helper, tag: "ui|graph".} =
   result = bootstrapPayload()
 
 
-proc otterAnalyze(req: JsonNode): string {.webuiCb, role: actor, metaTags: {tagUi, tagGraph}.} =
+proc otterAnalyze(req: JsonNode): string {.webuiCb, role: actor, tag: "ui|graph".} =
   var
     rootDir: string = ""
     includeTests: bool = false
@@ -210,7 +210,7 @@ proc otterAnalyze(req: JsonNode): string {.webuiCb, role: actor, metaTags: {tagU
     })
 
 
-proc otterRunFunction(req: JsonNode): string {.webuiCb, role: actor, metaTags: {tagUi, tagGraph, tagExecution}.} =
+proc otterRunFunction(req: JsonNode): string {.webuiCb, role: actor, tag: "ui|graph|execution".} =
   var
     rootDir: string = ""
     functionId: string = ""
@@ -223,7 +223,7 @@ proc otterRunFunction(req: JsonNode): string {.webuiCb, role: actor, metaTags: {
   result = toRunSampleJson(r)
 
 
-proc otterSendAnnotations(req: JsonNode): string {.webuiCb, role: actor, metaTags: {tagUi, tagGraph}.} =
+proc otterSendAnnotations(req: JsonNode): string {.webuiCb, role: actor, tag: "ui|graph".} =
   var
     rootDir: string = ""
     annotations: JsonNode
@@ -235,7 +235,7 @@ proc otterSendAnnotations(req: JsonNode): string {.webuiCb, role: actor, metaTag
   result = annotationPayload(rootDir, annotations)
 
 
-proc otterLoadViewSettings(req: JsonNode): string {.webuiCb, role: helper, metaTags: {tagUi, tagGraph}.} =
+proc otterLoadViewSettings(req: JsonNode): string {.webuiCb, role: helper, tag: "ui|graph".} =
   var
     rootDir: string = ""
   rootDir = parseRootDir(req)
@@ -248,7 +248,7 @@ proc otterLoadViewSettings(req: JsonNode): string {.webuiCb, role: helper, metaT
     })
 
 
-proc otterSaveViewSettings(req: JsonNode): string {.webuiCb, role: actor, metaTags: {tagUi, tagGraph}.} =
+proc otterSaveViewSettings(req: JsonNode): string {.webuiCb, role: actor, tag: "ui|graph".} =
   var
     rootDir: string = ""
     settings: JsonNode
@@ -266,7 +266,7 @@ proc otterSaveViewSettings(req: JsonNode): string {.webuiCb, role: actor, metaTa
     })
 
 
-proc otterChooseFolder(req: JsonNode): string {.webuiCb, role: actor, metaTags: {tagUi, tagGraph}.} =
+proc otterChooseFolder(req: JsonNode): string {.webuiCb, role: actor, tag: "ui|graph".} =
   discard req
   try:
     result = chooseFolderPayload()

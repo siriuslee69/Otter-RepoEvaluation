@@ -3,10 +3,10 @@
 # | -> Discovered tests, display groups, and user settings   |
 # ============================================================
 
-import otterPragmas
+import runePragmas
 
 type
-  OtterUiTestEntry* {.role: truthState, metaTags: {tagTesting, tagUi}.} = object
+  OtterUiTestEntry* {.role: truthState, tag: "testing|ui".} = object
     id*: string
     testName*: string
     menu*: string
@@ -17,7 +17,7 @@ type
     sourcePath*: string
     relativePath*: string
 
-  OtterUiConfig* {.role: truthState, metaTags: {tagTesting, tagUi}.} = object
+  OtterUiConfig* {.role: truthState, tag: "testing|ui".} = object
     repoRoot*: string
     testsRoot*: string
     title*: string
@@ -26,7 +26,7 @@ type
     customCss*: string
     defaultFlags*: seq[string]
 
-  OtterUiCatalog* {.role: truthState, metaTags: {tagTesting, tagUi}.} = object
+  OtterUiCatalog* {.role: truthState, tag: "testing|ui".} = object
     config*: OtterUiConfig
     entries*: seq[OtterUiTestEntry]
     availableFlags*: seq[string]

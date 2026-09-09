@@ -11,7 +11,7 @@
 import std/[os, osproc, strutils, unittest]
 
 import ../../src/protocols/visibility
-import otterPragmas
+import runePragmas
 
 const
   sample*: string = """
@@ -55,7 +55,7 @@ proc build(dir, name, source, flags: string): tuple[ok: bool, output: string]
   createDir(dir)
   writeFile(src, source)
   got = execCmdEx("nim c --hints:off --path:" & quoteShell(root / "src") &
-    " --path:" & quoteShell(root / "meta") &
+    " --path:" & quoteShell(root / ".." / "Rune-Pragmas" / "meta") &
     " " & flags & " --nimcache:" & quoteShell(dir / ("n_" & name)) &
     " -o:" & quoteShell(dir / name) & " -r " & quoteShell(src))
   result = (ok: got.exitCode == 0, output: got.output)
@@ -75,7 +75,7 @@ proc sizeOf(dir, name, source, flags: string): int {.testKind: tkIntegration,
   createDir(dir)
   writeFile(src, source)
   if execCmd("nim c --hints:off --path:" & quoteShell(root / "src") &
-    " --path:" & quoteShell(root / "meta") &
+    " --path:" & quoteShell(root / ".." / "Rune-Pragmas" / "meta") &
       " -d:release " & flags & " --nimcache:" & quoteShell(dir / ("s_" & name)) &
       " -o:" & quoteShell(dir / name) & " " & quoteShell(src) &
       " > /dev/null 2>&1") != 0:

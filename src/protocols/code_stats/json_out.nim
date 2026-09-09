@@ -16,10 +16,10 @@ import ./state_writes
 import ./yields
 import ./diff_review
 import ./ui_depth
-import otterPragmas
+import runePragmas
 
 proc fileJson*(f: FileStat): JsonNode {.role: dataWriter,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## f: one measured file.
   result = %*{
     "path": f.path, "name": f.name, "ext": f.ext, "lang": f.lang, "lines": f.lines,
@@ -35,7 +35,7 @@ proc fileJson*(f: FileStat): JsonNode {.role: dataWriter,
 
 
 proc siteJson*(s: NestSite): JsonNode {.role: dataWriter,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## s: one place where a block sits inside another block.
   result = %*{
     "path": s.path, "fn": s.fn, "keyword": s.keyword, "line": s.line,
@@ -44,7 +44,7 @@ proc siteJson*(s: NestSite): JsonNode {.role: dataWriter,
 
 
 proc countsJson*(A: seq[NameCount]): JsonNode {.role: dataWriter,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A: any tally of labels.
   result = newJArray()
   for row in A:
@@ -52,7 +52,7 @@ proc countsJson*(A: seq[NameCount]): JsonNode {.role: dataWriter,
 
 
 proc scopeJson*(s: ProjectScopeStats): JsonNode {.role: dataWriter,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## s: metrics for a subtab scope
   result = %*{
     "files": s.files, "lines": s.lines, "functions": s.functions,
@@ -63,7 +63,7 @@ proc scopeJson*(s: ProjectScopeStats): JsonNode {.role: dataWriter,
 
 
 proc nestJson*(n: NestStats): JsonNode {.role: dataWriter,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## n: the nesting tally of one repository.
   var
     sites: JsonNode = newJArray()
@@ -81,7 +81,7 @@ proc nestJson*(n: NestStats): JsonNode {.role: dataWriter,
 
 
 proc testsJson*(t: TestStats): JsonNode {.role: dataWriter,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## t: how much of one repository the tests reach.
   var
     buckets: JsonNode = newJArray()
@@ -103,7 +103,7 @@ proc testsJson*(t: TestStats): JsonNode {.role: dataWriter,
 # worked it out without reading anything in between.
 
 proc shapeJson*(S: ShapeReport): JsonNode {.role: dataWriter,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## S: routines placed by what they are built like.
   var
     dupes: JsonNode = newJArray()
@@ -135,7 +135,7 @@ proc shapeJson*(S: ShapeReport): JsonNode {.role: dataWriter,
   }
 
 proc familyJson*(S: FamilyReport): JsonNode {.role: dataWriter,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## S: groups of siblings that are one routine with a knob on it.
   var
     items: JsonNode = newJArray()
@@ -157,7 +157,7 @@ proc familyJson*(S: FamilyReport): JsonNode {.role: dataWriter,
   }
 
 proc embeddedJson*(S: EmbeddedReport): JsonNode {.role: dataWriter,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## S: strings that hold another language.
   var
     items: JsonNode = newJArray()
@@ -178,7 +178,7 @@ proc embeddedJson*(S: EmbeddedReport): JsonNode {.role: dataWriter,
   }
 
 proc placeholderJson*(S: PlaceholderReport): JsonNode {.role: dataWriter,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## S: routines that do not do anything yet.
   var
     items: JsonNode = newJArray()
@@ -196,7 +196,7 @@ proc placeholderJson*(S: PlaceholderReport): JsonNode {.role: dataWriter,
   }
 
 proc secretsJson*(S: SecretReport): JsonNode {.role: dataWriter,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## S: keys and personal data. Only masked previews travel, never a
   ## value in full: this is written into a page and a log, and a
   ## secret repeated there has been leaked a second time.
@@ -217,7 +217,7 @@ proc secretsJson*(S: SecretReport): JsonNode {.role: dataWriter,
   }
 
 proc configJson*(S: ConfigReport): JsonNode {.role: dataWriter,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## S: which settings anything actually reads.
   var
     fields: JsonNode = newJArray()
@@ -244,7 +244,7 @@ proc configJson*(S: ConfigReport): JsonNode {.role: dataWriter,
   }
 
 proc timelineJson*(S: TimelineStats): JsonNode {.role: dataWriter,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## S: the repository at a spread of past moments.
   var
     points: JsonNode = newJArray()
@@ -263,7 +263,7 @@ proc timelineJson*(S: TimelineStats): JsonNode {.role: dataWriter,
   }
 
 proc unusedFuncsJson*(S: UnusedReport): JsonNode {.role: dataWriter,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## S: routines nothing calls, with their size.
   var
     items: JsonNode = newJArray()
@@ -281,7 +281,7 @@ proc unusedFuncsJson*(S: UnusedReport): JsonNode {.role: dataWriter,
   }
 
 proc callDepthJson*(S: CallDepthStats): JsonNode {.role: dataWriter,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## S: how deep the calls go, and who sits at each depth.
   var
     buckets: JsonNode = newJArray()
@@ -306,7 +306,7 @@ proc callDepthJson*(S: CallDepthStats): JsonNode {.role: dataWriter,
   }
 
 proc couplingJson*(S: CouplingStats): JsonNode {.role: dataWriter,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## S: whether every door has a guard, and whether the guards are
   ## themselves tested.
   var
@@ -336,7 +336,7 @@ proc couplingJson*(S: CouplingStats): JsonNode {.role: dataWriter,
   }
 
 proc statsJsonAborts(s: ProjectStats): JsonNode {.role: dataWriter,
-    metaTags: {tagGraph}.} =
+    tag: "graph".} =
   ## s: one measured repository. The routines that can stop the
   ## program because of something well below them.
   var
@@ -347,7 +347,7 @@ proc statsJsonAborts(s: ProjectStats): JsonNode {.role: dataWriter,
   result = rows
 
 proc statsJsonState(s: ProjectStats): JsonNode {.role: dataWriter,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## s: one measured repository. Its state findings, trimmed to what a
   ## reader has to act on: the proven losses and the dead entries.
   var
@@ -362,7 +362,7 @@ proc statsJsonState(s: ProjectStats): JsonNode {.role: dataWriter,
     "states": s.state.states.len}
 
 proc statsJson*(S: ProjectStats): JsonNode {.role: dataWriter,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## S: one whole measured repository.
   var
     files: JsonNode = newJArray()
@@ -446,7 +446,7 @@ proc statsJson*(S: ProjectStats): JsonNode {.role: dataWriter,
   }
 
 proc blastJson*(r: BlastRadius): JsonNode {.role: dataWriter,
-    metaTags: {tagGraph}.} =
+    tag: "graph".} =
   ## r: one blast radius, as a tool reads it.
   var
     callers: JsonNode = newJArray()
@@ -477,7 +477,7 @@ proc blastJson*(r: BlastRadius): JsonNode {.role: dataWriter,
   }
 
 proc uiDepthJson*(r: UiDepthReport): JsonNode {.role: dataWriter,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## r: how deeply the controls of a front end are buried.
   var
     controls: JsonNode = newJArray()
@@ -495,7 +495,7 @@ proc uiDepthJson*(r: UiDepthReport): JsonNode {.role: dataWriter,
   }
 
 proc stateJson*(r: StateReport): JsonNode {.role: dataWriter,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## r: one state-writes answer, as a tool reads it.
   var
     states: JsonNode = newJArray()
@@ -520,7 +520,7 @@ proc stateJson*(r: StateReport): JsonNode {.role: dataWriter,
   }
 
 proc yieldJson*(r: YieldPaths): JsonNode {.role: dataWriter,
-    metaTags: {tagGraph}.} =
+    tag: "graph".} =
   ## r: one yield-paths answer, as a tool reads it.
   var
     outcomes: JsonNode = newJArray()
@@ -537,7 +537,7 @@ proc yieldJson*(r: YieldPaths): JsonNode {.role: dataWriter,
   }
 
 proc diffJson*(r: DiffReview): JsonNode {.role: dataWriter,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## r: one diff review, as a tool reads it.
   var
     yours: JsonNode = newJArray()

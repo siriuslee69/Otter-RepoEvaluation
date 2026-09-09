@@ -19,7 +19,7 @@ import std/[strutils]
 import ./types
 import ../repo_graph/io_utils
 import ../repo_graph/types as graphTypes
-import otterPragmas
+import runePragmas
 
 const
   kindNames*: array[10, string] = ["unit", "edge case", "benchmark",
@@ -38,7 +38,7 @@ const
 # rather than keeping a second copy of the same rule.
 
 proc quotedName*(line: string): string {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## line: a `test "..."` or `suite "..."` line. Empty when the line
   ## carries no quoted name at all.
   var
@@ -53,7 +53,7 @@ proc quotedName*(line: string): string {.role: parser,
   result = line[a + 1 ..< b]
 
 
-proc leadWord(line: string): string {.role: parser, metaTags: {tagStats}.} =
+proc leadWord(line: string): string {.role: parser, tag: "stats".} =
   ## line: one source line, reduced to its first bare word.
   var
     t: string = line.strip()
@@ -64,7 +64,7 @@ proc leadWord(line: string): string {.role: parser, metaTags: {tagStats}.} =
   result = t[0 ..< i]
 
 
-proc indentWidth(line: string): int {.role: parser, metaTags: {tagStats}.} =
+proc indentWidth(line: string): int {.role: parser, tag: "stats".} =
   ## line: one source line.
   result = 0
   while result < line.len and (line[result] == ' ' or line[result] == '\t'):
@@ -72,7 +72,7 @@ proc indentWidth(line: string): int {.role: parser, metaTags: {tagStats}.} =
 
 
 proc hasAny(text: string, A: openArray[string]): bool {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## text: lowered wording. A: the words that decide one kind.
   result = false
   for row in A:
@@ -82,7 +82,7 @@ proc hasAny(text: string, A: openArray[string]): bool {.role: parser,
 
 
 proc kindFromWords*(name, suiteName: string): string {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## name: the test's own sentence. suiteName: the group it sits in.
   ## Only used when no testKind pragma said what the test is.
   var
@@ -107,7 +107,7 @@ proc kindFromWords*(name, suiteName: string): string {.role: parser,
 
 
 proc kindFromPragma*(tag: string): string {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## tag: one pragma tag such as `testkind:tkedgecase`. Empty when the
   ## tag is about something else.
   var
@@ -141,7 +141,7 @@ proc kindFromPragma*(tag: string): string {.role: parser,
 
 
 proc coveredNames*(tag: string): seq[string] {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## tag: one pragma tag such as `covers:@["parse", "check"]`.
   var
     t: string = ""
@@ -155,7 +155,7 @@ proc coveredNames*(tag: string): seq[string] {.role: parser,
 
 
 proc identAt(line: string, i: int): int {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## line: one source line. i: where an identifier may start.
   ## Answers the index just past it, or i when there is none.
   result = i
@@ -166,7 +166,7 @@ proc identAt(line: string, i: int): int {.role: parser,
 
 
 proc callNames*(A: seq[string]): seq[string] {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A: the lines of one test body. Every name written with a bracket
   ## after it, which is what a call looks like whether it was reached
   ## as `f(x)` or as `x.f(y)`.
@@ -191,7 +191,7 @@ proc callNames*(A: seq[string]): seq[string] {.role: parser,
 
 
 proc blockBody*(A: seq[string], start, indent: int): seq[string]
-    {.role: parser, metaTags: {tagStats}.} =
+    {.role: parser, tag: "stats".} =
   ## A: every line of the file. start: the line after the test's own.
   ## indent: the test line's indent, so the body is what sits deeper.
   var
@@ -209,7 +209,7 @@ proc blockBody*(A: seq[string], start, indent: int): seq[string]
 
 
 proc markedKind*(A: seq[string], at: int): string {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A: every line of the file. at: the `test "..."` line's index.
   ##
   ## A `test` block is a call to a template, so no pragma can be hung
@@ -239,7 +239,7 @@ proc markedKind*(A: seq[string], at: int): string {.role: parser,
 
 
 proc scanTestFile*(path: string): seq[TestInfo] {.role: parser,
-    metaTags: {tagStats, tagTesting}.} =
+    tag: "stats|testing".} =
   ## path: one test file. Reads its `suite` and `test` blocks; routines
   ## carrying a testKind pragma are added by the caller, which already
   ## has them parsed.
@@ -271,7 +271,7 @@ proc scanTestFile*(path: string): seq[TestInfo] {.role: parser,
 
 
 proc pragmaTest*(f: FunctionInfo): TestInfo {.role: truthBuilder,
-    metaTags: {tagStats, tagTesting}.} =
+    tag: "stats|testing".} =
   ## f: one routine. An empty `kind` means it carries no testKind
   ## pragma and so is not a test at all.
   var

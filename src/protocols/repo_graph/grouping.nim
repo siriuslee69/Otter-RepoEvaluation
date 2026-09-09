@@ -6,9 +6,9 @@
 import std/[sets, tables]
 
 import ./types
-import otterPragmas
+import runePragmas
 
-proc collectOutMap(g: RepoGraph): Table[string, seq[string]] {.role: helper, metaTags: {tagGraph}.} =
+proc collectOutMap(g: RepoGraph): Table[string, seq[string]] {.role: helper, tag: "graph".} =
   var
     outMap: Table[string, seq[string]]
   outMap = initTable[string, seq[string]]()
@@ -20,7 +20,7 @@ proc collectOutMap(g: RepoGraph): Table[string, seq[string]] {.role: helper, met
   result = outMap
 
 
-proc functionMapById*(g: RepoGraph): Table[string, FunctionInfo] {.role: helper, metaTags: {tagGraph}.} =
+proc functionMapById*(g: RepoGraph): Table[string, FunctionInfo] {.role: helper, tag: "graph".} =
   var
     m: Table[string, FunctionInfo]
   m = initTable[string, FunctionInfo]()
@@ -29,7 +29,7 @@ proc functionMapById*(g: RepoGraph): Table[string, FunctionInfo] {.role: helper,
   result = m
 
 
-proc collectOrchestratorGroups*(g: RepoGraph): seq[OrchestratorGroup] {.role: truthBuilder, metaTags: {tagGraph}.} =
+proc collectOrchestratorGroups*(g: RepoGraph): seq[OrchestratorGroup] {.role: truthBuilder, tag: "graph".} =
   var
     byId: Table[string, FunctionInfo]
     outMap: Table[string, seq[string]]

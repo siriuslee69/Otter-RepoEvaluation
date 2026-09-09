@@ -35,7 +35,7 @@
 import std/[algorithm, sets, strutils, tables]
 
 import ../repo_graph/types as graphTypes
-import otterPragmas
+import runePragmas
 
 # Fylgia holds the room-and-distance maths, and is reached by a path
 # relative to *this file* rather than through the module search path.
@@ -86,7 +86,7 @@ const
     ## Fewer routines than this is not a clump, it is a coincidence.
 
 type
-  FunctionShape* {.role: truthState, metaTags: {tagStats}.} = object
+  FunctionShape* {.role: truthState, tag: "stats".} = object
     ## One routine, measured. Everything here is a plain count so that
     ## a person can check any of it by hand against the source.
     id*: string
@@ -119,7 +119,7 @@ type
     exported*: bool
     isTest*: bool
 
-  DuplicatePair* {.role: preparedData, metaTags: {tagStats}.} = object
+  DuplicatePair* {.role: preparedData, tag: "stats".} = object
     ## Two routines that look like the same routine twice.
     ##
     ##   score      how alike, 0..1, the number to trust
@@ -143,7 +143,7 @@ type
     sameModule*: bool
     sameParams*: bool
 
-  CloudPoint* {.role: preparedData, metaTags: {tagStats}.} = object
+  CloudPoint* {.role: preparedData, tag: "stats".} = object
     ## One routine as a dot to draw.
     id*: string
     name*: string
@@ -153,7 +153,7 @@ type
     y*: float
     lines*: int
 
-  CloudGroup* {.role: preparedData, metaTags: {tagStats}.} = object
+  CloudGroup* {.role: preparedData, tag: "stats".} = object
     ## One clump of routines in the cloud. A routine may appear in
     ## more than one clump when it sits in the overlap.
     id*: string
@@ -163,7 +163,7 @@ type
     radius*: float
     members*: seq[string]
 
-  ShapeReport* {.role: truthState, metaTags: {tagStats}.} = object
+  ShapeReport* {.role: truthState, tag: "stats".} = object
     ## Everything this file works out about one repository.
     dims*: seq[string]
     shapes*: seq[FunctionShape]
@@ -172,7 +172,7 @@ type
     points*: seq[CloudPoint]
     groups*: seq[CloudGroup]
 
-proc lowerType*(s: string): string {.role: sanitizer, metaTags: {tagStats}.} =
+proc lowerType*(s: string): string {.role: sanitizer, tag: "stats".} =
   ## s <- a type as it was written. Stripped down to the bare name, so
   ## that `var seq[string]` and `seq[ string ]` read the same.
   result = s.strip().toLowerAscii()
@@ -181,7 +181,7 @@ proc lowerType*(s: string): string {.role: sanitizer, metaTags: {tagStats}.} =
   result = result.replace("openarray", "seq").replace("openArray", "seq")
   result = result.replace(" ", "")
 
-proc returnKind*(s: string): int {.role: parser, metaTags: {tagStats}.} =
+proc returnKind*(s: string): int {.role: parser, tag: "stats".} =
   ## s <- what a routine hands back.
   ##
   ##   0 nothing       1 a number        2 a piece of text
@@ -203,7 +203,7 @@ proc returnKind*(s: string): int {.role: parser, metaTags: {tagStats}.} =
     result = 3
 
 proc inputKindOf*(A: seq[FunctionSocket]): int {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A <- the connections of one routine.
   ##
   ## One number standing for the mixture taken in, so that a routine
@@ -240,7 +240,7 @@ proc inputKindOf*(A: seq[FunctionSocket]): int {.role: parser,
     result = 3
 
 proc paramTypesOf*(A: seq[FunctionSocket]): string {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A <- the connections of one routine.
   ##
   ## Only the types taken in survive, joined by commas: `int,string`.
@@ -255,7 +255,7 @@ proc paramTypesOf*(A: seq[FunctionSocket]): string {.role: parser,
     parts.add(lowerType(row.typeName))
   result = parts.join(",")
 
-proc lineLetter*(s: string): char {.role: parser, metaTags: {tagStats}.} =
+proc lineLetter*(s: string): char {.role: parser, tag: "stats".} =
   ## s <- one line of a routine's body.
   ##
   ## Boils that line down to one letter for what it does. This is what
@@ -298,7 +298,7 @@ proc lineLetter*(s: string): char {.role: parser, metaTags: {tagStats}.} =
     return 'K'
 
 proc skeletonOf*(A: seq[string]): string {.role: truthBuilder,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A <- a routine's body, line by line. The whole routine as a short
   ## string of letters, blank and comment lines dropped.
   var
@@ -312,14 +312,14 @@ proc skeletonOf*(A: seq[string]): string {.role: truthBuilder,
       return
 
 proc countIndentOf(s: string): int {.inline, role: helper,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## s <- one line. How far it is pushed in from the left.
   result = 0
   while result < s.len and s[result] == ' ':
     result = result + 1
 
 proc shapeOf*(f: FunctionInfo, root: string): FunctionShape
-    {.role: truthBuilder, metaTags: {tagStats}.} =
+    {.role: truthBuilder, tag: "stats".} =
   ## f <- one parsed routine   root <- the repository folder
   ##
   ## Everything is counted in one walk over the body, because two
@@ -386,7 +386,7 @@ proc shapeOf*(f: FunctionInfo, root: string): FunctionShape
     f.name.toLowerAscii().startsWith("test")
 
 proc vectorOf*(s: FunctionShape): seq[float] {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## s <- one measured routine, as the list of numbers the room wants.
   ## The order here must match `shapeDims`.
   result = @[s.lines.float, s.params.float, s.initVars.float,
@@ -395,7 +395,7 @@ proc vectorOf*(s: FunctionShape): seq[float] {.role: parser,
     s.retKind.float, s.inputKind.float]
 
 proc spaceOf*(A: seq[FunctionShape]): VectorSpace {.role: truthBuilder,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A <- every measured routine. The room, already rescaled so that
   ## a line count cannot drown out a loop count.
   result = newVectorSpace(shapeDims)
@@ -404,7 +404,7 @@ proc spaceOf*(A: seq[FunctionShape]): VectorSpace {.role: truthBuilder,
   result.rescale()
 
 proc sequenceMatch*(a, b: string): float {.role: math,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## a, b <- two boiled-down routines.
   ##
   ## How much of the two runs in the same order, 0..1. This is the
@@ -446,7 +446,7 @@ proc sequenceMatch*(a, b: string): float {.role: math,
   n = max(a.len, b.len)
   result = prev[b.len].float / n.float
 
-proc nameMatch*(a, b: string): float {.role: math, metaTags: {tagStats}.} =
+proc nameMatch*(a, b: string): float {.role: math, tag: "stats".} =
   ## a, b <- two routine names.
   ##
   ## Names are cut at every capital letter and underscore first, so
@@ -486,7 +486,7 @@ proc nameMatch*(a, b: string): float {.role: math, metaTags: {tagStats}.} =
     result = both.float / either.float
 
 proc hintFor*(a, b: FunctionShape, sameParams: bool): string
-    {.role: helper, metaTags: {tagStats}.} =
+    {.role: helper, tag: "stats".} =
   ## a, b <- the two routines of one reported pair.
   ## What a person could do about it, said plainly.
   result = "Two routines built alike. Worth a look."
@@ -508,7 +508,7 @@ proc hintFor*(a, b: FunctionShape, sameParams: bool): string
     "routine in a shared module would cover both."
 
 proc byScore(a, b: DuplicatePair): int {.role: helper,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## a, b <- two reported pairs, best match first.
   result = cmp(b.score, a.score)
   if result == 0:
@@ -516,7 +516,7 @@ proc byScore(a, b: DuplicatePair): int {.role: helper,
 
 proc duplicatesOf*(A: seq[FunctionShape], S: VectorSpace):
     tuple[pairs: seq[DuplicatePair], total: int] {.role: truthBuilder,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A <- every measured routine   S <- the room they were placed in
   ##
   ## Every pair is looked at, but only cheaply: two routines standing
@@ -576,7 +576,7 @@ proc duplicatesOf*(A: seq[FunctionShape], S: VectorSpace):
 
 proc cloudOf*(A: seq[FunctionShape], S: VectorSpace, R: Table[string, string]):
     tuple[points: seq[CloudPoint], groups: seq[CloudGroup]]
-    {.role: truthBuilder, metaTags: {tagStats}.} =
+    {.role: truthBuilder, tag: "stats".} =
   ## A <- every measured routine   S <- the room
   ## R <- what each routine's role is, by id, for colouring the dots
   ##
@@ -605,7 +605,7 @@ proc cloudOf*(A: seq[FunctionShape], S: VectorSpace, R: Table[string, string]):
       members: node.memberIds))
 
 proc shapeReport*(A: seq[FunctionInfo], root: string): ShapeReport
-    {.role: orchestrator, metaTags: {tagStats}.} =
+    {.role: orchestrator, tag: "stats".} =
   ## A <- every routine in the tree   root <- the repository folder
   ## The whole of what this file has to say about one repository.
   var

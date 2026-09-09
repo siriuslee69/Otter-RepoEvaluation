@@ -42,7 +42,7 @@
 
 import std/[algorithm, os, strutils, tables]
 
-import otterPragmas
+import runePragmas
 import ../repo_graph/io_utils
 
 const
@@ -59,7 +59,7 @@ const
     ## How many blocks travel to a window. The rest are counted.
 
 type
-  EmbeddedBlock* {.role: preparedData, metaTags: {tagStats}.} = object
+  EmbeddedBlock* {.role: preparedData, tag: "stats".} = object
     ## One run of foreign code found inside a string.
     path*: string
     line*: int
@@ -72,7 +72,7 @@ type
     score*: int
     reasons*: seq[string]
 
-  EmbeddedReport* {.role: truthState, metaTags: {tagStats}.} = object
+  EmbeddedReport* {.role: truthState, tag: "stats".} = object
     ## Every block found, and the shape of the pile.
     blocks*: seq[EmbeddedBlock]
     total*: int
@@ -160,7 +160,7 @@ const
     ## turns fifty ordinary lines into a finding.
 
 proc delimitersFor(ext: string): seq[tuple[opens, closes: string]]
-    {.role: parser, metaTags: {tagStats}.} =
+    {.role: parser, tag: "stats".} =
   ## ext: a file ending, lower case and without its dot.
   ## Every pair that opens and closes a multi-line string in that host.
   ## Empty when the host has none worth reading.
@@ -170,7 +170,7 @@ proc delimitersFor(ext: string): seq[tuple[opens, closes: string]]
       result.add((opens: row.opens, closes: row.closes))
 
 proc languageOfHost(ext: string): string {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## ext: a file ending. What that file itself is written in, or "".
   result = ""
   for row in hostLanguages:
@@ -178,7 +178,7 @@ proc languageOfHost(ext: string): string {.role: parser,
       return row.language
 
 proc scoreAgainst(text: string, s: Signature): tuple[score: int,
-    reasons: seq[string]] {.role: math, metaTags: {tagStats}.} =
+    reasons: seq[string]] {.role: math, tag: "stats".} =
   ## text: the block, already lower case.
   ## s: one language's give-away words.
   ## How much this block looks like that language, and which words said
@@ -197,7 +197,7 @@ proc scoreAgainst(text: string, s: Signature): tuple[score: int,
   result = (score: total, reasons: reasons)
 
 proc looksLikeCode*(text: string): bool {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## text: one block of string contents.
   ##
   ## Whether the block is SHAPED like a program, without caring which
@@ -225,7 +225,7 @@ proc looksLikeCode*(text: string): bool {.role: parser,
   result = seen >= minBlockLines and coded * 2 >= seen
 
 proc classify*(text: string): Classification {.role: truthBuilder,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## text: one block of string contents.
   ##
   ## The best-scoring language, or `other` when nothing recognisable is
@@ -259,7 +259,7 @@ proc classify*(text: string): Classification {.role: truthBuilder,
 
 proc blocksFor(text, path, host: string,
     d: tuple[opens, closes: string]): seq[EmbeddedBlock] {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## text: one whole file   path: what to report it as
   ## host: what the file itself is written in, or ""
   ## d: the pair that opens and closes one kind of multi-line string.
@@ -305,7 +305,7 @@ proc blocksFor(text, path, host: string,
       score: got.score, reasons: got.reasons))
 
 proc blocksIn*(text, path, ext: string): seq[EmbeddedBlock]
-    {.role: parser, metaTags: {tagStats}.} =
+    {.role: parser, tag: "stats".} =
   ## text: one whole file   path: what to report it as
   ## ext: the host's file ending.
   ## Every foreign block in the file, across every kind of multi-line
@@ -317,7 +317,7 @@ proc blocksIn*(text, path, ext: string): seq[EmbeddedBlock]
     result.add(blocksFor(text, path, host, d))
 
 proc byScoreThenSize(a, b: EmbeddedBlock): int {.role: helper,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## a, b: two blocks, the most certain and the largest first.
   result = cmp(b.score, a.score)
   if result == 0:
@@ -326,7 +326,7 @@ proc byScoreThenSize(a, b: EmbeddedBlock): int {.role: helper,
     result = cmp(a.path, b.path)
 
 proc embeddedOf*(dir: string, files: seq[string]): EmbeddedReport
-    {.role: metaOrchestrator, input: thirdParty, metaTags: {tagStats}.} =
+    {.role: metaOrchestrator, input: thirdParty, tag: "stats".} =
   ## dir: the repository   files: every source file in it
   ## Every string in the tree that holds a program.
   var

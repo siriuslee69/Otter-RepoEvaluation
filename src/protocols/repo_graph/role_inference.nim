@@ -6,9 +6,9 @@
 import std/[math, strutils, tables]
 
 import ./types
-import otterPragmas
+import runePragmas
 
-proc countBranches(ls: seq[string]): int {.role: helper, metaTags: {tagGraph, tagParsing}.} =
+proc countBranches(ls: seq[string]): int {.role: helper, tag: "graph|parsing".} =
   var
     t: string = ""
   result = 0
@@ -18,7 +18,7 @@ proc countBranches(ls: seq[string]): int {.role: helper, metaTags: {tagGraph, ta
       result = result + 1
 
 
-proc hasStateSignal(f: FunctionInfo): bool {.role: helper, metaTags: {tagGraph, tagParsing}.} =
+proc hasStateSignal(f: FunctionInfo): bool {.role: helper, tag: "graph|parsing".} =
   var
     t: string = ""
   for p in f.params:
@@ -33,7 +33,7 @@ proc hasStateSignal(f: FunctionInfo): bool {.role: helper, metaTags: {tagGraph, 
       return
 
 
-proc nameContainsOneOf(s: string, A: openArray[string]): bool {.role: helper, metaTags: {tagGraph, tagParsing}.} =
+proc nameContainsOneOf(s: string, A: openArray[string]): bool {.role: helper, tag: "graph|parsing".} =
   var
     t: string = ""
   t = s.toLowerAscii()
@@ -43,7 +43,7 @@ proc nameContainsOneOf(s: string, A: openArray[string]): bool {.role: helper, me
       return
 
 
-proc inferRoles*(g: var RepoGraph) {.role: truthBuilder, metaTags: {tagGraph, tagParsing}.} =
+proc inferRoles*(g: var RepoGraph) {.role: truthBuilder, tag: "graph|parsing".} =
   var
     inDeg: Table[string, int]
     outDeg: Table[string, int]

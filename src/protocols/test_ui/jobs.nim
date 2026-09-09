@@ -8,7 +8,7 @@ import std/[json, monotimes, os, osproc, strutils, tables, times]
 when not defined(windows):
   import std/posix
 
-import otterPragmas
+import runePragmas
 import ./[catalog, types]
 
 const
@@ -22,37 +22,37 @@ const
   NanosecondsPerMillisecond = 1_000_000'i64
 
 type
-  ManagedJob {.role: memory, metaTags: {tagExecution, tagTesting, tagUi}.} = object
+  ManagedJob {.role: memory, tag: "execution|testing|ui".} = object
     id: string
     process: Process
 
 proc channelDirectory(dir, channel: string): string {.role: helper,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## dir/channel: runtime root and isolated IPC channel.
   result = joinPath(dir, channel)
 
 proc requestsDirectory(dir, channel: string): string {.role: helper,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## dir/channel: runtime root and its request queue.
   result = joinPath(channelDirectory(dir, channel), "requests")
 
 proc responsesDirectory(dir, channel: string): string {.role: helper,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## dir/channel: runtime root and its response queue.
   result = joinPath(channelDirectory(dir, channel), "responses")
 
 proc jobsDirectory(dir: string): string {.role: helper,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## dir: runtime root.
   result = joinPath(dir, "jobs")
 
 proc processesDirectory(dir: string): string {.role: helper,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## dir: runtime root containing persistent process identity files.
   result = joinPath(dir, "processes")
 
 proc ensureRuntimeDirectories*(dir: string) {.role: helper,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## dir: runtime root initialized for file-based IPC.
   createDir(dir)
   createDir(channelDirectory(dir, RelayChannel))
@@ -65,7 +65,7 @@ proc ensureRuntimeDirectories*(dir: string) {.role: helper,
   createDir(processesDirectory(dir))
 
 proc atomicWrite(path, content: string) {.role: dataWriter,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## path/content: destination and complete replacement payload.
   var
     temporary: string = path & ".tmp-" & $getCurrentProcessId()
@@ -73,19 +73,19 @@ proc atomicWrite(path, content: string) {.role: dataWriter,
   moveFile(temporary, path)
 
 proc heartbeatPath(dir, name: string): string {.role: helper,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## dir/name: runtime root and owner whose liveness lease is stored.
   result = joinPath(processesDirectory(dir), name & ".heartbeat")
 
 proc writeHeartbeat*(dir, name: string) {.role: dataWriter,
-    metaTags: {tagExecution, tagTesting, tagUi, tagTiming}.} =
+    tag: "execution|testing|ui|timing".} =
   ## dir/name: runtime root and owner renewing its liveness lease.
   ensureRuntimeDirectories(dir)
   atomicWrite(heartbeatPath(dir, name), $getMonoTime().ticks & "\n")
 
 proc heartbeatExpired*(dir, name: string,
     timeoutMs: int = HeartbeatTimeoutMs): bool {.role: parser,
-    metaTags: {tagExecution, tagTesting, tagUi, tagTiming}.} =
+    tag: "execution|testing|ui|timing".} =
   ## dir/name/timeoutMs: lease to reject after the bounded silence interval.
   var
     path: string = heartbeatPath(dir, name)
@@ -102,12 +102,12 @@ proc heartbeatExpired*(dir, name: string,
     elapsedTicks >= timeoutMs.int64 * NanosecondsPerMillisecond
 
 proc requestId(): string {.role: helper,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   result = $getCurrentProcessId() & "-" & $epochTime().int64 & "-" &
     $getTime().nanosecond
 
 proc ipcRequest(dir, channel, unavailable: string, request: JsonNode): JsonNode
-    {.role: dataFetcher, metaTags: {tagExecution, tagTesting, tagUi}.} =
+    {.role: dataFetcher, tag: "execution|testing|ui".} =
   ## dir/channel/unavailable/request: isolated queue and one synchronous command.
   var
     id: string = requestId()
@@ -124,46 +124,46 @@ proc ipcRequest(dir, channel, unavailable: string, request: JsonNode): JsonNode
   removeFile(responsePath)
 
 proc orchestratorRequest*(dir: string, request: JsonNode): JsonNode
-    {.role: dataFetcher, metaTags: {tagExecution, tagTesting, tagUi}.} =
+    {.role: dataFetcher, tag: "execution|testing|ui".} =
   ## dir/request: browser-side message relayed through the orchestrator backend.
   result = ipcRequest(dir, RelayChannel,
     "Otter relay orchestrator did not answer", request)
 
 proc backendRequest*(dir: string, request: JsonNode): JsonNode
-    {.role: dataFetcher, metaTags: {tagExecution, tagTesting, tagUi}.} =
+    {.role: dataFetcher, tag: "execution|testing|ui".} =
   ## dir/request: orchestrator-side message sent to the test backend.
   result = ipcRequest(dir, BackendChannel,
     "Otter test backend did not answer", request)
 
 proc spawnerRequest*(dir: string, request: JsonNode): JsonNode
-    {.role: dataFetcher, metaTags: {tagExecution, tagTesting, tagUi}.} =
+    {.role: dataFetcher, tag: "execution|testing|ui".} =
   ## Compatibility alias for callers that use the complete relay path.
   result = orchestratorRequest(dir, request)
 
 proc writeProcessIdentity*(dir, name: string) {.role: dataWriter,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## dir/name: runtime root and persistent process role being announced.
   ensureRuntimeDirectories(dir)
   atomicWrite(joinPath(processesDirectory(dir), name & ".pid"),
     $getCurrentProcessId() & "\n")
 
 proc jobStatePath(dir, id: string): string {.role: helper,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## dir/id: runtime root and catalog identity.
   result = joinPath(jobsDirectory(dir), id & ".json")
 
 proc cancelPath(dir, id: string): string {.role: helper,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## dir/id: runtime root and catalog identity.
   result = joinPath(jobsDirectory(dir), id & ".cancel")
 
 proc commandPidPath(dir, id: string): string {.role: helper,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## dir/id: runtime root and worker command process-group identity.
   result = joinPath(jobsDirectory(dir), id & ".command.pid")
 
 proc entryWithId(C: OtterUiCatalog, id: string): OtterUiTestEntry
-    {.role: parser, metaTags: {tagExecution, tagTesting, tagUi}.} =
+    {.role: parser, tag: "execution|testing|ui".} =
   ## C/id: discovered catalog and allowlisted identity.
   for entry in C.entries:
     if entry.id == id:
@@ -171,7 +171,7 @@ proc entryWithId(C: OtterUiCatalog, id: string): OtterUiTestEntry
   raise newException(ValueError, "unknown Otter UI test id: " & id)
 
 proc configJson(c: OtterUiConfig): JsonNode {.role: dataWriter,
-    metaTags: {tagTesting, tagUi}.} =
+    tag: "testing|ui".} =
   ## c: loaded project display and output settings.
   result = %*{
     "repoRoot": c.repoRoot.replace('\\', '/'),
@@ -182,7 +182,7 @@ proc configJson(c: OtterUiConfig): JsonNode {.role: dataWriter,
   }
 
 proc entryJson(e: OtterUiTestEntry): JsonNode {.role: dataWriter,
-    metaTags: {tagTesting, tagUi}.} =
+    tag: "testing|ui".} =
   ## e: one discovered pragma exposed to the browser.
   result = %*{
     "id": e.id,
@@ -196,7 +196,7 @@ proc entryJson(e: OtterUiTestEntry): JsonNode {.role: dataWriter,
   }
 
 proc bootstrapState(C: OtterUiCatalog): JsonNode {.role: dataWriter,
-    metaTags: {tagTesting, tagUi}.} =
+    tag: "testing|ui".} =
   ## C: discovered test catalog serialized for relay to the WebUI backend.
   var
     entries: JsonNode = newJArray()
@@ -211,7 +211,7 @@ proc bootstrapState(C: OtterUiCatalog): JsonNode {.role: dataWriter,
   }
 
 proc processIdentity(dir, name: string): int {.role: dataFetcher,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## dir/name: runtime root and persistent process role whose PID is read.
   var
     path: string = joinPath(processesDirectory(dir), name & ".pid")
@@ -223,7 +223,7 @@ proc processIdentity(dir, name: string): int {.role: dataFetcher,
     result = 0
 
 proc topologyState(runtimeDir: string): JsonNode {.role: dataWriter,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## runtimeDir: process identity root exposed for diagnostics and tests.
   result = %*{
     "ok": true,
@@ -233,7 +233,7 @@ proc topologyState(runtimeDir: string): JsonNode {.role: dataWriter,
   }
 
 proc initialState(e: OtterUiTestEntry, flags: openArray[string] = []): JsonNode {.role: truthBuilder,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## e: discovered test represented as a queued job.
   result = %*{
     "id": e.id,
@@ -253,7 +253,7 @@ proc initialState(e: OtterUiTestEntry, flags: openArray[string] = []): JsonNode 
   }
 
 proc locationFromLine(line, repoRoot: string): tuple[path: string, line: int]
-    {.role: parser, metaTags: {tagExecution, tagTesting, tagUi}.} =
+    {.role: parser, tag: "execution|testing|ui".} =
   ## line/repoRoot: compiler or stack line and root used to resolve its Nim file.
   var
     openAt: int = line.find('(')
@@ -285,7 +285,7 @@ proc locationFromLine(line, repoRoot: string): tuple[path: string, line: int]
     result.path = path
 
 proc failureMessage(L: openArray[string], exitCode: int): string
-    {.role: parser, metaTags: {tagExecution, tagTesting, tagUi}.} =
+    {.role: parser, tag: "execution|testing|ui".} =
   ## L/exitCode: complete log lines and process exit used for one summary.
   var
     i: int = 0
@@ -305,7 +305,7 @@ proc failureMessage(L: openArray[string], exitCode: int): string
 
 proc failureLocation(L: openArray[string], repoRoot, sourcePath: string,
     defaultLine: int): tuple[path: string, line: int]
-    {.role: parser, metaTags: {tagExecution, tagTesting, tagUi}.} =
+    {.role: parser, tag: "execution|testing|ui".} =
   ## L/repoRoot/sourcePath/defaultLine: log and fallback declaration location.
   var
     i: int = L.len - 1
@@ -319,7 +319,7 @@ proc failureLocation(L: openArray[string], repoRoot, sourcePath: string,
   result.line = defaultLine
 
 proc codeExcerpt(path: string, line: int): string {.role: dataFetcher,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## path/line: source and central one-based line rendered with nearby context.
   var
     L: seq[string] = @[]
@@ -338,7 +338,7 @@ proc codeExcerpt(path: string, line: int): string {.role: dataFetcher,
 
 proc attachFailureDetails(S: var JsonNode, e: OtterUiTestEntry, repoRoot,
     logPath: string, exitCode: int) {.role: truthBuilder,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## S/e/repoRoot/logPath/exitCode: failed state and its persisted process log.
   var
     L: seq[string] = @[]
@@ -352,7 +352,7 @@ proc attachFailureDetails(S: var JsonNode, e: OtterUiTestEntry, repoRoot,
   S["failureCode"] = %codeExcerpt(location.path, location.line)
 
 proc terminateProcessTree(pid: int) {.role: actor,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## pid: process-group leader whose complete isolated tree is killed.
   if pid <= 0:
     return
@@ -362,7 +362,7 @@ proc terminateProcessTree(pid: int) {.role: actor,
     discard posix.kill(Pid(-pid), SIGKILL)
 
 proc terminateProcessTree(p: Process) {.role: actor,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## p: running process whose isolated process group is killed.
   if p != nil and p.running():
     terminateProcessTree(processID(p))
@@ -370,7 +370,7 @@ proc terminateProcessTree(p: Process) {.role: actor,
       p.kill()
 
 proc quoteArgs(A: openArray[string]): string {.role: helper,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## A: process arguments quoted for shell execution and logs.
   var
     i: int = 0
@@ -381,7 +381,7 @@ proc quoteArgs(A: openArray[string]): string {.role: helper,
     i = i + 1
 
 proc appendLogHeader(path, label, command: string, A: openArray[string], append: bool)
-    {.role: dataWriter, metaTags: {tagExecution, tagTesting, tagUi}.} =
+    {.role: dataWriter, tag: "execution|testing|ui".} =
   ## path/label/command/A/append: log destination and launched command.
   var
     content: string = "[" & label & "] $ " & command & " " & quoteArgs(A) & "\n\n"
@@ -391,14 +391,14 @@ proc appendLogHeader(path, label, command: string, A: openArray[string], append:
   writeFile(path, prior & content)
 
 proc redirectedCommand(command: string, A: openArray[string], logPath: string): string
-    {.role: helper, metaTags: {tagExecution, tagTesting, tagUi}.} =
+    {.role: helper, tag: "execution|testing|ui".} =
   ## command/A/logPath: child command redirected into an existing log.
   result = quoteShell(command) & " " & quoteArgs(A) & " >> " &
     quoteShell(logPath) & " 2>&1"
 
 proc runCancellable(command: string, A: openArray[string], repoRoot, logPath,
     stopPath, pidPath: string): int {.role: actor,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## command/A/repoRoot/logPath/stopPath/pidPath: cancellable command contract.
   var
     shellCommand: string = redirectedCommand(command, A, logPath)
@@ -428,11 +428,11 @@ proc runCancellable(command: string, A: openArray[string], repoRoot, logPath,
   process.close()
 
 proc otterSourceDirectory(): string {.role: helper,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   result = parentDir(parentDir(parentDir(currentSourcePath())))
 
 proc executablePath(repoRoot: string, e: OtterUiTestEntry): string
-    {.role: helper, metaTags: {tagExecution, tagTesting, tagUi}.} =
+    {.role: helper, tag: "execution|testing|ui".} =
   ## repoRoot/e: output root and test identity.
   var
     filename: string = e.id
@@ -442,7 +442,7 @@ proc executablePath(repoRoot: string, e: OtterUiTestEntry): string
 
 proc compileArguments(C: OtterUiCatalog, e: OtterUiTestEntry,
     flags: openArray[string]): seq[string]
-    {.role: truthBuilder, metaTags: {tagExecution, tagTesting, tagUi}.} =
+    {.role: truthBuilder, tag: "execution|testing|ui".} =
   ## C/e/flags: catalog test and validated optional compile-time symbols.
   var
     cachePath: string = joinPath(C.config.repoRoot, "build", "otter_test_ui",
@@ -474,7 +474,7 @@ proc compileArguments(C: OtterUiCatalog, e: OtterUiTestEntry,
   result.add(e.sourcePath)
 
 proc finalStatus(exitCode: int): string {.role: parser,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## exitCode: worker result mapped to a stable browser status.
   if exitCode == 0:
     result = "pass"
@@ -485,7 +485,7 @@ proc finalStatus(exitCode: int): string {.role: parser,
 
 proc runWorker*(repoRoot, runtimeDir, id: string, resultsPath: string = "",
     flags: seq[string] = @[]) {.role: metaOrchestrator,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## repoRoot/runtimeDir/id/resultsPath/flags: isolated test execution contract.
   var
     C: OtterUiCatalog = discoverOtterUiTests(repoRoot)
@@ -536,14 +536,14 @@ proc runWorker*(repoRoot, runtimeDir, id: string, resultsPath: string = "",
 
 proc workerArguments(repoRoot, runtimeDir, id, resultsPath: string,
     flags: openArray[string]): seq[string]
-    {.role: truthBuilder, metaTags: {tagExecution, tagTesting, tagUi}.} =
+    {.role: truthBuilder, tag: "execution|testing|ui".} =
   ## repoRoot/runtimeDir/id/resultsPath/flags: values passed to a worker process.
   result = @["--otter-mode:worker", "--repo-root:" & repoRoot,
     "--runtime-path:" & runtimeDir, "--test-id:" & id,
     "--results-path:" & resultsPath, "--compile-flags:" & flags.join(",")]
 
 proc requestedFlags(request: JsonNode, C: OtterUiCatalog): seq[string]
-    {.role: parser, metaTags: {tagExecution, tagTesting, tagUi}.} =
+    {.role: parser, tag: "execution|testing|ui".} =
   ## request/C: browser symbols validated against repository discovery.
   var
     flag: string = ""
@@ -562,7 +562,7 @@ proc requestedFlags(request: JsonNode, C: OtterUiCatalog): seq[string]
 
 proc startManagedJob(appPath, repoRoot, runtimeDir, id, resultsPath: string,
     flags: openArray[string], C: OtterUiCatalog): ManagedJob {.role: actor,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## appPath/repoRoot/runtimeDir/id/resultsPath/C: worker launch contract.
   var
     e: OtterUiTestEntry = entryWithId(C, id)
@@ -587,7 +587,7 @@ proc startManagedJob(appPath, repoRoot, runtimeDir, id, resultsPath: string,
       options = options)
 
 proc collectStates(runtimeDir: string): JsonNode {.role: dataFetcher,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## runtimeDir: IPC root containing worker state files.
   result = newJArray()
   for kind, path in walkDir(jobsDirectory(runtimeDir), relative = false):
@@ -599,7 +599,7 @@ proc collectStates(runtimeDir: string): JsonNode {.role: dataFetcher,
 
 proc processRequest(request: JsonNode, jobs: var Table[string, ManagedJob],
     appPath, repoRoot, runtimeDir: string, C: OtterUiCatalog): JsonNode
-    {.role: orchestrator, metaTags: {tagExecution, tagTesting, tagUi}.} =
+    {.role: orchestrator, tag: "execution|testing|ui".} =
   ## request/jobs/appPath/repoRoot/runtimeDir/C: one spawner operation.
   var
     action: string = request{"action"}.getStr("")
@@ -635,7 +635,7 @@ proc processRequest(request: JsonNode, jobs: var Table[string, ManagedJob],
     result = %*{"ok": false, "error": "unsupported test backend action"}
 
 proc cleanupJobs(jobs: var Table[string, ManagedJob], runtimeDir: string) {.role: helper,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## jobs/runtimeDir: process handles and state root repaired after workers finish.
   var
     completed: seq[string] = @[]
@@ -661,7 +661,7 @@ proc cleanupJobs(jobs: var Table[string, ManagedJob], runtimeDir: string) {.role
     jobs.del(id)
 
 proc terminateRecordedCommand(runtimeDir, id: string) {.role: actor,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## runtimeDir/id: active compiler or test process group recorded by its worker.
   var
     path: string = commandPidPath(runtimeDir, id)
@@ -675,7 +675,7 @@ proc terminateRecordedCommand(runtimeDir, id: string) {.role: actor,
   terminateProcessTree(pid)
 
 proc markJobStopped(runtimeDir, id: string) {.role: truthBuilder,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## runtimeDir/id: interrupted job state finalized after owner lease expiry.
   var
     path: string = jobStatePath(runtimeDir, id)
@@ -692,7 +692,7 @@ proc markJobStopped(runtimeDir, id: string) {.role: truthBuilder,
     discard
 
 proc runTestBackend*(appPath, repoRoot, runtimeDir: string)
-    {.role: metaOrchestrator, metaTags: {tagExecution, tagTesting, tagUi}.} =
+    {.role: metaOrchestrator, tag: "execution|testing|ui".} =
   ## appPath/repoRoot/runtimeDir: persistent backend that owns every test worker.
   var
     C: OtterUiCatalog = discoverOtterUiTests(repoRoot)
@@ -732,7 +732,7 @@ proc runTestBackend*(appPath, repoRoot, runtimeDir: string)
     markJobStopped(runtimeDir, key)
 
 proc runOrchestrator*(runtimeDir: string) {.role: orchestrator,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## runtimeDir: IPC root whose WebUI requests are relayed without test work.
   var
     request: JsonNode
@@ -763,6 +763,6 @@ proc runOrchestrator*(runtimeDir: string) {.role: orchestrator,
     sleep(10)
 
 proc runSpawner*(appPath, repoRoot, runtimeDir: string)
-    {.role: metaOrchestrator, metaTags: {tagExecution, tagTesting, tagUi}.} =
+    {.role: metaOrchestrator, tag: "execution|testing|ui".} =
   ## Compatibility spelling for callers that launch the test backend directly.
   runTestBackend(appPath, repoRoot, runtimeDir)

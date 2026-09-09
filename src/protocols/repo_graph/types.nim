@@ -5,10 +5,10 @@
 
 import std/[strutils]
 
-import otterPragmas
+import runePragmas
 
 type
-  FunctionRole* {.role: other, metaTags: {tagGraph, tagParsing}.} = enum
+  FunctionRole* {.role: other, tag: "graph|parsing".} = enum
     frUnknown,
     frHelper,
     frWrapper,
@@ -21,32 +21,32 @@ type
     frStateController,
     frOther
 
-  SocketDirection* {.role: other, metaTags: {tagGraph, tagParsing}.} = enum
+  SocketDirection* {.role: other, tag: "graph|parsing".} = enum
     sdInput,
     sdVarInput,
     sdOutput
 
-  RiskTag* {.role: other, metaTags: {tagGraph, tagParsing}.} = object
+  RiskTag* {.role: other, tag: "graph|parsing".} = object
     key*: string
     value*: string
 
-  ImportKind* {.role: other, metaTags: {tagGraph, tagImportContext}.} = enum
+  ImportKind* {.role: other, tag: "graph|importContext".} = enum
     ikModule,
     ikSymbol
 
-  ImportBinding* {.role: memory, metaTags: {tagGraph, tagImportContext}.} = object
+  ImportBinding* {.role: memory, tag: "graph|importContext".} = object
     kind*: ImportKind
     modulePath*: string
     localName*: string
     remoteName*: string
 
-  FunctionSocket* {.role: truthState, metaTags: {tagGraph, tagParsing}.} = object
+  FunctionSocket* {.role: truthState, tag: "graph|parsing".} = object
     name*: string
     typeName*: string
     direction*: SocketDirection
     sampleExpr*: string
 
-  FunctionInfo* {.role: truthState, metaTags: {tagGraph, tagParsing, tagImportContext}.} = object
+  FunctionInfo* {.role: truthState, tag: "graph|parsing|importContext".} = object
     id*: string
     declKind*: string
     modulePath*: string
@@ -79,19 +79,19 @@ type
     userInputSignals*: seq[string]
     userInputReason*: string
 
-  CallEdge* {.role: truthState, metaTags: {tagGraph}.} = object
+  CallEdge* {.role: truthState, tag: "graph".} = object
     callerId*: string
     calleeId*: string
     callName*: string
 
-  OrchestratorGroup* {.role: truthState, metaTags: {tagGraph}.} = object
+  OrchestratorGroup* {.role: truthState, tag: "graph".} = object
     id*: string
     orchestratorId*: string
     label*: string
     directMemberIds*: seq[string]
     memberIds*: seq[string]
 
-  RepoGraph* {.role: truthState, metaTags: {tagGraph}.} = object
+  RepoGraph* {.role: truthState, tag: "graph".} = object
     rootDir*: string
     functions*: seq[FunctionInfo]
     edges*: seq[CallEdge]
@@ -99,7 +99,7 @@ type
     groups*: seq[OrchestratorGroup]
 
 
-proc roleToString*(r: FunctionRole): string {.role: helper, metaTags: {tagGraph, tagParsing}.} =
+proc roleToString*(r: FunctionRole): string {.role: helper, tag: "graph|parsing".} =
   case r
   of frHelper:
     result = "helper"
@@ -125,7 +125,7 @@ proc roleToString*(r: FunctionRole): string {.role: helper, metaTags: {tagGraph,
     result = "unknown"
 
 
-proc parseRole*(s: string): FunctionRole {.role: parser, metaTags: {tagGraph, tagParsing}.} =
+proc parseRole*(s: string): FunctionRole {.role: parser, tag: "graph|parsing".} =
   var
     t: string = ""
   t = s.strip().toLowerAscii().replace("-", "_")
@@ -154,14 +154,14 @@ proc parseRole*(s: string): FunctionRole {.role: parser, metaTags: {tagGraph, ta
     result = frUnknown
 
 
-proc formatRiskTag*(r: RiskTag): string {.role: helper, metaTags: {tagGraph, tagParsing}.} =
+proc formatRiskTag*(r: RiskTag): string {.role: helper, tag: "graph|parsing".} =
   if r.value.len > 0:
     result = r.key & "=" & r.value
   else:
     result = r.key
 
 
-proc socketDirectionToString*(d: SocketDirection): string {.role: helper, metaTags: {tagGraph}.} =
+proc socketDirectionToString*(d: SocketDirection): string {.role: helper, tag: "graph".} =
   case d
   of sdInput:
     result = "input"
@@ -171,13 +171,13 @@ proc socketDirectionToString*(d: SocketDirection): string {.role: helper, metaTa
     result = "output"
 
 
-proc isOrchestratorLike*(r: FunctionRole): bool {.role: helper, metaTags: {tagGraph}.} =
+proc isOrchestratorLike*(r: FunctionRole): bool {.role: helper, tag: "graph".} =
   if r == frOrchestrator or r == frMetaOrchestrator:
     result = true
     return
 
 
-proc isGroupableRole*(r: FunctionRole): bool {.role: helper, metaTags: {tagGraph}.} =
+proc isGroupableRole*(r: FunctionRole): bool {.role: helper, tag: "graph".} =
   case r
   of frHelper, frWrapper, frParser, frTruthBuilder, frActor, frDataFetcher, frOther, frUnknown:
     result = true

@@ -69,7 +69,7 @@
 
 import std/[macros, strutils]
 
-import otterPragmas
+import runePragmas
 
 const
   otterVis* {.strdefine.}: string = ""
@@ -110,7 +110,7 @@ when visAnyOn:
       ## Printed as indentation, so the shape of the calls can be read
       ## down the left-hand edge.
 
-  proc visStamp(): string {.role: helper, metaTags: {tagLogging}.} =
+  proc visStamp(): string {.role: helper, tag: "logging".} =
     ## Milliseconds since the first message, to three places, right
     ## aligned so the column stays straight as the numbers grow.
     var
@@ -120,14 +120,14 @@ when visAnyOn:
     while result.len < 14:
       result = " " & result
 
-  proc visEnter*(g: int, name, where: string) {.role: dataWriter, metaTags: {tagLogging}.} =
+  proc visEnter*(g: int, name, where: string) {.role: dataWriter, tag: "logging".} =
     ## g: the group   name: the routine   where: file and line.
     ## Says a routine has started, and counts one deeper.
     echo visPrefix, g, "] ", visStamp(), "  ", repeat("  ", visDepth),
       "-> ", name, "   ", where
     visDepth = visDepth + 1
 
-  proc visLeave*(g: int, name: string, began: MonoTime) {.role: dataWriter, metaTags: {tagLogging}.} =
+  proc visLeave*(g: int, name: string, began: MonoTime) {.role: dataWriter, tag: "logging".} =
     ## g: the group   name: the routine   began: when it started.
     ## Says a routine has finished, and how long it took.
     var
@@ -137,7 +137,7 @@ when visAnyOn:
     echo visPrefix, g, "] ", visStamp(), "  ", repeat("  ", visDepth),
       "<- ", name, "  (", formatFloat(ms, ffDecimal, 3), " ms)"
 
-  proc visLoop*(g: int, what, where: string) {.role: dataWriter, metaTags: {tagLogging}.} =
+  proc visLoop*(g: int, what, where: string) {.role: dataWriter, tag: "logging".} =
     ## g: the group   what: what happened   where: file and line.
     ## Says something about a loop, indented under the routine it is in.
     echo visPrefix, g, "] ", visStamp(), "  ", repeat("  ", visDepth),

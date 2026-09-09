@@ -86,7 +86,7 @@ import std/[algorithm, sets, strutils, tables]
 
 import ../repo_graph/types as graphTypes
 import ../repo_graph/io_utils
-import otterPragmas
+import runePragmas
 
 const
   latestMarker*: string = "otter:latest"
@@ -120,7 +120,7 @@ const
     ## routine in a cryptography library, which is most of them.
 
 type
-  FieldTraffic* {.role: truthState, metaTags: {tagGraph, tagState}.} = object
+  FieldTraffic* {.role: truthState, tag: "graph|state".} = object
     ## One entry of a state object, and everyone who touches it.
     field*: string
     typeName*: string
@@ -137,7 +137,7 @@ type
       ## Two of its blind writers were found landing one after the
       ## other with no read in between.
 
-  StateHazard* {.role: preparedData, metaTags: {tagGraph, tagState}.} = object
+  StateHazard* {.role: preparedData, tag: "graph|state".} = object
     ## Two blind writers of one entry, and the proof if there is one.
     typeName*: string
     field*: string
@@ -149,7 +149,7 @@ type
     firstLine*: int
     secondLine*: int
 
-  StateType* {.role: truthState, metaTags: {tagGraph, tagState}.} = object
+  StateType* {.role: truthState, tag: "graph|state".} = object
     name*: string
     path*: string
     line*: int
@@ -158,7 +158,7 @@ type
     wholeWriters*: seq[string]
       ## Routines that replace the entire object at once.
 
-  StateHolder* {.role: preparedData, metaTags: {tagGraph, tagState}.} = object
+  StateHolder* {.role: preparedData, tag: "graph|state".} = object
     ## One routine that holds a state object, and the names it holds it
     ## under. Two sets rather than one because the two questions have
     ## different answers: `writes` is strict, `reads` is generous.
@@ -166,7 +166,7 @@ type
     writes*: HashSet[string]
     reads*: HashSet[string]
 
-  Pairing* {.role: preparedData, metaTags: {tagGraph, tagState}.} = object
+  Pairing* {.role: preparedData, tag: "graph|state".} = object
     ## Two blind writers found next to each other in one routine.
     found*: bool
     guarded*: bool
@@ -176,13 +176,13 @@ type
     first*: string
     second*: string
 
-  StateSources* {.role: rawData, metaTags: {tagGraph, tagState}.} = object
+  StateSources* {.role: rawData, tag: "graph|state".} = object
     ## What one walk of the files turns up: the object types, and the
     ## names declared at module level in each file.
     states*: seq[StateType]
     globals*: Table[string, seq[tuple[name, typ: string]]]
 
-  StateReport* {.role: truthState, metaTags: {tagGraph, tagState}.} = object
+  StateReport* {.role: truthState, tag: "graph|state".} = object
     rootDir*: string
     states*: seq[StateType]
     hazards*: seq[StateHazard]
@@ -196,7 +196,7 @@ proc isIdentChar(c: char): bool {.inline.} =
   result = c.isAlphaNumeric() or c == '_'
 
 proc isResetter*(name: string): bool {.role: parser,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## name: a routine.
   ## Whether it is named for emptying a value rather than for setting
   ## one. Judged by the name because that is what a person judges it
@@ -210,7 +210,7 @@ proc isResetter*(name: string): bool {.role: parser,
       return true
 
 proc codeOf*(s: string): string {.role: sanitizer,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## s: one line of Nim. The same line with any trailing comment cut
   ## off, so that a field named in a comment is not read as a write.
   ## A `#` inside a string stays, because it is not a comment there.
@@ -226,7 +226,7 @@ proc codeOf*(s: string): string {.role: sanitizer,
     i = i + 1
 
 proc withoutStrings*(s: string): string {.role: sanitizer,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## s: one line of code, its comment already cut off.
   ## The same line with the inside of every double-quoted string
   ## blanked out. A name written inside a string is a word, not a
@@ -248,7 +248,7 @@ proc withoutStrings*(s: string): string {.role: sanitizer,
     i = i + 1
 
 proc bareCode*(s: string): string {.role: sanitizer,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## s: one line as written. What is left once the comment and the
   ## inside of every string are gone: only the code that does
   ## something. This is what every scanner in this file and the next
@@ -256,7 +256,7 @@ proc bareCode*(s: string): string {.role: sanitizer,
   result = withoutStrings(codeOf(s))
 
 proc rootIdentAt(s: string, at: int): string {.role: parser,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## s: one line   at: the index of a dot.
   ## The name the dotted chain starts from: in `a.b.field` the answer
   ## is `a`, because `a` is the variable that holds the object. A
@@ -279,7 +279,7 @@ proc rootIdentAt(s: string, at: int): string {.role: parser,
     result = chain[0 ..< dot]
 
 proc skipSubscript(s: string): tuple[rest: string, stepped: bool]
-    {.role: parser, metaTags: {tagGraph, tagState}.} =
+    {.role: parser, tag: "graph|state".} =
   ## s: whatever follows an entry name.
   ## Steps over `[...]` so that `S.rows[i] = v` is judged on its `=`
   ## rather than on its bracket. Writing one slot of a list is a
@@ -306,7 +306,7 @@ proc skipSubscript(s: string): tuple[rest: string, stepped: bool]
     result = (rest: rest, stepped: true)
 
 proc useKind*(after: string): int {.role: parser,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## after: the text that follows an entry name on its line.
   ## 0 read, 1 blind write, 2 folding write. Reading is the default,
   ## because mentioning a value without an assignment near it is what
@@ -334,7 +334,7 @@ proc useKind*(after: string): int {.role: parser,
 
 proc fieldUses*(line: string, recvs: HashSet[string], field: string):
     tuple[writes, folds, reads: int] {.role: parser,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## line: one line of a routine   recvs: names holding the state
   ## field: the entry being asked about.
   ##
@@ -368,7 +368,7 @@ proc fieldUses*(line: string, recvs: HashSet[string], field: string):
       result.reads = result.reads + 1
 
 proc paramText(signature: string): string {.role: parser,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## signature: a routine declaration as written.
   ## What sits between its outermost parentheses, or "" when it takes
   ## nothing.
@@ -391,7 +391,7 @@ proc paramText(signature: string): string {.role: parser,
   result = signature[at + 1 .. ^1]
 
 proc wholeWord(hay, needle: string): bool {.role: parser,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## hay: any text   needle: a name.
   ## Whether the name stands there on its own. `Feed` is inside
   ## `FeedRow`, and treating that as a match would tie two different
@@ -412,7 +412,7 @@ proc wholeWord(hay, needle: string): bool {.role: parser,
     return true
 
 proc namesTypedAs(text, tName: string, bSharedOnly: bool): seq[string]
-    {.role: parser, metaTags: {tagGraph, tagState}.} =
+    {.role: parser, tag: "graph|state".} =
   ## text: the parameters of a routine   tName: the state type
   ## bSharedOnly: keep only the ones the routine can write through.
   ##
@@ -455,7 +455,7 @@ proc namesTypedAs(text, tName: string, bSharedOnly: bool): seq[string]
 
 proc localsTypedAs(f: FunctionInfo, tName: string,
     containers: HashSet[string]): seq[string] {.role: parser,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## f: one routine   tName: the state type
   ## containers: field names known to hold a list of them.
   ##
@@ -504,7 +504,7 @@ proc localsTypedAs(f: FunctionInfo, tName: string,
 
 proc writeReceivers*(f: FunctionInfo, tName: string,
     globals: HashSet[string]): HashSet[string] {.role: truthBuilder,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## f: one routine   tName: the state type
   ## globals: module-level names of that type in this routine's file.
   ##
@@ -530,7 +530,7 @@ proc writeReceivers*(f: FunctionInfo, tName: string,
 
 proc readReceivers*(f: FunctionInfo, tName: string, globals,
     containers: HashSet[string]): HashSet[string] {.role: truthBuilder,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## f: one routine   tName: the state type   globals: as above
   ## containers: field names holding a list of them.
   ##
@@ -548,7 +548,7 @@ proc readReceivers*(f: FunctionInfo, tName: string, globals,
     result.incl("result")
 
 proc replacesWholeObject(f: FunctionInfo, recvs: HashSet[string],
-    tName: string): bool {.role: parser, metaTags: {tagGraph, tagState}.} =
+    tName: string): bool {.role: parser, tag: "graph|state".} =
   ## f: one routine   recvs: names it can write   tName: their type.
   ## Whether the routine puts a freshly built object over the top of
   ## one somebody else holds. That touches every entry at once, which
@@ -563,7 +563,7 @@ proc replacesWholeObject(f: FunctionInfo, recvs: HashSet[string],
           s.startsWith(r & " = default(" & tName):
         return true
 proc declaredTypeName(s: string): string {.role: parser,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## s: a stripped line that declares an object type.
   ## Its name, without the export star, the generic brackets or the
   ## pragma that may follow it.
@@ -578,7 +578,7 @@ proc declaredTypeName(s: string): string {.role: parser,
   result = t[0 ..< i]
 
 proc typeRoleOf(s: string): string {.role: parser,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## s: a line that may carry `{.role: truthState.}`, either as a real
   ## pragma or written inside a comment, which is how the conventions
   ## ask for roles in files that cannot hold pragmas.
@@ -595,7 +595,7 @@ proc typeRoleOf(s: string): string {.role: parser,
   result = t[0 ..< i].toLowerAscii()
 
 proc fieldOf(s: string): tuple[name, typ: string] {.role: parser,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## s: one stripped line inside an object body.
   ## The entry it declares and what that entry holds, or two empty
   ## strings when the line declares no entry. The discriminant of a
@@ -627,7 +627,7 @@ proc indentOf(s: string): int {.inline.} =
     result = result + 1
 
 proc objectTypesIn*(path: string, lines: seq[string]): seq[StateType]
-    {.role: parser, metaTags: {tagGraph, tagState}.} =
+    {.role: parser, tag: "graph|state".} =
   ## path: the file   lines: its contents.
   ##
   ## Every object type declared in the file, with its entries in the
@@ -674,7 +674,7 @@ proc objectTypesIn*(path: string, lines: seq[string]): seq[StateType]
     result.add(st)
 
 proc globalsIn(lines: seq[string]): seq[tuple[name, typ: string]]
-    {.role: parser, metaTags: {tagGraph, tagState}.} =
+    {.role: parser, tag: "graph|state".} =
   ## lines: one file.
   ##
   ## The names declared at the very left of the file, outside every
@@ -709,7 +709,7 @@ proc globalsIn(lines: seq[string]): seq[tuple[name, typ: string]]
     i = i + 1
 
 proc statesIn(rootDir: string): StateSources
-    {.role: dataFetcher, metaTags: {tagGraph, tagState}.} =
+    {.role: dataFetcher, tag: "graph|state".} =
   ## rootDir: the repository.
   ## Every object type it declares that has at least one entry - a type
   ## with none has nothing to lose - and, per file, the names declared
@@ -729,7 +729,7 @@ proc statesIn(rootDir: string): StateSources
       result.globals[p] = globals
 
 proc containersOf(states: seq[StateType], tName: string): HashSet[string]
-    {.role: truthBuilder, metaTags: {tagGraph, tagState}.} =
+    {.role: truthBuilder, tag: "graph|state".} =
   ## states: every type in the repository   tName: the state type.
   ##
   ## Entry names anywhere in the tree that hold a list of these, so
@@ -744,7 +744,7 @@ proc containersOf(states: seq[StateType], tName: string): HashSet[string]
 
 proc globalsAt(globals: Table[string, seq[tuple[name, typ: string]]],
     path, tName: string): HashSet[string] {.role: parser,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## globals: every module-level name, by file   path: one file
   ## tName: the state type. The ones in that file holding one.
   result = initHashSet[string]()
@@ -755,7 +755,7 @@ proc globalsAt(globals: Table[string, seq[tuple[name, typ: string]]],
       result.incl(g.name)
 
 proc mightHold(text, tName: string, containers: HashSet[string]): bool
-    {.role: parser, metaTags: {tagGraph, tagState}.} =
+    {.role: parser, tag: "graph|state".} =
   ## text: one routine, signature and body together   tName: a type
   ## containers: entry names holding a list of them.
   ##
@@ -774,7 +774,7 @@ proc mightHold(text, tName: string, containers: HashSet[string]): bool
 proc holdersOf(g: RepoGraph, texts: seq[string], tName: string,
     states: seq[StateType],
     globals: Table[string, seq[tuple[name, typ: string]]]): seq[StateHolder]
-    {.role: truthBuilder, metaTags: {tagGraph, tagState}.} =
+    {.role: truthBuilder, tag: "graph|state".} =
   ## g: the whole graph   texts: each routine as one string
   ## tName: a state type   states: every type
   ## globals: module-level names by file.
@@ -804,7 +804,7 @@ proc holdersOf(g: RepoGraph, texts: seq[string], tName: string,
 
 proc fillTraffic(st: var StateType, holders: seq[StateHolder])
     {.role: truthBuilder,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## st: one state type, filled in place   holders: its routines.
   ##
   ## A routine that both writes and reads an entry is a folding writer
@@ -849,7 +849,7 @@ proc absLine(f: FunctionInfo, k: int): int {.inline.} =
 
 proc callOffsets(f: FunctionInfo, names: seq[string]):
     seq[tuple[at: int, name: string]] {.role: parser,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## f: one routine   names: the routines being looked for.
   ## Where in this body each of them is called, in the order written.
   var
@@ -870,7 +870,7 @@ proc callOffsets(f: FunctionInfo, names: seq[string]):
 
 proc readsBetween(f: FunctionInfo, recvs: HashSet[string], field: string,
     readers: seq[string], i, j: int): bool {.role: parser,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## f: the routine holding both calls   recvs: names holding the state
   ## field: the entry   readers: routines known to read it
   ## i, j: the two call lines.
@@ -898,7 +898,7 @@ proc readsBetween(f: FunctionInfo, recvs: HashSet[string], field: string,
 
 proc firstUnguarded(h: StateHolder, e: FieldTraffic,
     readers: seq[string]): Pairing {.role: parser,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## h: one routine that holds the state   e: the entry
   ## readers: routines known to read it.
   ##
@@ -930,7 +930,7 @@ proc firstUnguarded(h: StateHolder, e: FieldTraffic,
 proc witnessFor(holders: seq[StateHolder], st: StateType,
     e: FieldTraffic): tuple[haz: StateHazard, guarded: bool]
     {.role: truthBuilder,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## holders: the routines that hold this state   st: the type
   ## e: one of its entries.
   ##
@@ -972,7 +972,7 @@ proc witnessFor(holders: seq[StateHolder], st: StateType,
   result.guarded = anyGuarded
 
 proc allResetters(names: seq[string]): bool {.role: parser,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## names: the blind writers of one entry.
   ## Whether every one of them is there to empty it. A field written
   ## only by wipe routines is not a field whose writes are thrown
@@ -983,7 +983,7 @@ proc allResetters(names: seq[string]): bool {.role: parser,
       return false
 
 proc anyResetter(names: seq[string]): bool {.role: parser,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## names: the blind writers of one entry.
   ## Whether one of them is there to empty the entry. If so the pair is
   ## not a loss in either order: emptying then filling is a sequence,
@@ -994,7 +994,7 @@ proc anyResetter(names: seq[string]): bool {.role: parser,
       return true
 
 proc collectFindings(holders: seq[StateHolder], at: int, r: var StateReport)
-    {.role: truthBuilder, metaTags: {tagGraph, tagState}.} =
+    {.role: truthBuilder, tag: "graph|state".} =
   ## holders: the routines that hold this state   at: which state of
   ## the report   r: the report, added to.
   ##
@@ -1032,7 +1032,7 @@ proc isState(st: StateType): bool {.inline.} =
   result = st.role in stateRoles
 
 proc stateWritesOf*(g: RepoGraph, focus: string = ""): StateReport
-    {.role: metaOrchestrator, metaTags: {tagGraph, tagState}.} =
+    {.role: metaOrchestrator, tag: "graph|state".} =
   ## g: the whole graph   focus: one type name, or "" for all of them.
   ##
   ## The one call to make before adding a routine that writes shared
@@ -1080,7 +1080,7 @@ proc stateWritesOf*(g: RepoGraph, focus: string = ""): StateReport
     "a routine building its own copy is not writing anybody's state")
 
 proc entryLine(e: FieldTraffic): string {.role: dataWriter,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## e: one entry. Its row of the table, and the one word that says
   ## what is wrong with it, if anything is.
   var
@@ -1098,7 +1098,7 @@ proc entryLine(e: FieldTraffic): string {.role: dataWriter,
     padTo(e.readers.join(", "), 16) & flag
 
 proc hazardLines(h: StateHazard): seq[string] {.role: dataWriter,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## h: one pair of blind writers. Said in the order a person needs it:
   ## what is lost, then where to look, then what to do about it.
   result = @[]
@@ -1117,7 +1117,7 @@ proc hazardLines(h: StateHazard): seq[string] {.role: dataWriter,
     latestMarker & "` on the entry.")
 
 proc stateLines*(r: StateReport): seq[string] {.role: dataWriter,
-    metaTags: {tagGraph, tagState}.} =
+    tag: "graph|state".} =
   ## r: one answer, as plain lines. The table first, because the
   ## question "who may change this" is asked far more often than the
   ## question "what is broken".

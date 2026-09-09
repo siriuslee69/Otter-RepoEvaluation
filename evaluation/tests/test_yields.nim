@@ -10,7 +10,7 @@ import std/[os, sets, unittest]
 
 import ../../src/protocols/repo_graph
 import ../../src/protocols/code_stats/yields
-import otterPragmas
+import runePragmas
 
 proc sampleGraph(): RepoGraph {.testKind: tkUnit, covers: "escapingOf".} =
   ## The example tree, found from this file so the test runs anywhere.

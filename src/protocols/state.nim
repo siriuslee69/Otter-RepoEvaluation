@@ -5,14 +5,14 @@
 
 import std/[exitprocs, locks, os, strutils]
 
-import otterPragmas
+import runePragmas
 import ./types
 import ./evaluation/benchmarks
 
 const
-  OtterTimingEnabled* {.role: helper, metaTags: {tagTiming, tagParentIntegration}.} = defined(otterTiming)
-  OtterDebugEnabled* {.role: helper, metaTags: {tagTiming, tagParentIntegration}.} = defined(otterDebug)
-  DefaultOtterLogPath* {.role: helper, metaTags: {tagLogging, tagParentIntegration}.} = "build/otter_timings.log"
+  OtterTimingEnabled* {.role: helper, tag: "timing|parentIntegration".} = defined(otterTiming)
+  OtterDebugEnabled* {.role: helper, tag: "timing|parentIntegration".} = defined(otterDebug)
+  DefaultOtterLogPath* {.role: helper, tag: "logging|parentIntegration".} = "build/otter_timings.log"
 
 var
   gOtterLock: Lock
@@ -41,10 +41,10 @@ var
   gOtterPathLen: int = 0
 
 
-proc flushTimingLog*() {.role: dataWriter, metaTags: {tagLogging, tagTiming}.}
+proc flushTimingLog*() {.role: dataWriter, tag: "logging|timing".}
 
 
-proc keepText(s: string) {.role: dataWriter, metaTags: {tagLogging, tagState}.} =
+proc keepText(s: string) {.role: dataWriter, tag: "logging|state".} =
   ## s: one finished log line, kept where the exit hook can still read
   ## it. The block doubles when it fills and is never given back.
   var
@@ -60,14 +60,14 @@ proc keepText(s: string) {.role: dataWriter, metaTags: {tagLogging, tagState}.} 
   gOtterTextLen = need
 
 
-proc keptText(): string {.role: dataFetcher, metaTags: {tagLogging, tagState}.} =
+proc keptText(): string {.role: dataFetcher, tag: "logging|state".} =
   ## Everything recorded so far, as one block of text.
   result = newString(gOtterTextLen)
   if gOtterTextLen > 0:
     copyMem(addr result[0], addr gOtterText[0], gOtterTextLen)
 
 
-proc keepPath(p: string) {.role: dataWriter, metaTags: {tagLogging, tagState}.} =
+proc keepPath(p: string) {.role: dataWriter, tag: "logging|state".} =
   ## p: where the log goes, copied into a plain array so the exit hook
   ## still knows it.
   gOtterPathLen = min(p.len, gOtterPath.len)
@@ -75,21 +75,21 @@ proc keepPath(p: string) {.role: dataWriter, metaTags: {tagLogging, tagState}.} 
     copyMem(addr gOtterPath[0], unsafeAddr p[0], gOtterPathLen)
 
 
-proc keptPath(): string {.role: dataFetcher, metaTags: {tagLogging, tagState}.} =
+proc keptPath(): string {.role: dataFetcher, tag: "logging|state".} =
   ## Where the log goes. Empty until something set it.
   result = newString(gOtterPathLen)
   if gOtterPathLen > 0:
     copyMem(addr result[0], addr gOtterPath[0], gOtterPathLen)
 
 
-proc ensureOtterLock() {.role: helper, metaTags: {tagState, tagTiming}.} =
+proc ensureOtterLock() {.role: helper, tag: "state|timing".} =
   if gOtterLockReady:
     return
   initLock(gOtterLock)
   gOtterLockReady = true
 
 
-proc ensureOtterDefaults() {.role: helper, metaTags: {tagState, tagLogging}.} =
+proc ensureOtterDefaults() {.role: helper, tag: "state|logging".} =
   var
     envPath: string = ""
   if gOtterMemory.logPath.len != 0:
@@ -106,7 +106,7 @@ proc ensureOtterDefaults() {.role: helper, metaTags: {tagState, tagLogging}.} =
   gOtterMemory.logPath = DefaultOtterLogPath
 
 
-proc ensureLogDir(p: string) {.role: helper, metaTags: {tagLogging}.} =
+proc ensureLogDir(p: string) {.role: helper, tag: "logging".} =
   ## p: target log file path.
   var
     d: string = ""
@@ -120,7 +120,7 @@ proc ensureLogDir(p: string) {.role: helper, metaTags: {tagLogging}.} =
   createDir(d)
 
 
-proc formatTimingEntry*(t: OtterTimingTuple): string {.role: helper, metaTags: {tagLogging, tagTiming}.} =
+proc formatTimingEntry*(t: OtterTimingTuple): string {.role: helper, tag: "logging|timing".} =
   ## t: captured timing tuple.
   var
     loc: string = ""
@@ -132,7 +132,7 @@ proc formatTimingEntry*(t: OtterTimingTuple): string {.role: helper, metaTags: {
 
 
 proc emitOtterDebug*(phase: string, n: string, p: string, l: int, c: int,
-    a: int64 = 0, b: int64 = 0) {.role: helper, metaTags: {tagTiming, tagLogging}.} =
+    a: int64 = 0, b: int64 = 0) {.role: helper, tag: "timing|logging".} =
   ## phase: enter, exit, or exception.
   ## n: function name.
   ## p: source path.
@@ -154,7 +154,7 @@ proc emitOtterDebug*(phase: string, n: string, p: string, l: int, c: int,
   stderr.writeLine(s)
 
 
-proc ensureOtterHook*() {.role: orchestrator, metaTags: {tagLogging, tagTiming}.} =
+proc ensureOtterHook*() {.role: orchestrator, tag: "logging|timing".} =
   var
     needsHook: bool = false
   if not OtterTimingEnabled:
@@ -170,7 +170,7 @@ proc ensureOtterHook*() {.role: orchestrator, metaTags: {tagLogging, tagTiming}.
     addExitProc(flushTimingLog)
 
 
-proc setLogPath*(p: string) {.role: helper, metaTags: {tagLogging, tagParentIntegration}.} =
+proc setLogPath*(p: string) {.role: helper, tag: "logging|parentIntegration".} =
   ## p: target log file path.
   if not OtterTimingEnabled:
     return
@@ -182,7 +182,7 @@ proc setLogPath*(p: string) {.role: helper, metaTags: {tagLogging, tagParentInte
   release(gOtterLock)
 
 
-proc getLogPath*(): string {.role: helper, metaTags: {tagLogging, tagState}.} =
+proc getLogPath*(): string {.role: helper, tag: "logging|state".} =
   var
     t: string = ""
   ensureOtterLock()
@@ -193,7 +193,7 @@ proc getLogPath*(): string {.role: helper, metaTags: {tagLogging, tagState}.} =
   result = t
 
 
-proc clearTimings*() {.role: helper, metaTags: {tagTiming, tagState}.} =
+proc clearTimings*() {.role: helper, tag: "timing|state".} =
   ensureOtterLock()
   acquire(gOtterLock)
   gOtterMemory.entries = @[]
@@ -203,7 +203,7 @@ proc clearTimings*() {.role: helper, metaTags: {tagTiming, tagState}.} =
   release(gOtterLock)
 
 
-proc snapshotTimings*(): seq[OtterTimingTuple] {.role: helper, metaTags: {tagTiming, tagState}.} =
+proc snapshotTimings*(): seq[OtterTimingTuple] {.role: helper, tag: "timing|state".} =
   var
     t: seq[OtterTimingTuple] = @[]
   ensureOtterLock()
@@ -213,7 +213,7 @@ proc snapshotTimings*(): seq[OtterTimingTuple] {.role: helper, metaTags: {tagTim
   result = t
 
 
-proc timingCount*(): int {.role: helper, metaTags: {tagTiming, tagState}.} =
+proc timingCount*(): int {.role: helper, tag: "timing|state".} =
   var
     t: int = 0
   ensureOtterLock()
@@ -224,7 +224,7 @@ proc timingCount*(): int {.role: helper, metaTags: {tagTiming, tagState}.} =
 
 
 proc recordTiming*(n: string, p: string, l: int, c: int, a: int64,
-    b: int64) {.role: helper, metaTags: {tagTiming, tagState}.} =
+    b: int64) {.role: helper, tag: "timing|state".} =
   ## n: function name.
   ## p: source path.
   ## l: source line.
@@ -251,7 +251,7 @@ proc recordTiming*(n: string, p: string, l: int, c: int, a: int64,
   release(gOtterLock)
 
 
-proc flushTimingLog*() {.role: dataWriter, metaTags: {tagLogging, tagTiming}.} =
+proc flushTimingLog*() {.role: dataWriter, tag: "logging|timing".} =
   var
     alreadyFlushed: bool = false
     p: string = ""

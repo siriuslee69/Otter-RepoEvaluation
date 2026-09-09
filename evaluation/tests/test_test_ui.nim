@@ -5,11 +5,11 @@
 
 import std/[json, monotimes, os, osproc, strutils, times, unittest]
 
-import otterPragmas
+import runePragmas
 import otter_repo_evaluation
 
 proc catalogEntry(C: OtterUiCatalog, routine: string): OtterUiTestEntry
-    {.role: parser, metaTags: {tagTesting, tagUi}.} =
+    {.role: parser, tag: "testing|ui".} =
   ## C: discovered catalog.
   ## routine: annotated routine name to find.
   for entry in C.entries:
@@ -18,7 +18,7 @@ proc catalogEntry(C: OtterUiCatalog, routine: string): OtterUiTestEntry
   raise newException(ValueError, "missing UI test routine: " & routine)
 
 proc processIsRunning(pid: int): bool {.role: dataFetcher,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## pid: operating-system process identity checked without owning its handle.
   var
     probe: tuple[output: string, exitCode: int]

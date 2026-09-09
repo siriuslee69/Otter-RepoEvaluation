@@ -44,7 +44,7 @@ import std/[algorithm, sets, strutils, tables]
 
 import ../repo_graph/types as graphTypes
 import ../repo_graph/io_utils
-import otterPragmas
+import runePragmas
 
 const
   configEndings*: array[6, string] = [
@@ -70,7 +70,7 @@ const
     ## forty names on screen is a wall.
 
 type
-  ConfigField* {.role: preparedData, metaTags: {tagStats}.} = object
+  ConfigField* {.role: preparedData, tag: "stats".} = object
     ## One setting, and everything that touches it.
     ##
     ##   readers   routines that look at it
@@ -88,7 +88,7 @@ type
     writeCount*: int
     hasDefault*: bool
 
-  ConfigConflict* {.role: preparedData, metaTags: {tagStats}.} = object
+  ConfigConflict* {.role: preparedData, tag: "stats".} = object
     ## Two settings that cannot both be trusted at once.
     ##
     ##   kind    "refused"    the code refuses this pair out loud
@@ -102,7 +102,7 @@ type
     line*: int
     certainty*: float
 
-  ConfigReport* {.role: truthState, metaTags: {tagStats}.} = object
+  ConfigReport* {.role: truthState, tag: "stats".} = object
     ## What every configuration object in one repository looks like.
     types*: seq[string]
     fields*: seq[ConfigField]
@@ -114,7 +114,7 @@ type
     touchingFunctions*: int
 
 proc isConfigType*(name: string, decl: string = ""): bool
-    {.role: parser, metaTags: {tagStats}.} =
+    {.role: parser, tag: "stats".} =
   ## name <- a type's name   decl <- the whole line it was declared on
   ##
   ## A type counts as settings when it says so with the `configurator`
@@ -135,7 +135,7 @@ proc isConfigType*(name: string, decl: string = ""): bool
   result = t in ["cfg", "conf"]
 
 proc identAt*(line: string, at: int): string {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## line <- one line   at <- where a name starts
   ## The whole name beginning there, letters, digits and underscores.
   var
@@ -147,7 +147,7 @@ proc identAt*(line: string, at: int): string {.role: parser,
 
 proc scanConfigTypes*(rootDir: string, files: seq[string]):
     tuple[types: seq[string], fields: seq[ConfigField]]
-    {.role: truthBuilder, metaTags: {tagStats}.} =
+    {.role: truthBuilder, tag: "stats".} =
   ## rootDir <- the repository   files <- every source file
   ##
   ## Walks each file looking for a `type` block, then for a settings
@@ -241,7 +241,7 @@ proc scanConfigTypes*(rootDir: string, files: seq[string]):
         readCount: 0, writeCount: 0, hasDefault: '=' in fieldType))
 
 proc receiversIn*(f: FunctionInfo, typeName: string): HashSet[string]
-    {.role: truthBuilder, metaTags: {tagStats}.} =
+    {.role: truthBuilder, tag: "stats".} =
   ## f <- one routine   typeName <- the settings type being tracked
   ##
   ## The local names inside this routine that actually hold settings.
@@ -296,7 +296,7 @@ proc receiversIn*(f: FunctionInfo, typeName: string): HashSet[string]
 
 proc touchesIn*(line, field: string, R: HashSet[string]):
     tuple[read: bool, write: bool] {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## line <- one line of a routine   field <- a setting's name
   ## R <- the names in this routine that actually hold settings
   ##
@@ -346,7 +346,7 @@ proc touchesIn*(line, field: string, R: HashSet[string]):
     at = after
 
 proc builtIn*(line, typeName, field: string): bool {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## line <- one line of a routine   typeName <- the settings type
   ## field <- a setting's name
   ##
@@ -377,7 +377,7 @@ proc builtIn*(line, typeName, field: string): bool {.role: parser,
   result = true
 
 proc addName*(A: var seq[string], name: string) {.role: actor,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A <- a list of routine names   name <- one to add if it is new
   for row in A:
     if row == name:
@@ -385,7 +385,7 @@ proc addName*(A: var seq[string], name: string) {.role: actor,
   A.add(name)
 
 proc verdictOf*(f: ConfigField): string {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## f <- one setting, once everything touching it has been counted.
   result = "fine"
   if f.readCount == 0 and f.writeCount > 0:
@@ -398,7 +398,7 @@ proc verdictOf*(f: ConfigField): string {.role: parser,
     result = "contested"
 
 proc mapTouches*(A: var seq[ConfigField], F: seq[FunctionInfo]): int
-    {.role: truthBuilder, metaTags: {tagStats}.} =
+    {.role: truthBuilder, tag: "stats".} =
   ## A <- every setting found   F <- every routine in the tree
   ## Returns how many routines touched at least one setting.
   var
@@ -445,7 +445,7 @@ proc mapTouches*(A: var seq[ConfigField], F: seq[FunctionInfo]): int
 
 proc refusedPairs*(A: seq[ConfigField], F: seq[FunctionInfo],
     root: string): seq[ConfigConflict] {.role: truthBuilder,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A <- every setting   F <- every routine   root <- the repository
   ##
   ## Finds the combinations the program itself refuses. A guard that
@@ -507,7 +507,7 @@ proc refusedPairs*(A: seq[ConfigField], F: seq[FunctionInfo],
           break
 
 proc contestedPairs*(A: seq[ConfigField]): seq[ConfigConflict]
-    {.role: truthBuilder, metaTags: {tagStats}.} =
+    {.role: truthBuilder, tag: "stats".} =
   ## A <- every setting, already counted.
   ##
   ## Two settings written by the same several routines are reported as
@@ -541,7 +541,7 @@ proc contestedPairs*(A: seq[ConfigField]): seq[ConfigConflict]
     i = i + 1
 
 proc byTouches(a, b: ConfigField): int {.role: helper,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## a, b <- two settings. Trouble first, then the busiest.
   var
     ra: int = 0
@@ -559,7 +559,7 @@ proc byTouches(a, b: ConfigField): int {.role: helper,
     result = cmp(a.name, b.name)
 
 proc trimNames*(A: var seq[ConfigField]) {.role: actor,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A <- every setting. Cuts the lists of routine names down to what
   ## fits on a screen; the counts beside them stay whole.
   var
@@ -573,7 +573,7 @@ proc trimNames*(A: var seq[ConfigField]) {.role: actor,
 
 proc configReportOf*(rootDir: string, files: seq[string],
     F: seq[FunctionInfo]): ConfigReport {.role: metaOrchestrator,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## rootDir <- the repository   files <- every source file
   ## F <- every routine already parsed out of the tree
   var

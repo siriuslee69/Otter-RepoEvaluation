@@ -8,13 +8,13 @@ import std/[json, os, osproc, strutils]
 import ./analysis_pipeline
 import ./sample_values
 import ./types
-import otterPragmas
+import runePragmas
 
 const
   OtterRunMarker = "__OTTER_RUN_RESULT__"
 
 type
-  RunSampleResult* {.role: truthState, metaTags: {tagGraph, tagExecution}.} = object
+  RunSampleResult* {.role: truthState, tag: "graph|execution".} = object
     ok*: bool
     mode*: string
     functionId*: string
@@ -28,7 +28,7 @@ type
     error*: string
 
 
-proc escapeNimString(s: string): string {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+proc escapeNimString(s: string): string {.role: helper, tag: "graph|execution".} =
   var
     t: string = "\""
   for ch in s:
@@ -49,7 +49,7 @@ proc escapeNimString(s: string): string {.role: helper, metaTags: {tagGraph, tag
   result = t
 
 
-proc shellEscape(s: string): string {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+proc shellEscape(s: string): string {.role: helper, tag: "graph|execution".} =
   var
     t: string = "'"
   for ch in s:
@@ -61,7 +61,7 @@ proc shellEscape(s: string): string {.role: helper, metaTags: {tagGraph, tagExec
   result = t
 
 
-proc formatCommand(args: openArray[string]): string {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+proc formatCommand(args: openArray[string]): string {.role: helper, tag: "graph|execution".} =
   var
     A: seq[string] = @[]
   for a in args:
@@ -69,21 +69,21 @@ proc formatCommand(args: openArray[string]): string {.role: helper, metaTags: {t
   result = A.join(" ")
 
 
-proc functionById(g: RepoGraph, functionId: string): FunctionInfo {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+proc functionById(g: RepoGraph, functionId: string): FunctionInfo {.role: helper, tag: "graph|execution".} =
   for f in g.functions:
     if f.id == functionId:
       result = f
       return
 
 
-proc fileHasMainBlock(path: string): bool {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+proc fileHasMainBlock(path: string): bool {.role: helper, tag: "graph|execution".} =
   if not fileExists(path):
     return
   if "when isMainModule" in readFile(path):
     result = true
 
 
-proc wrapperModeFor(f: FunctionInfo): string {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+proc wrapperModeFor(f: FunctionInfo): string {.role: helper, tag: "graph|execution".} =
   if f.isExported:
     result = "import"
     return
@@ -93,7 +93,7 @@ proc wrapperModeFor(f: FunctionInfo): string {.role: helper, metaTags: {tagGraph
   result = "include"
 
 
-proc renderImportsForSamples(f: FunctionInfo): string {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+proc renderImportsForSamples(f: FunctionInfo): string {.role: helper, tag: "graph|execution".} =
   var
     needsTables: bool = false
     needsOptions: bool = false
@@ -112,7 +112,7 @@ proc renderImportsForSamples(f: FunctionInfo): string {.role: helper, metaTags: 
     result.setLen(result.len - 2)
 
 
-proc declarationForSocket(s: FunctionSocket): string {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+proc declarationForSocket(s: FunctionSocket): string {.role: helper, tag: "graph|execution".} =
   var
     typeName: string = ""
     expr: string = ""
@@ -126,14 +126,14 @@ proc declarationForSocket(s: FunctionSocket): string {.role: helper, metaTags: {
   result = "  var sample_" & s.name & ": " & typeName & " = " & expr
 
 
-proc callArgsForFunction(f: FunctionInfo): seq[string] {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+proc callArgsForFunction(f: FunctionInfo): seq[string] {.role: helper, tag: "graph|execution".} =
   for s in f.sockets:
     if s.direction == sdOutput or s.name == "result":
       continue
     result.add("sample_" & s.name)
 
 
-proc mutatedArgPayloadEntries(f: FunctionInfo): seq[string] {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+proc mutatedArgPayloadEntries(f: FunctionInfo): seq[string] {.role: helper, tag: "graph|execution".} =
   for s in f.sockets:
     if s.direction != sdVarInput:
       continue
@@ -141,7 +141,7 @@ proc mutatedArgPayloadEntries(f: FunctionInfo): seq[string] {.role: helper, meta
       ", \"value\": otterRunnerRenderValue(sample_" & s.name & ")}")
 
 
-proc generatedArgPayloadEntries(f: FunctionInfo): seq[string] {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+proc generatedArgPayloadEntries(f: FunctionInfo): seq[string] {.role: helper, tag: "graph|execution".} =
   for s in f.sockets:
     if s.direction == sdOutput or s.name == "result":
       continue
@@ -149,7 +149,7 @@ proc generatedArgPayloadEntries(f: FunctionInfo): seq[string] {.role: helper, me
       ", \"expr\": " & escapeNimString(s.sampleExpr) & "}")
 
 
-proc buildImportWrapperSource(f: FunctionInfo): string {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+proc buildImportWrapperSource(f: FunctionInfo): string {.role: helper, tag: "graph|execution".} =
   var
     extraImports: string = ""
     decls: seq[string] = @[]
@@ -219,7 +219,7 @@ proc buildImportWrapperSource(f: FunctionInfo): string {.role: helper, metaTags:
   result = lines.join("\n") & "\n"
 
 
-proc buildIncludeWrapperSource(f: FunctionInfo): string {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+proc buildIncludeWrapperSource(f: FunctionInfo): string {.role: helper, tag: "graph|execution".} =
   var
     extraImports: string = ""
     decls: seq[string] = @[]
@@ -289,7 +289,7 @@ proc buildIncludeWrapperSource(f: FunctionInfo): string {.role: helper, metaTags
   result = lines.join("\n") & "\n"
 
 
-proc parseMarkerPayload(r: var RunSampleResult, output: string) {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+proc parseMarkerPayload(r: var RunSampleResult, output: string) {.role: helper, tag: "graph|execution".} =
   var
     idx: int = -1
     payload: string = ""
@@ -319,7 +319,7 @@ proc parseMarkerPayload(r: var RunSampleResult, output: string) {.role: helper, 
       r.mutatedArgs.add(item{"name"}.getStr("") & "=" & item{"value"}.getStr(""))
 
 
-proc toRunSampleJson*(r: RunSampleResult): string {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+proc toRunSampleJson*(r: RunSampleResult): string {.role: helper, tag: "graph|execution".} =
   result = pretty(%*{
     "ok": r.ok,
     "mode": r.mode,
@@ -336,7 +336,7 @@ proc toRunSampleJson*(r: RunSampleResult): string {.role: helper, metaTags: {tag
 
 
 proc runFunctionSample*(rootDir: string, functionId: string,
-    bIncludeTests: bool = true): RunSampleResult {.role: actor, metaTags: {tagGraph, tagExecution}.} =
+    bIncludeTests: bool = true): RunSampleResult {.role: actor, tag: "graph|execution".} =
   var
     g: RepoGraph
     f: FunctionInfo

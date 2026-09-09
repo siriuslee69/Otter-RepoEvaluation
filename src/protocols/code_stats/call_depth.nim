@@ -36,7 +36,7 @@
 import std/[algorithm, sets, strutils, tables]
 
 import ../repo_graph/types as graphTypes
-import otterPragmas
+import runePragmas
 
 const
   depthCap*: int = 64
@@ -47,7 +47,7 @@ const
     ## How many of the deepest routines are named. The rest are counted.
 
 type
-  DepthBucket* {.role: preparedData, metaTags: {tagStats}.} = object
+  DepthBucket* {.role: preparedData, tag: "stats".} = object
     ## Every routine that sits exactly this deep, and what they are.
     ##
     ##   roles  one entry per role seen at this depth, so a bar can be
@@ -56,13 +56,13 @@ type
     count*: int
     roles*: seq[NameCountPair]
 
-  NameCountPair* {.role: preparedData, metaTags: {tagStats}.} = object
+  NameCountPair* {.role: preparedData, tag: "stats".} = object
     ## One label and how often it turned up. Declared here rather than
     ## borrowed from `types.nim`, because that file imports this one.
     name*: string
     count*: int
 
-  DeepRoutine* {.role: preparedData, metaTags: {tagStats}.} = object
+  DeepRoutine* {.role: preparedData, tag: "stats".} = object
     ## One routine that sits a long way up a tower of calls.
     name*: string
     path*: string
@@ -73,11 +73,11 @@ type
     line*: int
     depth*: int
 
-  CallRing* {.role: preparedData, metaTags: {tagStats}.} = object
+  CallRing* {.role: preparedData, tag: "stats".} = object
     ## A set of routines that call each other round in a circle.
     members*: seq[string]
 
-  CallDepthStats* {.role: truthState, metaTags: {tagStats}.} = object
+  CallDepthStats* {.role: truthState, tag: "stats".} = object
     ## How deep the calls go in one repository.
     ##
     ##   maxDepth   the longest chain anywhere in the tree
@@ -92,7 +92,7 @@ type
     counted*: int
 
 proc addPair*(A: var seq[NameCountPair], name: string) {.role: actor,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A <- a tally being grown   name <- one more of these seen
   var
     i: int = 0
@@ -107,7 +107,7 @@ proc addPair*(A: var seq[NameCountPair], name: string) {.role: actor,
 
 proc calleeMap*(A: seq[FunctionInfo], E: seq[CallEdge]):
     Table[string, seq[string]] {.role: truthBuilder,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A <- every routine   E <- every call between them
   ## Who each routine calls, by id, ready to walk.
   var
@@ -125,7 +125,7 @@ proc calleeMap*(A: seq[FunctionInfo], E: seq[CallEdge]):
 proc depthOf*(id: string, M: Table[string, seq[string]],
     S: var Table[string, int], onStack: var HashSet[string],
     R: var seq[CallRing], best: var Table[string, string]): int
-    {.role: math, metaTags: {tagStats}.} =
+    {.role: math, tag: "stats".} =
   ## id <- the routine being measured   M <- who calls whom
   ## S <- depths already worked out, kept so each routine is measured
   ## once   onStack <- what is being measured right now, which is how a
@@ -163,7 +163,7 @@ proc depthOf*(id: string, M: Table[string, seq[string]],
 
 proc chainFrom*(id: string, best: Table[string, string],
     names: Table[string, string]): seq[string] {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## id <- where to start   best <- the deepest callee of each routine
   ## names <- what each id is called
   ## One of the longest chains under a routine, named end to end.
@@ -180,7 +180,7 @@ proc chainFrom*(id: string, best: Table[string, string],
       break
 
 proc byDepth(a, b: DeepRoutine): int {.role: helper,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## a, b <- two routines, the deepest first.
   result = cmp(b.depth, a.depth)
   if result == 0:
@@ -189,13 +189,13 @@ proc byDepth(a, b: DeepRoutine): int {.role: helper,
     result = cmp(a.name, b.name)
 
 proc byLevel(a, b: DepthBucket): int {.role: helper,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## a, b <- two depth levels, shallowest first, so a chart reads left
   ## to right the way a person counts.
   result = cmp(a.depth, b.depth)
 
 proc callDepthOf*(A: seq[FunctionInfo], E: seq[CallEdge], root: string):
-    CallDepthStats {.role: orchestrator, metaTags: {tagStats}.} =
+    CallDepthStats {.role: orchestrator, tag: "stats".} =
   ## A <- every routine in the tree   E <- every call between them
   ## root <- the repository folder, cut off the front of each path
   var

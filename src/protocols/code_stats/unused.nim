@@ -35,7 +35,7 @@
 import std/[algorithm, sets, strutils]
 
 import ../repo_graph/types as graphTypes
-import otterPragmas
+import runePragmas
 
 const
   leftoverLines*: int = 25
@@ -47,7 +47,7 @@ const
     ## How many travel to a window. The rest are counted.
 
 type
-  UnusedKind* {.role: other, metaTags: {tagStats}.} = enum
+  UnusedKind* {.role: other, tag: "stats".} = enum
     ## Why this routine has no caller.
     ##
     ##   ukLeftover  big enough to have been finished once
@@ -55,7 +55,7 @@ type
     ##   ukPublic    exported, so its callers are elsewhere
     ukLeftover, ukPrepared, ukPublic
 
-  UnusedFunc* {.role: preparedData, metaTags: {tagStats}.} = object
+  UnusedFunc* {.role: preparedData, tag: "stats".} = object
     ## One routine nothing calls, with enough beside it to decide
     ## what should happen to it.
     name*: string
@@ -68,7 +68,7 @@ type
     lines*: int
     exported*: bool
 
-  UnusedReport* {.role: truthState, metaTags: {tagStats}.} = object
+  UnusedReport* {.role: truthState, tag: "stats".} = object
     ## Every uncalled routine in one repository, sorted worst first.
     ##
     ##   leftoverLines  how much dead weight there is, added up. This
@@ -82,7 +82,7 @@ type
     leftoverLines*: int
 
 proc kindName*(k: UnusedKind): string {.role: helper,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## k <- why a routine has no caller, as a word for a window.
   case k
   of ukLeftover: result = "leftover"
@@ -90,7 +90,7 @@ proc kindName*(k: UnusedKind): string {.role: helper,
   of ukPublic: result = "public"
 
 proc hintFor*(k: UnusedKind, lines: int): string {.role: helper,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## k <- what sort it is   lines <- how long it is
   ## What a person should do about it, in plain words.
   case k
@@ -106,7 +106,7 @@ proc hintFor*(k: UnusedKind, lines: int): string {.role: helper,
       "calling it. Nothing here can see those callers."
 
 proc classify*(f: FunctionInfo, isLibrary: bool): UnusedKind
-    {.role: parser, metaTags: {tagStats}.} =
+    {.role: parser, tag: "stats".} =
   ## f <- one uncalled routine   isLibrary <- whether this repository
   ## is something other repositories import
   var
@@ -118,7 +118,7 @@ proc classify*(f: FunctionInfo, isLibrary: bool): UnusedKind
     return ukLeftover
 
 proc looksLikeLibrary*(A: seq[FunctionInfo]): bool {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A <- every routine in the tree.
   ##
   ## A repository is taken to be a library when most of what it
@@ -139,7 +139,7 @@ proc looksLikeLibrary*(A: seq[FunctionInfo]): bool {.role: parser,
   result = shared.float / total.float >= 0.5
 
 proc bySizeThenName(a, b: UnusedFunc): int {.role: helper,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## a, b <- two uncalled routines, the heaviest dead weight first.
   result = cmp(b.lines, a.lines)
   if result == 0:
@@ -149,7 +149,7 @@ proc bySizeThenName(a, b: UnusedFunc): int {.role: helper,
 
 proc unusedReportOf*(A: seq[FunctionInfo], calledNames: HashSet[string],
     root: string): UnusedReport {.role: orchestrator,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A <- every routine in the tree
   ## calledNames <- every name something in the tree calls, lowered
   ## root <- the repository folder, cut off the front of each path

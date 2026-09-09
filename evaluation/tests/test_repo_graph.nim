@@ -210,7 +210,7 @@ proc viaString*() {.role: parser, tag: "ame|kdf".} =
 proc viaList*() {.role: parser, tag: ["ame", "kdf"].} =
   discard
 
-proc viaEnumSet*() {.role: parser, metaTags: {tagAme, tagKdf}.} =
+proc viaEnumSet*() {.role: parser, tag: "ame|kdf".} =
   discard
 """)
     g = analyzeRepo(root)

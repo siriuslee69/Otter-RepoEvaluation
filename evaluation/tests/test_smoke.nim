@@ -5,18 +5,18 @@
 
 import std/[os, osproc, strutils, unittest]
 
-import otterPragmas
+import runePragmas
 import otter_repo_evaluation
 
 otterInstrument:
-  proc localLeaf*(a: int): int {.role: helper, metaTags: {tagTesting}.} =
+  proc localLeaf*(a: int): int {.role: helper, tag: "testing".} =
     ## a: input value.
     var
       t: int = 0
     t = a + 1
     result = t
 
-  proc localBranch*(a: int): int {.role: helper, metaTags: {tagTesting}.} =
+  proc localBranch*(a: int): int {.role: helper, tag: "testing".} =
     ## a: input value.
     var
       t: int = 0
@@ -24,7 +24,7 @@ otterInstrument:
     result = t + 1
 
 
-proc pragmaLeaf*(a: int): int {.otterBench, role: helper, metaTags: {tagTesting}.} =
+proc pragmaLeaf*(a: int): int {.otterBench, role: helper, tag: "testing".} =
   ## a: input value.
   var
     t: int = 0

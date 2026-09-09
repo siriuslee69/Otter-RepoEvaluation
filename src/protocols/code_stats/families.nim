@@ -83,7 +83,7 @@ import std/[algorithm, sets, strutils, tables]
 
 import ./shape
 import ../repo_graph/types as graphTypes
-import otterPragmas
+import runePragmas
 
 const
   minFamily*: int = 3
@@ -108,7 +108,7 @@ type
     faValue,     ## same steps, different values -> a parameter
     faTerm       ## steps present or absent -> a set of terms
 
-  RoutineFamily* {.role: preparedData, metaTags: {tagStats}.} = object
+  RoutineFamily* {.role: preparedData, tag: "stats".} = object
     ## One group of siblings that wants to be a single routine.
     level*: string
       ## The module they all sit in. The "same level" this is about.
@@ -134,7 +134,7 @@ type
       ## weaker answer is that they merely share a module.
     byDispatch*: bool
 
-  FamilyReport* {.role: truthState, metaTags: {tagStats}.} = object
+  FamilyReport* {.role: truthState, tag: "stats".} = object
     families*: seq[RoutineFamily]
     total*: int
     routinesInFamilies*: int
@@ -142,7 +142,7 @@ type
     error*: string
 
 proc skeletonAgreement*(a, b: string): float {.role: math,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## a, b: two routines boiled down to one letter per line.
   ##
   ## How much of the shorter one appears, in order, in the longer.
@@ -170,7 +170,7 @@ proc skeletonAgreement*(a, b: string): float {.role: math,
   result = same.float / longer.float
 
 proc countsOf(s: FunctionShape): array[13, int] {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## s: one measured routine. Its thirteen counts, in the order
   ## `shapeDims` names them, so a varying direction can be reported
   ## by name rather than by number.
@@ -179,7 +179,7 @@ proc countsOf(s: FunctionShape): array[13, int] {.role: parser,
     s.returns, s.retKind, s.inputKind]
 
 proc varyingAxes(A: seq[FunctionShape]): seq[string] {.role: truthBuilder,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A: the members of one family.
   ## The names of the counts that are not the same for every member.
   ## `lines` is left out: a routine that does one thing differently is
@@ -202,7 +202,7 @@ proc varyingAxes(A: seq[FunctionShape]): seq[string] {.role: truthBuilder,
     i = i + 1
 
 proc axisOf(A: seq[FunctionShape]): FamilyAxis {.role: truthBuilder,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A: the members of one family. Which of the three differences this
   ## family has, and so which repair it wants.
   ##
@@ -230,7 +230,7 @@ proc axisOf(A: seq[FunctionShape]): FamilyAxis {.role: truthBuilder,
   result = faValue
 
 proc remedyFor(a: FamilyAxis, n: int): string {.role: helper,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## a: what varies   n: how many members.
   ##
   ## What to write instead. Each answer names the mechanism, because
@@ -258,7 +258,7 @@ proc remedyFor(a: FamilyAxis, n: int): string {.role: helper,
       "not in the binary at all."
 
 proc scoreOf(n: int, agreement: float, varying: int): float {.role: math,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## n: members   agreement: shared skeleton   varying: directions.
   ##
   ## Three things make a family worth collapsing, and all three have
@@ -277,14 +277,14 @@ proc scoreOf(n: int, agreement: float, varying: int): float {.role: math,
     tight = 0.0
   result = size * agreement * tight
 
-proc indentOf(s: string): int {.role: parser, metaTags: {tagStats}.} =
+proc indentOf(s: string): int {.role: parser, tag: "stats".} =
   ## s: one line. How far it is pushed in from the left.
   result = 0
   while result < s.len and s[result] == ' ':
     result = result + 1
 
 proc calledNamesIn(s: string): seq[string] {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## s: one line of a body. Every name that is followed by an opening
   ## bracket, which is what a call looks like without parsing one.
   var
@@ -302,7 +302,7 @@ proc calledNamesIn(s: string): seq[string] {.role: parser,
     i = i + 1
 
 proc dispatchPeers*(f: FunctionInfo): seq[seq[string]] {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## f: one routine.
   ##
   ## The strongest evidence that two routines are siblings is not that
@@ -368,14 +368,14 @@ proc dispatchPeers*(f: FunctionInfo): seq[seq[string]] {.role: parser,
     result.add(group)
 
 proc levelOf(s: FunctionShape): string {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## s: one routine. What counts as its level: the module it sits in,
   ## together with the kind of declaration it is. Two routines are
   ## siblings only if both match.
   result = s.module & "|" & s.declKind
 
 proc familyIn(A: seq[FunctionShape], level: string): seq[RoutineFamily]
-    {.role: truthBuilder, metaTags: {tagStats}.} =
+    {.role: truthBuilder, tag: "stats".} =
   ## A: every routine on one level   level: what to call it.
   ##
   ## Seeds a family on each routine not yet spoken for and gathers
@@ -437,7 +437,7 @@ proc familyIn(A: seq[FunctionShape], level: string): seq[RoutineFamily]
     result.add(fam)
 
 proc byScore(a, b: RoutineFamily): int {.role: helper,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## a, b: two families, the most worthwhile first.
   result = cmp(b.score, a.score)
   if result == 0:
@@ -447,7 +447,7 @@ proc byScore(a, b: RoutineFamily): int {.role: helper,
 
 proc familyFromNames(byName: Table[string, FunctionShape],
     names: seq[string], chooser, level: string): tuple[ok: bool,
-    fam: RoutineFamily] {.role: truthBuilder, metaTags: {tagStats}.} =
+    fam: RoutineFamily] {.role: truthBuilder, tag: "stats".} =
   ## byName: every routine, by name   names: the ones chosen between
   ## chooser: the routine that chose   level: what to call the group.
   ##
@@ -502,7 +502,7 @@ proc familyFromNames(byName: Table[string, FunctionShape],
 
 proc familiesOf*(A: seq[FunctionShape],
     F: seq[FunctionInfo] = @[]): FamilyReport {.role: metaOrchestrator,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A: every measured routine   F: the same routines with their bodies.
   ##
   ## Two passes, strongest evidence first. A dispatch is the author

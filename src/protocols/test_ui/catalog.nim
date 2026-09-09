@@ -5,7 +5,7 @@
 
 import std/[algorithm, os, sets, strutils]
 
-import otterPragmas
+import runePragmas
 import ./[config, types]
 
 const
@@ -18,7 +18,7 @@ const
 
 when defined(amd64) or defined(i386):
   proc cpuid(eaxInput, ecxInput: int32): array[4, int32] {.role: dataFetcher,
-      metaTags: {tagParsing, tagTesting, tagUi}.} =
+      tag: "parsing|testing|ui".} =
     ## eaxInput/ecxInput: CPUID leaf and subleaf queried on the host CPU.
     when defined(vcc):
       proc cpuidEx(cpuInfo: ptr int32, functionId, subFunctionId: int32)
@@ -34,7 +34,7 @@ when defined(amd64) or defined(i386):
       result = [eaxResult, ebxResult, ecxResult, edxResult]
 
   proc xgetbv(): uint64 {.role: dataFetcher,
-      metaTags: {tagParsing, tagTesting, tagUi}.} =
+      tag: "parsing|testing|ui".} =
     ## Returns XCR0 so AVX defaults are enabled only when the OS saves YMM state.
     when defined(vcc):
       proc readXcr(register: uint32): uint64
@@ -50,7 +50,7 @@ when defined(amd64) or defined(i386):
       result = (uint64(edxResult) shl 32) or uint64(eaxResult)
 
   proc x86Feature(flag: string): bool {.role: parser,
-      metaTags: {tagParsing, tagTesting, tagUi}.} =
+      tag: "parsing|testing|ui".} =
     ## flag: x86 SIMD/AES feature checked directly through CPUID.
     var
       leaf0, leaf1, leaf7: array[4, int32]
@@ -71,12 +71,12 @@ when defined(amd64) or defined(i386):
     result = (leaf7[1] and (1'i32 shl 5)) != 0
 
 proc isIdentifierChar(c: char): bool {.inline, role: helper,
-    metaTags: {tagParsing, tagTesting, tagUi}.} =
+    tag: "parsing|testing|ui".} =
   ## c: character checked for a Nim identifier position.
   result = c.isAlphaNumeric() or c == '_'
 
 proc quotedValues(s: string, startAt: int): seq[string]
-    {.role: parser, metaTags: {tagParsing, tagTesting, tagUi}.} =
+    {.role: parser, tag: "parsing|testing|ui".} =
   ## s/startAt: source and pragma position from which four strings are read.
   var
     i: int = startAt
@@ -103,7 +103,7 @@ proc quotedValues(s: string, startAt: int): seq[string]
     i = i + 1
 
 proc previousRoutineName(s: string, pragmaAt: int): string
-    {.role: parser, metaTags: {tagParsing, tagTesting, tagUi}.} =
+    {.role: parser, tag: "parsing|testing|ui".} =
   ## s/pragmaAt: source and pragma offset whose owner routine is located.
   const
     Keywords = ["proc", "func", "method", "converter"]
@@ -130,7 +130,7 @@ proc previousRoutineName(s: string, pragmaAt: int): string
     result = s[startAt ..< stopAt]
 
 proc normalizedFilters(s: string): seq[string]
-    {.role: parser, metaTags: {tagParsing, tagTesting, tagUi}.} =
+    {.role: parser, tag: "parsing|testing|ui".} =
   ## s: comma-separated filter labels from pragma metadata.
   var
     value: string = ""
@@ -140,7 +140,7 @@ proc normalizedFilters(s: string): seq[string]
       result.add(value)
 
 proc normalizedVersion(s: string): string {.role: parser,
-    metaTags: {tagParsing, tagTesting, tagUi}.} =
+    tag: "parsing|testing|ui".} =
   ## s: version label normalized for standard native and wasm target tabs.
   if s.toLowerAscii() in ["native", "wasm"]:
     result = s.toLowerAscii()
@@ -148,7 +148,7 @@ proc normalizedVersion(s: string): string {.role: parser,
     result = s
 
 proc implicitFlag(name: string): bool {.role: parser,
-    metaTags: {tagParsing, tagTesting, tagUi}.} =
+    tag: "parsing|testing|ui".} =
   ## name: defined symbol checked against compiler and target built-ins.
   var
     normalized: string = name.toLowerAscii()
@@ -159,7 +159,7 @@ proc implicitFlag(name: string): bool {.role: parser,
     i = i + 1
 
 proc appendDefinedFlags(F: var HashSet[string], line: string)
-    {.role: parser, metaTags: {tagParsing, tagTesting, tagUi}.} =
+    {.role: parser, tag: "parsing|testing|ui".} =
   ## F/line: discovered optional symbols and one compile-time condition line.
   var
     searchAt: int = 0
@@ -188,7 +188,7 @@ proc appendDefinedFlags(F: var HashSet[string], line: string)
     searchAt = max(stopAt, markerAt + "defined".len)
 
 proc appendSourceFlags(F: var HashSet[string], sourcePath: string)
-    {.role: parser, metaTags: {tagParsing, tagTesting, tagUi}.} =
+    {.role: parser, tag: "parsing|testing|ui".} =
   ## F/sourcePath: optional symbols collected from Nim when/elif conditions.
   var
     clean: string = ""
@@ -203,7 +203,7 @@ proc appendSourceFlags(F: var HashSet[string], sourcePath: string)
       conditionOpen = false
 
 proc ignoredFlagSource(repoRoot, sourcePath: string): bool {.role: parser,
-    metaTags: {tagParsing, tagTesting, tagUi}.} =
+    tag: "parsing|testing|ui".} =
   ## repoRoot/sourcePath: project file checked against generated/dependency trees.
   var
     relative: string = relativePath(sourcePath, repoRoot).replace('\\', '/')
@@ -213,13 +213,13 @@ proc ignoredFlagSource(repoRoot, sourcePath: string): bool {.role: parser,
     relative.contains("/.otter/results/") or relative.contains("/nimcache/")
 
 proc nimFlagSource(path: string): bool {.role: parser,
-    metaTags: {tagParsing, tagTesting, tagUi}.} =
+    tag: "parsing|testing|ui".} =
   ## path: source-like Nim file whose compile conditions can expose flags.
   result = path.endsWith(".nim") or path.endsWith(".nims") or
     path.endsWith(".nimble")
 
 proc hostSupportsFlag(flag: string): bool {.role: parser,
-    metaTags: {tagParsing, tagTesting, tagUi}.} =
+    tag: "parsing|testing|ui".} =
   ## flag: configured default filtered against current host CPU capabilities.
   case flag.toLowerAscii()
   of "sse2", "avx2", "aesni":
@@ -232,12 +232,12 @@ proc hostSupportsFlag(flag: string): bool {.role: parser,
     result = true
 
 proc automaticDefaultFlag(flag: string): bool {.role: parser,
-    metaTags: {tagParsing, tagTesting, tagUi}.} =
+    tag: "parsing|testing|ui".} =
   ## flag: discovered symbol safe to enable automatically when host-supported.
   result = flag in ["sse2", "avx2", "aesni", "neon"]
 
 proc resolveDefaultFlags(C: var OtterUiCatalog) {.role: truthBuilder,
-    metaTags: {tagParsing, tagTesting, tagUi}.} =
+    tag: "parsing|testing|ui".} =
   ## C: discovered allowlist receiving supported configured default flags.
   var
     flag: string = ""
@@ -256,7 +256,7 @@ proc resolveDefaultFlags(C: var OtterUiCatalog) {.role: truthBuilder,
       C.defaultFlags.add(flag)
 
 proc stableId(relativePath, routine: string): string
-    {.role: helper, metaTags: {tagTesting, tagUi}.} =
+    {.role: helper, tag: "testing|ui".} =
   ## relativePath/routine: source identity converted to a filesystem-safe ID.
   var
     source: string = relativePath & "-" & routine
@@ -268,7 +268,7 @@ proc stableId(relativePath, routine: string): string
   result = result.strip(chars = {'-'})
 
 proc isPragmaMarker(s: string, markerAt: int): bool {.role: parser,
-    metaTags: {tagParsing, tagTesting, tagUi}.} =
+    tag: "parsing|testing|ui".} =
   ## s/markerAt: source and candidate marker checked for an open pragma block.
   var
     openAt: int = s.rfind("{.", 0, markerAt)
@@ -276,7 +276,7 @@ proc isPragmaMarker(s: string, markerAt: int): bool {.role: parser,
   result = openAt >= 0 and closedAt < openAt
 
 proc appendSourceEntries(E: var seq[OtterUiTestEntry], sourcePath, testsRoot: string)
-    {.role: truthBuilder, metaTags: {tagParsing, tagTesting, tagUi}.} =
+    {.role: truthBuilder, tag: "parsing|testing|ui".} =
   ## E: catalog receiving every valid pragma from one source.
   ## sourcePath/testsRoot: source file and path used for relative labels.
   const
@@ -312,7 +312,7 @@ proc appendSourceEntries(E: var seq[OtterUiTestEntry], sourcePath, testsRoot: st
     E.add(entry)
 
 proc compareEntries(a, b: OtterUiTestEntry): int
-    {.role: helper, metaTags: {tagTesting, tagUi}.} =
+    {.role: helper, tag: "testing|ui".} =
   ## a/b: entries sorted by menu, panel name, version, and source.
   result = cmp(a.menu, b.menu)
   if result == 0:
@@ -323,7 +323,7 @@ proc compareEntries(a, b: OtterUiTestEntry): int
     result = cmp(a.relativePath, b.relativePath)
 
 proc validateEntries(E: openArray[OtterUiTestEntry])
-    {.role: parser, metaTags: {tagParsing, tagTesting, tagUi}.} =
+    {.role: parser, tag: "parsing|testing|ui".} =
   ## E: complete catalog checked for ambiguous worker identities and tabs.
   var
     ids: HashSet[string]
@@ -342,7 +342,7 @@ proc validateEntries(E: openArray[OtterUiTestEntry])
     i = i + 1
 
 proc discoverOtterUiTests*(repoRoot: string): OtterUiCatalog
-    {.role: metaOrchestrator, metaTags: {tagParsing, tagTesting, tagUi}.} =
+    {.role: metaOrchestrator, tag: "parsing|testing|ui".} =
   ## repoRoot: repository whose tests tree is scanned for otterUiTest pragmas.
   var
     flags: HashSet[string]

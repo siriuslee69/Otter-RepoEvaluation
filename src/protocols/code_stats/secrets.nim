@@ -41,7 +41,7 @@
 
 import std/[algorithm, math, os, osproc, sets, strutils, tables]
 
-import otterPragmas
+import runePragmas
 
 import ../repo_graph/io_utils
 
@@ -124,7 +124,7 @@ const
     ## becomes what it must never be: a way to switch the check off.
 
 type
-  SecretKind* {.role: other, metaTags: {tagStats}.} = enum
+  SecretKind* {.role: other, tag: "stats".} = enum
     ## What sort of thing was found.
     ##
     ##   skKey       key material: a token, password, or private key
@@ -133,7 +133,7 @@ type
     ##   skAddress   a machine address typed into the source
     skKey, skUserPath, skEmail, skAddress
 
-  SecretFind* {.role: preparedData, metaTags: {tagStats}.} = object
+  SecretFind* {.role: preparedData, tag: "stats".} = object
     ## One thing found, and how likely it is to be what it looks like.
     ##
     ##   preview  the value with its middle removed. The whole point
@@ -155,7 +155,7 @@ type
     entropy*: float
     inHistory*: bool
 
-  SecretReport* {.role: truthState, metaTags: {tagStats}.} = object
+  SecretReport* {.role: truthState, tag: "stats".} = object
     ## Everything found in one repository.
     items*: seq[SecretFind]
     total*: int
@@ -165,7 +165,7 @@ type
     commitsRead*: int
     error*: string
 
-proc entropyOf*(s: string): float {.role: MetaRole.math, metaTags: {tagStats}.} =
+proc entropyOf*(s: string): float {.role: MetaRole.math, tag: "stats".} =
   ## s <- any piece of text. How jumbled it is, in bits per character.
   ##
   ## Each character's share of the text is worked out, and the shares
@@ -187,7 +187,7 @@ proc entropyOf*(s: string): float {.role: MetaRole.math, metaTags: {tagStats}.} 
     result = result - share * log2(share)
 
 proc keyCharsOnly*(s: string): bool {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## s <- a value. Whether it is made only of the characters keys are
   ## made of: letters, digits, and the handful of marks that base64
   ## and hex use. A sentence with spaces in it is not a key.
@@ -198,7 +198,7 @@ proc keyCharsOnly*(s: string): bool {.role: parser,
       return false
 
 proc nameLooksSecret*(name: string): bool {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## name <- what the value was called in the source.
   ##
   ## Long words are matched anywhere inside the name; the two-letter
@@ -225,7 +225,7 @@ proc nameLooksSecret*(name: string): bool {.role: parser,
     if row in parts:
       return true
 
-proc maskOf*(s: string): string {.role: sanitizer, metaTags: {tagStats}.} =
+proc maskOf*(s: string): string {.role: sanitizer, tag: "stats".} =
   ## s <- a value that may be a real secret.
   ##
   ## Keeps just enough at each end for a person to recognise which
@@ -239,7 +239,7 @@ proc maskOf*(s: string): string {.role: sanitizer, metaTags: {tagStats}.} =
   result = s[0 ..< 4] & "…" & $s.len & "…" & s[^3 .. ^1]
 
 proc userPathOf*(s: string): tuple[hit: bool, who: string]
-    {.role: parser, metaTags: {tagStats}.} =
+    {.role: parser, tag: "stats".} =
   ## s <- one line of source. Whether it holds somebody's home folder,
   ## and whose:
   ##
@@ -273,7 +273,7 @@ proc userPathOf*(s: string): tuple[hit: bool, who: string]
       return (hit: true, who: who)
 
 proc looksLikeEmail*(s: string): string {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## s <- one line of source. The first email address in it, or "".
   var
     at: int = 0
@@ -300,7 +300,7 @@ proc looksLikeEmail*(s: string): string {.role: parser,
   result = got
 
 proc looksLikePath*(s: string): bool {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## s <- a value. Whether it is plainly a location on a disk rather
   ## than key material.
   ##
@@ -332,7 +332,7 @@ proc looksLikePath*(s: string): bool {.role: parser,
 
 proc scoreValue*(name, value: string):
     tuple[score: float, entropy: float, reasons: seq[string]]
-    {.role: truthBuilder, metaTags: {tagStats}.} =
+    {.role: truthBuilder, tag: "stats".} =
   ## name <- what it was called   value <- what it was set to
   ##
   ## The four signals are added, not multiplied, so that a very
@@ -386,7 +386,7 @@ proc scoreValue*(name, value: string):
   result = (score: score, entropy: ent, reasons: reasons)
 
 proc splitAssignment*(line: string): tuple[name: string, value: string]
-    {.role: parser, metaTags: {tagStats}.} =
+    {.role: parser, tag: "stats".} =
   ## line <- one line of source.
   ##
   ## Pulls apart `apiKey = "sk-live-..."` into the name and the text
@@ -426,7 +426,7 @@ proc splitAssignment*(line: string): tuple[name: string, value: string]
   result = (name: head, value: tail[a + 1 ..< b])
 
 proc reliefOf*(line: string, bVectors: bool): float {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## line <- one line of source.
   ## bVectors: whether the whole file carries `otter:vectors`.
   ## How much to take off this line's score, and why:
@@ -443,7 +443,7 @@ proc reliefOf*(line: string, bVectors: bool): float {.role: parser,
 
 proc scanLine*(line, path, commit: string, n: int,
     S: var seq[SecretFind], bVectors: bool = false) {.role: actor,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## line <- one line of source   path <- where it lives
   ## commit <- "" for the working folder, or which commit added it
   ## n <- which line   S <- the list being grown
@@ -495,7 +495,7 @@ proc scanLine*(line, path, commit: string, n: int,
       inHistory: commit.len > 0))
 
 proc byScore(a, b: SecretFind): int {.role: helper,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## a, b <- two finds, most likely first, and the folder before the
   ## history, because something still in the tree matters more.
   result = cmp(b.score, a.score)
@@ -506,7 +506,7 @@ proc byScore(a, b: SecretFind): int {.role: helper,
 
 proc scanWorking*(dir: string, files: seq[string],
     S: var seq[SecretFind]) {.role: orchestrator, input: thirdParty,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## dir <- the repository   files <- every source file in it
   ## S <- the list being grown
   var
@@ -534,7 +534,7 @@ proc scanWorking*(dir: string, files: seq[string],
       scanLine(line, rel, "", n, S, bVectors)
 
 proc markedPaths*(dir: string, files: seq[string]): HashSet[string]
-    {.role: dataFetcher, metaTags: {tagStats}.} =
+    {.role: dataFetcher, tag: "stats".} =
   ## dir <- the repository   files <- every source file in it
   ## The repository-relative paths of files that carry `otter:vectors`
   ## today.
@@ -571,8 +571,8 @@ proc markedPaths*(dir: string, files: seq[string]): HashSet[string]
 
 proc scanHistory*(dir: string, S: var seq[SecretFind],
     marked: HashSet[string] = initHashSet[string]()): int
-    {.role: orchestrator, input: thirdParty, risk: low, speed: long,
-    metaTags: {tagStats}.} =
+    {.role: orchestrator, input: thirdParty, risk: rkLow, speed: spLong,
+    tag: "stats".} =
   ## dir <- the repository   S <- the list being grown
   ##
   ## Reads what every commit *added*, rather than what each commit
@@ -639,7 +639,7 @@ proc scanHistory*(dir: string, S: var seq[SecretFind],
         path in marked or extractFilename(path) in marked)
 
 proc dedupe*(A: seq[SecretFind]): seq[SecretFind] {.role: sanitizer,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A <- every find, working folder and history together.
   ##
   ## The same key sits in the tree *and* in the commit that added it.
@@ -659,7 +659,7 @@ proc dedupe*(A: seq[SecretFind]): seq[SecretFind] {.role: sanitizer,
 
 proc secretsOf*(dir: string, files: seq[string],
     withHistory: bool = true): SecretReport {.role: metaOrchestrator,
-    input: thirdParty, risk: low, speed: long, metaTags: {tagStats}.} =
+    input: thirdParty, risk: rkLow, speed: spLong, tag: "stats".} =
   ## dir <- the repository   files <- every source file in it
   ## withHistory <- whether to read the commits as well as the folder
   var

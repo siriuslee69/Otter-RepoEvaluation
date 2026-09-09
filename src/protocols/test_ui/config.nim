@@ -5,7 +5,7 @@
 
 import std/[os, strutils]
 
-import otterPragmas
+import runePragmas
 import ./types
 
 const
@@ -26,7 +26,7 @@ const
 """
 
 proc unquoteValue(s: string): string {.role: parser,
-    metaTags: {tagParsing, tagTesting, tagUi}.} =
+    tag: "parsing|testing|ui".} =
   ## s: configuration value with optional single or double quotes.
   var
     t: string = s.strip()
@@ -36,7 +36,7 @@ proc unquoteValue(s: string): string {.role: parser,
   result = t
 
 proc stringArray(s: string): seq[string] {.role: parser,
-    metaTags: {tagParsing, tagTesting, tagUi}.} =
+    tag: "parsing|testing|ui".} =
   ## s: one-line TOML string array such as ["sse2", "avx2"].
   var
     quote: char = '\0'
@@ -60,7 +60,7 @@ proc stringArray(s: string): seq[string] {.role: parser,
       value.add(c)
 
 proc assignConfigValue(S: var OtterUiConfig, key, value: string)
-    {.role: truthBuilder, metaTags: {tagParsing, tagTesting, tagUi}.} =
+    {.role: truthBuilder, tag: "parsing|testing|ui".} =
   ## S: settings receiving one parsed value.
   ## key/value: normalized TOML key and text value.
   case key
@@ -76,7 +76,7 @@ proc assignConfigValue(S: var OtterUiConfig, key, value: string)
     discard
 
 proc parseConfigFile(S: var OtterUiConfig, path: string)
-    {.role: parser, metaTags: {tagParsing, tagTesting, tagUi}.} =
+    {.role: parser, tag: "parsing|testing|ui".} =
   ## S: settings receiving supported top-level TOML values.
   ## path: the .otter/config.toml file.
   var
@@ -98,7 +98,7 @@ proc parseConfigFile(S: var OtterUiConfig, path: string)
     assignConfigValue(S, key, value)
 
 proc testsRootOf*(repoRoot: string): string {.role: parser,
-    metaTags: {tagTesting, tagUi}.} =
+    tag: "testing|ui".} =
   ## repoRoot: repository to look inside.
   ## Prefers the conventional `evaluation/tests`, and falls back to a plain
   ## `tests` folder so repositories not yet moved over still read correctly.
@@ -111,7 +111,7 @@ proc testsRootOf*(repoRoot: string): string {.role: parser,
 
 
 proc resolveOutputPath(repoRoot, configured: string): string
-    {.role: helper, metaTags: {tagTesting, tagUi}.} =
+    {.role: helper, tag: "testing|ui".} =
   ## repoRoot/configured: repository and optional configured output location.
   var
     path: string = configured.strip()
@@ -122,13 +122,13 @@ proc resolveOutputPath(repoRoot, configured: string): string
   result = normalizedPath(path)
 
 proc tomlString(s: string): string {.role: helper,
-    metaTags: {tagParsing, tagTesting, tagUi}.} =
+    tag: "parsing|testing|ui".} =
   ## s: text encoded as one basic TOML string.
   result = "\"" & s.replace("\\", "\\\\").replace("\"", "\\\"").replace(
     "\n", "\\n").replace("\r", "\\r") & "\""
 
 proc defaultConfigToml(repoName, testsRel: string): string {.role: dataWriter,
-    metaTags: {tagParsing, tagTesting, tagUi}.} =
+    tag: "parsing|testing|ui".} =
   ## repoName: repository label used in a new editable configuration file.
   ## testsRel: where the tests sit, relative to the repository.
   result = "title = " & tomlString(repoName & " Tests") & "\n" &
@@ -138,7 +138,7 @@ proc defaultConfigToml(repoName, testsRel: string): string {.role: dataWriter,
 
 proc ensureOtterConfigFiles(testsRoot, repoName, testsRel: string): tuple[configPath,
     cssPath: string] {.role: dataWriter,
-    metaTags: {tagParsing, tagTesting, tagUi}.} =
+    tag: "parsing|testing|ui".} =
   ## testsRoot/repoName: parent tests directory and generated project label.
   var
     settingsDir: string = joinPath(testsRoot, ".otter")
@@ -151,7 +151,7 @@ proc ensureOtterConfigFiles(testsRoot, repoName, testsRel: string): tuple[config
     writeFile(result.cssPath, DefaultConfigCss)
 
 proc loadOtterUiConfig*(repoRoot: string): OtterUiConfig
-    {.role: truthBuilder, metaTags: {tagParsing, tagTesting, tagUi}.} =
+    {.role: truthBuilder, tag: "parsing|testing|ui".} =
   ## repoRoot: parent repository containing the tests directory.
   var
     configPath: string = ""

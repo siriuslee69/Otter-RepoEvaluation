@@ -5,10 +5,10 @@
 
 import std/[json, os, strutils]
 
-import otterPragmas
+import runePragmas
 import ../../otter_repo_evaluation
 
-proc printUsage() {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+proc printUsage() {.role: helper, tag: "graph|execution".} =
   echo "Usage:"
   echo "  otter_repo_graph snapshot [repoRoot] [--include-tests]"
   echo "  otter_repo_graph artifacts [repoRoot] [outputDir] [--include-tests]"
@@ -23,21 +23,21 @@ proc printUsage() {.role: helper, metaTags: {tagGraph, tagExecution}.} =
   echo "      checks: stats  state[:Type]  yields:name  blast:name  ui"
 
 
-proc flagPresent(args: seq[string], flag: string): bool {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+proc flagPresent(args: seq[string], flag: string): bool {.role: helper, tag: "graph|execution".} =
   for a in args:
     if a == flag:
       result = true
       return
 
 
-proc positionalArgs(args: seq[string]): seq[string] {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+proc positionalArgs(args: seq[string]): seq[string] {.role: helper, tag: "graph|execution".} =
   for a in args:
     if a.startsWith("--"):
       continue
     result.add(a)
 
 
-proc cliArgs(): seq[string] {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+proc cliArgs(): seq[string] {.role: helper, tag: "graph|execution".} =
   var
     i: int = 1
   while i <= paramCount():
@@ -45,7 +45,7 @@ proc cliArgs(): seq[string] {.role: helper, metaTags: {tagGraph, tagExecution}.}
     i = i + 1
 
 
-proc runSnapshot(args: seq[string]) {.role: actor, metaTags: {tagGraph, tagExecution}.} =
+proc runSnapshot(args: seq[string]) {.role: actor, tag: "graph|execution".} =
   var
     items: seq[string] = @[]
     rootDir: string = "."
@@ -59,7 +59,7 @@ proc runSnapshot(args: seq[string]) {.role: actor, metaTags: {tagGraph, tagExecu
   echo toGraphJson(g)
 
 
-proc runArtifacts(args: seq[string]) {.role: actor, metaTags: {tagGraph, tagExecution}.} =
+proc runArtifacts(args: seq[string]) {.role: actor, tag: "graph|execution".} =
   var
     items: seq[string] = @[]
     rootDir: string = "."
@@ -81,7 +81,7 @@ proc runArtifacts(args: seq[string]) {.role: actor, metaTags: {tagGraph, tagExec
   echo "Artifacts: " & outputDir
 
 
-proc runSample(args: seq[string]) {.role: actor, metaTags: {tagGraph, tagExecution}.} =
+proc runSample(args: seq[string]) {.role: actor, tag: "graph|execution".} =
   var
     items: seq[string] = @[]
     rootDir: string = "."
@@ -104,7 +104,7 @@ proc runSample(args: seq[string]) {.role: actor, metaTags: {tagGraph, tagExecuti
 
 
 proc flagValue(args: seq[string], flag: string, fallback: int): int
-    {.role: parser, metaTags: {tagGraph, tagExecution}.} =
+    {.role: parser, tag: "graph|execution".} =
   ## args: the words after the command   flag: what to look for
   ## fallback: what to use when it is absent or unreadable.
   var prefix: string = flag & ":"
@@ -118,7 +118,7 @@ proc flagValue(args: seq[string], flag: string, fallback: int): int
       result = fallback
 
 proc textAfter(args: seq[string], flag: string): string {.role: parser,
-    metaTags: {tagGraph, tagExecution}.} =
+    tag: "graph|execution".} =
   ## args: the words after the command   flag: what to look for.
   ## What was written after `--flag:`, or "" when it was not given.
   var prefix: string = flag & ":"
@@ -128,7 +128,7 @@ proc textAfter(args: seq[string], flag: string): string {.role: parser,
       result = a[prefix.len .. ^1]
 
 proc runBlast(args: seq[string]) {.role: actor,
-    metaTags: {tagGraph, tagExecution}.} =
+    tag: "graph|execution".} =
   ## args: the words after `blast`. What one change to a routine or a
   ## type can reach, up through its callers and down into what is
   ## handed to it.
@@ -160,7 +160,7 @@ proc runBlast(args: seq[string]) {.role: actor,
     quit(1)
 
 proc runUi(args: seq[string]) {.role: actor,
-    metaTags: {tagGraph, tagStats, tagExecution}.} =
+    tag: "graph|stats|execution".} =
   ## args: the words after `ui`. How many things a person must open
   ## before each control of a front end can be reached.
   var
@@ -180,7 +180,7 @@ proc runUi(args: seq[string]) {.role: actor,
     quit(1)
 
 proc runState(args: seq[string]) {.role: actor,
-    metaTags: {tagGraph, tagStats, tagExecution}.} =
+    tag: "graph|stats|execution".} =
   ## args: the words after `state`. Who may change each entry of a
   ## shared object, and where two of them lose each other's work.
   var
@@ -205,7 +205,7 @@ proc runState(args: seq[string]) {.role: actor,
     quit(1)
 
 proc runYields(args: seq[string]) {.role: actor,
-    metaTags: {tagGraph, tagExecution}.} =
+    tag: "graph|execution".} =
   ## args: the words after `yields`. Every way one routine can end,
   ## followed as far down through the repository as it goes.
   var
@@ -231,7 +231,7 @@ proc runYields(args: seq[string]) {.role: actor,
     quit(1)
 
 proc runDiff(args: seq[string]) {.role: actor,
-    metaTags: {tagGraph, tagStats, tagExecution}.} =
+    tag: "graph|stats|execution".} =
   ## args: the words after `diff`. What this change did to the tree,
   ## rather than what the tree is like.
   var
@@ -260,7 +260,7 @@ proc runDiff(args: seq[string]) {.role: actor,
     quit(1)
 
 proc runChecksCmd(args: seq[string]) {.role: actor,
-    metaTags: {tagGraph, tagStats, tagExecution}.} =
+    tag: "graph|stats|execution".} =
   ## args: the words after `checks`. Several questions, one reading of
   ## the tree, answered together or one after another.
   var
@@ -292,7 +292,7 @@ proc runChecksCmd(args: seq[string]) {.role: actor,
     echo line
 
 proc runStats(args: seq[string]) {.role: actor,
-    metaTags: {tagGraph, tagStats, tagExecution}.} =
+    tag: "graph|stats|execution".} =
   ## args: the words after `stats`. Prints the summary a person reads,
   ## or the whole shape a window reads, but never both.
   var
@@ -312,7 +312,7 @@ proc runStats(args: seq[string]) {.role: actor,
     quit(1)
 
 
-proc runCli*() {.role: orchestrator, metaTags: {tagGraph, tagExecution}.} =
+proc runCli*() {.role: orchestrator, tag: "graph|execution".} =
   var
     args: seq[string] = @[]
     cmd: string = ""

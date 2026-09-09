@@ -11,7 +11,7 @@ import std/[os, sets, strutils, unittest]
 
 import ../../src/protocols/repo_graph
 import ../../src/protocols/code_stats/state_writes
-import otterPragmas
+import runePragmas
 
 proc sampleGraph(): RepoGraph {.testKind: tkUnit, covers: "stateWritesOf".} =
   ## The example tree, found from this file so the test runs anywhere.

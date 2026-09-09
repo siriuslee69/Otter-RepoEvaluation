@@ -37,10 +37,10 @@ import ../repo_graph/graph_builder
 import ../repo_graph/io_utils
 import ../repo_graph/nim_parser
 import ../repo_graph/types as graphTypes
-import otterPragmas
+import runePragmas
 
 proc parseTree*(rootDir: string, files: seq[string]): seq[FunctionInfo]
-    {.role: parser, metaTags: {tagStats}.} =
+    {.role: parser, tag: "stats".} =
   ## rootDir: the tree. files: every Nim file in it, tests included.
   result = @[]
   for path in files:
@@ -49,7 +49,7 @@ proc parseTree*(rootDir: string, files: seq[string]): seq[FunctionInfo]
 
 
 proc splitTests*(A: seq[FunctionInfo]): tuple[src: seq[FunctionInfo],
-    tests: seq[FunctionInfo]] {.role: parser, metaTags: {tagStats}.} =
+    tests: seq[FunctionInfo]] {.role: parser, tag: "stats".} =
   ## A: every routine in the tree, split by where it was written.
   result = (@[], @[])
   for row in A:
@@ -60,7 +60,7 @@ proc splitTests*(A: seq[FunctionInfo]): tuple[src: seq[FunctionInfo],
 
 
 proc gatherTests*(files: seq[string], A: seq[FunctionInfo]): seq[TestInfo]
-    {.role: truthBuilder, metaTags: {tagStats, tagTesting}.} =
+    {.role: truthBuilder, tag: "stats|testing".} =
   ## files: every file in the tree. A: the routines written in tests.
   ## Both shapes of test are gathered: the `test "..."` block and the
   ## routine carrying a testKind pragma.
@@ -79,7 +79,7 @@ proc gatherTests*(files: seq[string], A: seq[FunctionInfo]): seq[TestInfo]
 
 
 proc rolesOf*(A: seq[FunctionInfo]): seq[NameCount] {.role: truthBuilder,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A: every routine outside the tests. What each one declared itself
   ## to be, tallied. Routines with no role pragma are counted as
   ## "undeclared", because a blank is a finding of its own.
@@ -95,7 +95,7 @@ proc rolesOf*(A: seq[FunctionInfo]): seq[NameCount] {.role: truthBuilder,
 
 proc unusedOf*(A: seq[FunctionInfo], edges: seq[CallEdge], w: CoverWalk,
     pragmas: HashSet[string]): seq[string] {.role: truthBuilder,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A: the routines outside the tests. edges: the call graph. w: what
   ## the tests reach. pragmas: template names used as pragmas, which is
   ## a use that leaves no call behind. A routine nothing calls and no
@@ -115,7 +115,7 @@ proc unusedOf*(A: seq[FunctionInfo], edges: seq[CallEdge], w: CoverWalk,
 
 
 proc totalsOf(S: var ProjectStats, A: seq[FunctionInfo]) {.role: actor,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## S: the statistics being filled. A: the routines outside the tests.
   var
     total: int = 0
@@ -142,7 +142,7 @@ proc totalsOf(S: var ProjectStats, A: seq[FunctionInfo]) {.role: actor,
 
 
 proc analyzeProject*(rootDir: string): ProjectStats {.role: orchestrator,
-    input: trusted, risk: low, speed: long, metaTags: {tagStats}.} =
+    input: trusted, risk: rkLow, speed: spLong, tag: "stats".} =
   ## rootDir: the folder to measure. An unreadable folder comes back
   ## with `error` set and everything else empty, so a window can say so
   ## instead of drawing an empty chart that looks like good news.
@@ -293,7 +293,7 @@ proc analyzeProject*(rootDir: string): ProjectStats {.role: orchestrator,
 
 
 proc summaryLines*(S: ProjectStats): seq[string] {.role: helper,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## S: one measured repository, put into lines a terminal can print.
   result = @[]
   result.add("Root: " & S.rootDir)

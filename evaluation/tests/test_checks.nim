@@ -10,7 +10,7 @@
 import std/[os, strutils, unittest]
 
 import ../../src/protocols/code_stats/checks
-import otterPragmas
+import runePragmas
 
 proc exampleRoot(name: string): string {.testKind: tkUnit,
     covers: "runChecks".} =
