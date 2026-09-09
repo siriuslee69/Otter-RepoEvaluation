@@ -53,7 +53,7 @@
 import std/[algorithm, sets, strutils, tables]
 
 import ../repo_graph/types as graphTypes
-import otterPragmas
+import runePragmas
 
 const
   defaultCallerDepth*: int = 2
@@ -63,7 +63,7 @@ const
     ## repository, which answers nothing.
 
 type
-  BlastNode* {.role: preparedData, metaTags: {tagGraph}.} = object
+  BlastNode* {.role: preparedData, tag: "graph".} = object
     ## One routine reached from the target, and how far away it is.
     name*: string
     path*: string
@@ -71,7 +71,7 @@ type
     depth*: int
     role*: string
 
-  ArgumentEvidence* {.role: preparedData, metaTags: {tagGraph}.} = object
+  ArgumentEvidence* {.role: preparedData, tag: "graph".} = object
     ## What was actually written at a given argument position, across
     ## every call site that could be read.
     position*: int
@@ -80,7 +80,7 @@ type
       ## How many call sites passed something this cannot read. A high
       ## count means the literals below are a small part of the story.
 
-  BlastRadius* {.role: truthState, metaTags: {tagGraph}.} = object
+  BlastRadius* {.role: truthState, tag: "graph".} = object
     target*: string
     kind*: string
       ## "routine" or "type".
@@ -101,7 +101,7 @@ type
     error*: string
 
 proc balancedFrom(s: string, at: int): string {.role: parser,
-    metaTags: {tagGraph}.} =
+    tag: "graph".} =
   ## s: one line   at: the index of an opening bracket.
   ## What sits inside that bracket, up to its match. An unclosed
   ## bracket - a call split across lines - yields the rest of the line,
@@ -124,7 +124,7 @@ proc balancedFrom(s: string, at: int): string {.role: parser,
     i = i + 1
 
 proc callsAtDepth(s: string, m: int): seq[tuple[name: string, depth: int]]
-    {.role: parser, metaTags: {tagGraph}.} =
+    {.role: parser, tag: "graph".} =
   ## s: the inside of one argument list   m: how deep to unwrap.
   ##
   ## Every name followed by a bracket, tagged with how many brackets it
@@ -153,7 +153,7 @@ proc callsAtDepth(s: string, m: int): seq[tuple[name: string, depth: int]]
     i = i + 1
 
 proc splitArgs(s: string): seq[string] {.role: parser,
-    metaTags: {tagGraph}.} =
+    tag: "graph".} =
   ## s: the inside of one argument list.
   ## The arguments, split on the commas that sit at the top level, so
   ## that `f(a, g(b, c))` is two arguments rather than three.
@@ -177,7 +177,7 @@ proc splitArgs(s: string): seq[string] {.role: parser,
   if cur.strip().len > 0:
     result.add(cur.strip())
 
-proc isLiteral(s: string): bool {.role: parser, metaTags: {tagGraph}.} =
+proc isLiteral(s: string): bool {.role: parser, tag: "graph".} =
   ## s: one argument as written. Whether it is a value typed in on the
   ## spot rather than a name standing for one.
   var t: string = s.strip()
@@ -191,7 +191,7 @@ proc isLiteral(s: string): bool {.role: parser, metaTags: {tagGraph}.} =
   result = t in ["true", "false", "nil", "@[]"]
 
 proc roleName(f: FunctionInfo): string {.role: helper,
-    metaTags: {tagGraph}.} =
+    tag: "graph".} =
   ## f: one routine. The role it DECLARES, and only if it declares
   ## none, the one Otter guessed. The difference matters here: acting
   ## on a guess that a routine sanitises is how a real check gets
@@ -211,7 +211,7 @@ proc roleName(f: FunctionInfo): string {.role: helper,
   result = roleToString(f.role)
 
 proc callersOf(g: RepoGraph, targetIds: HashSet[string], n: int):
-    seq[BlastNode] {.role: truthBuilder, metaTags: {tagGraph}.} =
+    seq[BlastNode] {.role: truthBuilder, tag: "graph".} =
   ## g: the whole graph   targetIds: every routine of the wanted name
   ## n: how many hops up to walk.
   ##
@@ -244,7 +244,7 @@ proc callersOf(g: RepoGraph, targetIds: HashSet[string], n: int):
 
 proc feedersOf(g: RepoGraph, name: string, m: int):
     tuple[nodes: seq[BlastNode], args: seq[ArgumentEvidence]]
-    {.role: truthBuilder, metaTags: {tagGraph}.} =
+    {.role: truthBuilder, tag: "graph".} =
   ## g: the whole graph   name: the routine being asked about
   ## m: how far to unwrap each argument.
   ##
@@ -300,7 +300,7 @@ proc feedersOf(g: RepoGraph, name: string, m: int):
     cmp(a.position, b.position))
 
 proc typeRadius(g: RepoGraph, name: string): tuple[producers,
-    consumers: seq[BlastNode]] {.role: truthBuilder, metaTags: {tagGraph}.} =
+    consumers: seq[BlastNode]] {.role: truthBuilder, tag: "graph".} =
   ## g: the whole graph   name: a type.
   ##
   ## A type has no callers, so the two directions become: who makes one
@@ -334,7 +334,7 @@ proc typeRadius(g: RepoGraph, name: string): tuple[producers,
 proc blastRadius*(g: RepoGraph, name: string,
     n: int = defaultCallerDepth,
     m: int = defaultFeederDepth): BlastRadius {.role: metaOrchestrator,
-    metaTags: {tagGraph}.} =
+    tag: "graph".} =
   ## g: the whole graph   name: a routine or a type
   ## n: how far up, through callers   m: how far down, into arguments.
   ##
@@ -400,7 +400,7 @@ proc blastRadius*(g: RepoGraph, name: string,
       " routines; this one is called from nearly everywhere")
 
 proc blastLines*(r: BlastRadius): seq[string] {.role: dataWriter,
-    metaTags: {tagGraph}.} =
+    tag: "graph".} =
   ## r: one answer. The same answer as plain lines, because the reader
   ## is as often a person deciding whether to touch something as it is
   ## a program.

@@ -31,7 +31,7 @@
 import std/[algorithm, os, osproc, sequtils, strutils, times]
 
 import ../repo_graph/io_utils
-import otterPragmas
+import runePragmas
 
 const
   timelinePoints*: int = 48
@@ -44,7 +44,7 @@ const
     ## so a very old repository cannot stall the measurement.
 
 type
-  TimelinePoint* {.role: preparedData, metaTags: {tagStats}.} = object
+  TimelinePoint* {.role: preparedData, tag: "stats".} = object
     ## What the repository looked like at one moment.
     ##
     ##   unix          when, in seconds since 1970
@@ -69,7 +69,7 @@ type
     bytes*: int64
     working*: bool
 
-  TimelineStats* {.role: truthState, metaTags: {tagStats}.} = object
+  TimelineStats* {.role: truthState, tag: "stats".} = object
     ## The whole story, oldest point first.
     points*: seq[TimelinePoint]
     commits*: int
@@ -79,7 +79,7 @@ type
 
 proc gitOut*(dir: string, args: openArray[string]):
     tuple[text: string, ok: bool] {.role: dataFetcher, input: thirdParty,
-    risk: low, metaTags: {tagStats}.} =
+    risk: rkLow, tag: "stats".} =
   ## dir <- the repository   args <- what to ask git
   ##
   ## Git is asked with `-C`, never by changing the working folder, so
@@ -97,7 +97,7 @@ proc gitOut*(dir: string, args: openArray[string]):
   result = (text: got.output, ok: got.exitCode == 0)
 
 proc treeCounts*(dir, sha: string): TimelinePoint {.role: truthBuilder,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## dir <- the repository   sha <- which commit to read
   ##
   ## One call to git lists every file that commit held, together with
@@ -139,7 +139,7 @@ proc treeCounts*(dir, sha: string): TimelinePoint {.role: truthBuilder,
       result.srcFiles = result.srcFiles + 1
 
 proc ignoredNow*(dir: string): int {.role: dataFetcher,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## dir <- the repository. How many files are sitting in the folder
   ## right now that git has been told to leave alone. This is the one
   ## number that only has an answer for the present moment.
@@ -155,7 +155,7 @@ proc ignoredNow*(dir: string): int {.role: dataFetcher,
       result = result + 1
 
 proc workingPoint*(dir: string): TimelinePoint {.role: truthBuilder,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## dir <- the repository, as the folder stands this second, changes
   ## and all. This is the only point that can count ignored files.
   var
@@ -187,7 +187,7 @@ proc workingPoint*(dir: string): TimelinePoint {.role: truthBuilder,
   result.ignoredFiles = ignoredNow(dir)
 
 proc sampleAt*(n, want, i: int): bool {.inline, role: math,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## n <- how many commits there are   want <- how many are wanted
   ## i <- which commit this is, counted from the newest
   ##
@@ -201,13 +201,13 @@ proc sampleAt*(n, want, i: int): bool {.inline, role: math,
   result = (i * want) div n != ((i - 1) * want) div n
 
 proc byUnix(a, b: TimelinePoint): int {.role: helper,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## a, b <- two moments, oldest first, so a chart reads left to right.
   result = cmp(a.unix, b.unix)
 
 proc timelineOf*(dir: string, want: int = timelinePoints): TimelineStats
-    {.role: orchestrator, input: thirdParty, risk: low, speed: long,
-    metaTags: {tagStats}.} =
+    {.role: orchestrator, input: thirdParty, risk: rkLow, speed: spLong,
+    tag: "stats".} =
   ## dir <- the repository   want <- how many moments to read
   ##
   ##   git log ─► pick a spread ─► git ls-tree per pick ─► points
@@ -267,7 +267,7 @@ proc timelineOf*(dir: string, want: int = timelinePoints): TimelineStats
     result.lastUnix = result.points[^1].unix
 
 proc timelineLines*(S: TimelineStats): seq[string] {.role: helper,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## S <- one repository's history, put into lines a terminal can show.
   var
     row: TimelinePoint

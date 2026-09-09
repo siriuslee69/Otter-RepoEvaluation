@@ -8,7 +8,7 @@ import std/[sets, strutils]
 import ./io_utils
 import ./sample_values
 import ./types
-import otterPragmas
+import runePragmas
 
 const
   NimFunctionKinds = [
@@ -58,7 +58,7 @@ const
     "getkey("
   ]
 
-proc countIndent(s: string): int {.role: helper, metaTags: {tagGraph, tagParsing}.} =
+proc countIndent(s: string): int {.role: helper, tag: "graph|parsing".} =
   var
     i: int = 0
   while i < s.len and s[i] == ' ':
@@ -66,7 +66,7 @@ proc countIndent(s: string): int {.role: helper, metaTags: {tagGraph, tagParsing
   result = i
 
 
-proc trimQuotes(s: string): string {.role: helper, metaTags: {tagGraph, tagParsing}.} =
+proc trimQuotes(s: string): string {.role: helper, tag: "graph|parsing".} =
   var
     t: string = ""
   t = s.strip()
@@ -76,7 +76,7 @@ proc trimQuotes(s: string): string {.role: helper, metaTags: {tagGraph, tagParsi
 
 
 proc tagItemName(s: string): string {.role: parser,
-    metaTags: {tagGraph, tagParsing}.} =
+    tag: "graph|parsing".} =
   ## s: one item out of a tag list, in whichever shape it was written.
   ##
   ##   ` "ame" `      -> ame        a quoted string
@@ -100,7 +100,7 @@ proc tagItemName(s: string): string {.role: parser,
     t = toLowerAscii(t[3]) & t[4 .. ^1]
   result = t.strip()
 
-proc stripComment(s: string): string {.role: helper, metaTags: {tagGraph, tagParsing}.} =
+proc stripComment(s: string): string {.role: helper, tag: "graph|parsing".} =
   var
     i: int = -1
   i = s.find('#')
@@ -110,7 +110,7 @@ proc stripComment(s: string): string {.role: helper, metaTags: {tagGraph, tagPar
   result = s[0 ..< i]
 
 
-proc commentPayload(s: string): string {.role: helper, metaTags: {tagGraph, tagParsing}.} =
+proc commentPayload(s: string): string {.role: helper, tag: "graph|parsing".} =
   var
     i: int = -1
   i = s.find('#')
@@ -122,7 +122,7 @@ proc commentPayload(s: string): string {.role: helper, metaTags: {tagGraph, tagP
     result = result[1 .. ^1].strip()
 
 
-proc isFunctionStartLine(s: string): bool {.role: parser, metaTags: {tagGraph, tagParsing}.} =
+proc isFunctionStartLine(s: string): bool {.role: parser, tag: "graph|parsing".} =
   var
     t: string = ""
   t = s.strip()
@@ -138,7 +138,7 @@ proc isFunctionStartLine(s: string): bool {.role: parser, metaTags: {tagGraph, t
       return
 
 
-proc detectFunctionKind(s: string): string {.role: parser, metaTags: {tagGraph, tagParsing}.} =
+proc detectFunctionKind(s: string): string {.role: parser, tag: "graph|parsing".} =
   var
     t: string = ""
   t = s.strip()
@@ -148,7 +148,7 @@ proc detectFunctionKind(s: string): string {.role: parser, metaTags: {tagGraph, 
       return
 
 
-proc extractFunctionNameData(line: string): tuple[name: string, isExported: bool] {.role: parser, metaTags: {tagGraph, tagParsing}.} =
+proc extractFunctionNameData(line: string): tuple[name: string, isExported: bool] {.role: parser, tag: "graph|parsing".} =
   var
     t: string = ""
     i: int = 0
@@ -188,7 +188,7 @@ proc extractFunctionNameData(line: string): tuple[name: string, isExported: bool
     result.name = result.name[0 .. ^2]
 
 
-proc parseHeader(ls: seq[string], iStart: int): tuple[sHeader: string, iEnd: int] {.role: helper, metaTags: {tagGraph, tagParsing}.} =
+proc parseHeader(ls: seq[string], iStart: int): tuple[sHeader: string, iEnd: int] {.role: helper, tag: "graph|parsing".} =
   var
     i: int = iStart
     baseIndent: int = countIndent(ls[iStart])
@@ -212,7 +212,7 @@ proc parseHeader(ls: seq[string], iStart: int): tuple[sHeader: string, iEnd: int
   result = (parts.join(" "), i)
 
 
-proc splitTopLevel(s: string, sep: char): seq[string] {.role: helper, metaTags: {tagGraph, tagParsing}.} =
+proc splitTopLevel(s: string, sep: char): seq[string] {.role: helper, tag: "graph|parsing".} =
   var
     depthParen: int = 0
     depthBracket: int = 0
@@ -255,7 +255,7 @@ proc splitTopLevel(s: string, sep: char): seq[string] {.role: helper, metaTags: 
     result.add(part)
 
 
-proc findTopLevelChar(s: string, target: char): int {.role: helper, metaTags: {tagGraph, tagParsing}.} =
+proc findTopLevelChar(s: string, target: char): int {.role: helper, tag: "graph|parsing".} =
   var
     depthParen: int = 0
     depthBracket: int = 0
@@ -291,7 +291,7 @@ proc findTopLevelChar(s: string, target: char): int {.role: helper, metaTags: {t
   result = -1
 
 
-proc stripPragmaBlocks(s: string): string {.role: helper, metaTags: {tagGraph, tagParsing}.} =
+proc stripPragmaBlocks(s: string): string {.role: helper, tag: "graph|parsing".} =
   var
     i: int = 0
     a: int = -1
@@ -309,7 +309,7 @@ proc stripPragmaBlocks(s: string): string {.role: helper, metaTags: {tagGraph, t
     i = b + 2
 
 
-proc parseReturnType(sHeader, funcName: string): string {.role: parser, metaTags: {tagGraph, tagParsing}.} =
+proc parseReturnType(sHeader, funcName: string): string {.role: parser, tag: "graph|parsing".} =
   var
     header: string = ""
     start: int = -1
@@ -342,7 +342,7 @@ proc parseReturnType(sHeader, funcName: string): string {.role: parser, metaTags
     result = header[i .. ^1].strip()
 
 
-proc parseParamSockets(sHeader: string): tuple[params: seq[string], sockets: seq[FunctionSocket]] {.role: parser, metaTags: {tagGraph, tagParsing}.} =
+proc parseParamSockets(sHeader: string): tuple[params: seq[string], sockets: seq[FunctionSocket]] {.role: parser, tag: "graph|parsing".} =
   var
     i0: int = -1
     i1: int = -1
@@ -438,7 +438,7 @@ proc parseParamSockets(sHeader: string): tuple[params: seq[string], sockets: seq
       socket.sampleExpr = guessSampleExpr(cleanType)
       result.sockets.add(socket)
 
-proc addRiskTag(f: var FunctionInfo, k, v: string) {.role: helper, metaTags: {tagGraph, tagParsing}.} =
+proc addRiskTag(f: var FunctionInfo, k, v: string) {.role: helper, tag: "graph|parsing".} =
   var
     rk: RiskTag
   rk.key = k.strip()
@@ -448,7 +448,7 @@ proc addRiskTag(f: var FunctionInfo, k, v: string) {.role: helper, metaTags: {ta
   f.riskTags.add(rk)
 
 
-proc addIssueRef(f: var FunctionInfo, v: string) {.role: helper, metaTags: {tagGraph, tagParsing}.} =
+proc addIssueRef(f: var FunctionInfo, v: string) {.role: helper, tag: "graph|parsing".} =
   var
     t: string = ""
   t = v.strip()
@@ -458,7 +458,7 @@ proc addIssueRef(f: var FunctionInfo, v: string) {.role: helper, metaTags: {tagG
     f.issueRefs.add(t)
 
 
-proc addPragmaTag(f: var FunctionInfo, v: string) {.role: helper, metaTags: {tagGraph, tagParsing}.} =
+proc addPragmaTag(f: var FunctionInfo, v: string) {.role: helper, tag: "graph|parsing".} =
   var
     t: string = ""
   t = v.strip().toLowerAscii()
@@ -468,7 +468,7 @@ proc addPragmaTag(f: var FunctionInfo, v: string) {.role: helper, metaTags: {tag
     f.pragmaTags.add(t)
 
 
-proc addUserInputSignal(f: var FunctionInfo, v: string) {.role: helper, metaTags: {tagGraph, tagParsing}.} =
+proc addUserInputSignal(f: var FunctionInfo, v: string) {.role: helper, tag: "graph|parsing".} =
   var
     t: string = ""
   t = v.strip()
@@ -478,7 +478,7 @@ proc addUserInputSignal(f: var FunctionInfo, v: string) {.role: helper, metaTags
     f.userInputSignals.add(t)
 
 
-proc markUserInputDeclared(f: var FunctionInfo, reason: string) {.role: helper, metaTags: {tagGraph, tagParsing}.} =
+proc markUserInputDeclared(f: var FunctionInfo, reason: string) {.role: helper, tag: "graph|parsing".} =
   f.userInputDeclared = true
   f.handlesUserInput = true
   if reason.len > 0:
@@ -488,7 +488,7 @@ proc markUserInputDeclared(f: var FunctionInfo, reason: string) {.role: helper, 
       f.userInputReason = f.userInputReason & "; " & reason
 
 
-proc parseBoolLike(s: string, bDefault: bool = true): bool {.role: helper, metaTags: {tagGraph, tagParsing}.} =
+proc parseBoolLike(s: string, bDefault: bool = true): bool {.role: helper, tag: "graph|parsing".} =
   var
     t: string = ""
   t = s.strip().toLowerAscii()
@@ -504,7 +504,7 @@ proc parseBoolLike(s: string, bDefault: bool = true): bool {.role: helper, metaT
   result = bDefault
 
 
-proc parsePragmaToken(tok: string, f: var FunctionInfo) {.role: parser, metaTags: {tagGraph, tagParsing}.} =
+proc parsePragmaToken(tok: string, f: var FunctionInfo) {.role: parser, tag: "graph|parsing".} =
   var
     t: string = ""
     key: string = ""
@@ -561,7 +561,7 @@ proc parsePragmaToken(tok: string, f: var FunctionInfo) {.role: parser, metaTags
     ##
     ##   tag: "ame|kdf"              one string, split on | , or ;
     ##   tag: ["ame", "kdf"]         a list
-    ##   metaTags: {tagAme, tagKdf}  the older per-repo enum-set form
+    ##   tag: "ame|kdf"  the older per-repo enum-set form
     ##
     ## Only the first was reaching the charts as separate tags. The second
     ## kept its brackets and quotes; the third was not matched here at all
@@ -594,7 +594,7 @@ proc parsePragmaToken(tok: string, f: var FunctionInfo) {.role: parser, metaTags
       addPragmaTag(f, key)
 
 
-proc parsePragmas(sHeader: string, f: var FunctionInfo) {.role: parser, metaTags: {tagGraph, tagParsing}.} =
+proc parsePragmas(sHeader: string, f: var FunctionInfo) {.role: parser, tag: "graph|parsing".} =
   var
     i: int = 0
     a: int = -1
@@ -613,7 +613,7 @@ proc parsePragmas(sHeader: string, f: var FunctionInfo) {.role: parser, metaTags
     i = b + 2
 
 
-proc parseDocTags(ls: seq[string], iStart: int, f: var FunctionInfo) {.role: parser, metaTags: {tagGraph, tagParsing}.} =
+proc parseDocTags(ls: seq[string], iStart: int, f: var FunctionInfo) {.role: parser, tag: "graph|parsing".} =
   var
     i: int = iStart - 1
     t: string = ""
@@ -671,7 +671,7 @@ proc parseDocTags(ls: seq[string], iStart: int, f: var FunctionInfo) {.role: par
     i = i - 1
 
 
-proc collectLeadingComments(ls: seq[string], iStart: int): tuple[docLines: seq[string], commentLines: seq[string]] {.role: parser, metaTags: {tagGraph, tagParsing}.} =
+proc collectLeadingComments(ls: seq[string], iStart: int): tuple[docLines: seq[string], commentLines: seq[string]] {.role: parser, tag: "graph|parsing".} =
   var
     i: int = iStart - 1
     docLines: seq[string] = @[]
@@ -694,7 +694,7 @@ proc collectLeadingComments(ls: seq[string], iStart: int): tuple[docLines: seq[s
   result = (docLines, commentLines)
 
 
-proc collectInnerComments(bodyLines: seq[string]): seq[string] {.role: parser, metaTags: {tagGraph, tagParsing}.} =
+proc collectInnerComments(bodyLines: seq[string]): seq[string] {.role: parser, tag: "graph|parsing".} =
   var
     payload: string = ""
   result = @[]
@@ -704,7 +704,7 @@ proc collectInnerComments(bodyLines: seq[string]): seq[string] {.role: parser, m
       result.add(payload)
 
 
-proc buildTooltipText(f: FunctionInfo): string {.role: helper, metaTags: {tagGraph}.} =
+proc buildTooltipText(f: FunctionInfo): string {.role: helper, tag: "graph".} =
   var
     lines: seq[string] = @[]
   lines.add(f.signature)
@@ -726,7 +726,7 @@ proc buildTooltipText(f: FunctionInfo): string {.role: helper, metaTags: {tagGra
   result = lines.join("\n")
 
 
-proc moduleDir(modulePath: string): string {.role: helper, metaTags: {tagGraph, tagImportContext}.} =
+proc moduleDir(modulePath: string): string {.role: helper, tag: "graph|importContext".} =
   var
     i: int = -1
   i = modulePath.rfind('/')
@@ -736,7 +736,7 @@ proc moduleDir(modulePath: string): string {.role: helper, metaTags: {tagGraph, 
   result = modulePath[0 ..< i]
 
 
-proc moduleTail(modulePath: string): string {.role: helper, metaTags: {tagGraph, tagImportContext}.} =
+proc moduleTail(modulePath: string): string {.role: helper, tag: "graph|importContext".} =
   var
     i: int = -1
   i = modulePath.rfind('/')
@@ -746,7 +746,7 @@ proc moduleTail(modulePath: string): string {.role: helper, metaTags: {tagGraph,
   result = modulePath[i + 1 .. ^1]
 
 
-proc normalizeImportModule(currentModulePath, raw: string): string {.role: helper, metaTags: {tagGraph, tagImportContext}.} =
+proc normalizeImportModule(currentModulePath, raw: string): string {.role: helper, tag: "graph|importContext".} =
   var
     t: string = ""
     base: seq[string] = @[]
@@ -784,7 +784,7 @@ proc normalizeImportModule(currentModulePath, raw: string): string {.role: helpe
   result = base.join("/")
 
 
-proc addImportBinding(bs: var seq[ImportBinding], b: ImportBinding) {.role: helper, metaTags: {tagGraph, tagImportContext}.} =
+proc addImportBinding(bs: var seq[ImportBinding], b: ImportBinding) {.role: helper, tag: "graph|importContext".} =
   for existing in bs:
     if existing.kind == b.kind and
         existing.modulePath == b.modulePath and
@@ -794,7 +794,7 @@ proc addImportBinding(bs: var seq[ImportBinding], b: ImportBinding) {.role: help
   bs.add(b)
 
 
-proc parseAliasSpec(raw: string): tuple[name: string, alias: string] {.role: parser, metaTags: {tagGraph, tagImportContext}.} =
+proc parseAliasSpec(raw: string): tuple[name: string, alias: string] {.role: parser, tag: "graph|importContext".} =
   var
     parts: seq[string] = @[]
   parts = raw.strip().split(" as ", maxsplit = 1)
@@ -803,7 +803,7 @@ proc parseAliasSpec(raw: string): tuple[name: string, alias: string] {.role: par
     result.alias = parts[1].strip()
 
 
-proc parseImportBindings(ls: seq[string], currentModulePath: string): seq[ImportBinding] {.role: parser, metaTags: {tagGraph, tagImportContext}.} =
+proc parseImportBindings(ls: seq[string], currentModulePath: string): seq[ImportBinding] {.role: parser, tag: "graph|importContext".} =
   var
     line: string = ""
     body: string = ""
@@ -857,7 +857,7 @@ proc parseImportBindings(ls: seq[string], currentModulePath: string): seq[Import
         ))
 
 
-proc addCall(cs: var seq[string], hs: var HashSet[string], name: string) {.role: helper, metaTags: {tagGraph, tagParsing}.} =
+proc addCall(cs: var seq[string], hs: var HashSet[string], name: string) {.role: helper, tag: "graph|parsing".} =
   var
     t: string = ""
   t = name.strip()
@@ -870,7 +870,7 @@ proc addCall(cs: var seq[string], hs: var HashSet[string], name: string) {.role:
     cs.add(t)
 
 
-proc extractCalls*(bodyLines: seq[string]): seq[string] {.role: parser, metaTags: {tagGraph, tagParsing}.} =
+proc extractCalls*(bodyLines: seq[string]): seq[string] {.role: parser, tag: "graph|parsing".} =
   ## bodyLines: any lines of Nim. Every name written with a bracket
   ## after it. Exported because the diff review reads the lines a
   ## change removed, which belong to no routine at all.
@@ -921,7 +921,7 @@ proc extractCalls*(bodyLines: seq[string]): seq[string] {.role: parser, metaTags
         i = i + 1
 
 
-proc detectUserInputSignals(calls: seq[string], bodyLines: seq[string]): seq[string] {.role: parser, metaTags: {tagGraph, tagParsing}.} =
+proc detectUserInputSignals(calls: seq[string], bodyLines: seq[string]): seq[string] {.role: parser, tag: "graph|parsing".} =
   var
     seen: HashSet[string]
     t: string = ""
@@ -952,7 +952,7 @@ proc detectUserInputSignals(calls: seq[string], bodyLines: seq[string]): seq[str
 
 proc parseFunctionBlock(ls: seq[string], modulePath, sourcePath: string,
     fileBindings: seq[ImportBinding], iStart: int): tuple[ok: bool, f: FunctionInfo,
-    iNext: int] {.role: parser, metaTags: {tagGraph, tagParsing}.} =
+    iNext: int] {.role: parser, tag: "graph|parsing".} =
   var
     f: FunctionInfo
     i: int = 0
@@ -1059,7 +1059,7 @@ proc parseFunctionBlock(ls: seq[string], modulePath, sourcePath: string,
   result = (true, f, i)
 
 
-proc parseNimFile*(rootDir, filePath: string): seq[FunctionInfo] {.role: parser, metaTags: {tagGraph, tagParsing}.} =
+proc parseNimFile*(rootDir, filePath: string): seq[FunctionInfo] {.role: parser, tag: "graph|parsing".} =
   var
     lines: seq[string] = @[]
     i: int = 0
@@ -1085,7 +1085,7 @@ proc parseNimFile*(rootDir, filePath: string): seq[FunctionInfo] {.role: parser,
     i = i + 1
 
 proc pragmaNamesIn*(lines: seq[string]): seq[string] {.role: parser,
-    metaTags: {tagGraph, tagParsing}.} =
+    tag: "graph|parsing".} =
   ## lines: one file.
   ##
   ## Every name written in a pragma anywhere in it. A macro used as a
@@ -1141,7 +1141,7 @@ proc pragmaNamesIn*(lines: seq[string]): seq[string] {.role: parser,
           result.add(name)
 
 proc topLevelCalls*(lines: seq[string], A: seq[FunctionInfo]): seq[string]
-    {.role: parser, metaTags: {tagGraph, tagParsing}.} =
+    {.role: parser, tag: "graph|parsing".} =
   ## lines: one file   A: the routines declared in it.
   ##
   ## What is called from the parts of the file that belong to no

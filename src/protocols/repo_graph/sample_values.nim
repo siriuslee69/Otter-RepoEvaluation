@@ -5,9 +5,9 @@
 
 import std/[strutils]
 
-import otterPragmas
+import runePragmas
 
-proc cleanTypeName*(s: string): string {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+proc cleanTypeName*(s: string): string {.role: helper, tag: "graph|execution".} =
   var
     t: string = ""
   t = s.strip()
@@ -20,7 +20,7 @@ proc cleanTypeName*(s: string): string {.role: helper, metaTags: {tagGraph, tagE
   result = t
 
 
-proc genericInnerType(s: string): string {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+proc genericInnerType(s: string): string {.role: helper, tag: "graph|execution".} =
   var
     a: int = -1
     b: int = -1
@@ -32,7 +32,7 @@ proc genericInnerType(s: string): string {.role: helper, metaTags: {tagGraph, ta
   result = s[a + 1 ..< b].strip()
 
 
-proc guessSampleExpr*(typeName: string): string {.role: helper, metaTags: {tagGraph, tagExecution}.} =
+proc guessSampleExpr*(typeName: string): string {.role: helper, tag: "graph|execution".} =
   var
     raw: string = ""
     t: string = ""

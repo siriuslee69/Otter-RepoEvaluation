@@ -52,7 +52,7 @@
 
 import std/[algorithm, os, sets, strutils, tables]
 
-import otterPragmas
+import runePragmas
 import ../repo_graph/io_utils
 
 const
@@ -88,7 +88,7 @@ const
     ## problem this module is not the one to report.
 
 type
-  UiControl* {.role: preparedData, metaTags: {tagStats}.} = object
+  UiControl* {.role: preparedData, tag: "stats".} = object
     ## One thing a person can act on, and what stands between them.
     path*: string
     line*: int
@@ -102,7 +102,7 @@ type
       ## What must be opened first, outermost first.
     keyboardOnly*: bool
 
-  UiDepthReport* {.role: truthState, metaTags: {tagStats}.} = object
+  UiDepthReport* {.role: truthState, tag: "stats".} = object
     controls*: seq[UiControl]
     total*: int
     byDepth*: seq[tuple[depth, count: int]]
@@ -114,7 +114,7 @@ type
     error*: string
 
 proc withoutComments*(css: string): string {.role: sanitizer,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## css: one stylesheet. The same text with every `/* ... */` blanked.
   ##
   ## A comment sits in front of the rule it describes, and everything
@@ -142,7 +142,7 @@ proc withoutComments*(css: string): string {.role: sanitizer,
     i = i + 1
 
 proc withoutAtRules*(css: string): string {.role: sanitizer,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## css: one stylesheet. The same stylesheet with every `@media`,
   ## `@supports` and `@container` block emptied out.
   ##
@@ -185,7 +185,7 @@ proc withoutAtRules*(css: string): string {.role: sanitizer,
     i = i + 1
 
 proc hiddenClassesIn*(css: string): HashSet[string] {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## css: one stylesheet.
   ##
   ## Every class whose rule hides it. The body of each rule is read,
@@ -229,7 +229,7 @@ proc hiddenClassesIn*(css: string): HashSet[string] {.role: parser,
         result.incl(t.toLowerAscii())
 
 proc attributeOf(tagText, name: string): string {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## tagText: one opening tag as written   name: which attribute.
   ## Its value, or "" when the tag does not carry it.
   var
@@ -251,7 +251,7 @@ proc attributeOf(tagText, name: string): string {.role: parser,
   result = tagText[at ..< stop]
 
 proc isGate(tagText: string, hidden: HashSet[string]): tuple[gate: bool,
-    why: string] {.role: parser, metaTags: {tagStats}.} =
+    why: string] {.role: parser, tag: "stats".} =
   ## tagText: one opening tag   hidden: classes a stylesheet hides.
   ## Whether this element must be opened, and what said so.
   var
@@ -270,7 +270,7 @@ proc isGate(tagText: string, hidden: HashSet[string]): tuple[gate: bool,
       return (gate: true, why: w)
 
 proc labelFor(tagText, inner: string): string {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## tagText: the opening tag   inner: whatever followed it on the line.
   ## The most human name available, in the order a person would look.
   var
@@ -289,7 +289,7 @@ proc labelFor(tagText, inner: string): string {.role: parser,
 
 proc controlsIn*(html, path: string, hidden: HashSet[string],
     keyboardIds: HashSet[string]): seq[UiControl] {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## html: one page   path: what to report it as
   ## hidden: classes a stylesheet hides
   ## keyboardIds: ids and classes a script shows from a key handler.
@@ -358,7 +358,7 @@ proc controlsIn*(html, path: string, hidden: HashSet[string],
       stack.add((tag: tagName, why: got.why))
 
 proc keyboardTargets*(js: string): HashSet[string] {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## js: one script.
   ##
   ## Ids named in the same routine as a key handler. This is a coarse
@@ -393,7 +393,7 @@ proc keyboardTargets*(js: string): HashSet[string] {.role: parser,
     i = i + 1
 
 proc byDepthThenLabel(a, b: UiControl): int {.role: helper,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## a, b: two controls, the hardest to reach first.
   result = cmp(b.depth, a.depth)
   if result == 0:
@@ -402,7 +402,7 @@ proc byDepthThenLabel(a, b: UiControl): int {.role: helper,
     result = cmp(a.line, b.line)
 
 proc uiDepthOf*(dir: string, files: seq[string]): UiDepthReport
-    {.role: metaOrchestrator, input: thirdParty, metaTags: {tagStats}.} =
+    {.role: metaOrchestrator, input: thirdParty, tag: "stats".} =
   ## dir: the repository   files: every source file in it
   ## Every control in every page, and what stands in front of it.
   var
@@ -464,7 +464,7 @@ proc uiDepthOf*(dir: string, files: seq[string]): UiDepthReport
   result.controls = found
 
 proc uiDepthLines*(r: UiDepthReport): seq[string] {.role: dataWriter,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## r: one answer, as a person reads it. Sorted hardest-to-reach
   ## first, because that is the end of the list a designer has to
   ## justify.

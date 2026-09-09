@@ -5,17 +5,17 @@
 
 import std/[os, osproc, strutils]
 
-import otterPragmas
+import runePragmas
 
 const
-  OtterCliSourcePath* {.role: helper, metaTags: {tagParentIntegration}.} = currentSourcePath()
-  OtterCliDir* {.role: helper, metaTags: {tagParentIntegration}.} = parentDir(OtterCliSourcePath)
-  OtterClientsDir* {.role: helper, metaTags: {tagParentIntegration}.} = parentDir(OtterCliDir)
-  OtterSrcDir* {.role: helper, metaTags: {tagParentIntegration}.} = parentDir(OtterClientsDir)
-  OtterRepoDir* {.role: helper, metaTags: {tagParentIntegration}.} = parentDir(OtterSrcDir)
+  OtterCliSourcePath* {.role: helper, tag: "parentIntegration".} = currentSourcePath()
+  OtterCliDir* {.role: helper, tag: "parentIntegration".} = parentDir(OtterCliSourcePath)
+  OtterClientsDir* {.role: helper, tag: "parentIntegration".} = parentDir(OtterCliDir)
+  OtterSrcDir* {.role: helper, tag: "parentIntegration".} = parentDir(OtterClientsDir)
+  OtterRepoDir* {.role: helper, tag: "parentIntegration".} = parentDir(OtterSrcDir)
 
 
-proc escapeNimString(s: string): string {.role: helper, metaTags: {tagParentIntegration}.} =
+proc escapeNimString(s: string): string {.role: helper, tag: "parentIntegration".} =
   ## s: runtime string that will be embedded as a Nim string literal.
   var
     t: string = "\""
@@ -37,7 +37,7 @@ proc escapeNimString(s: string): string {.role: helper, metaTags: {tagParentInte
   result = t
 
 
-proc indentBlock(s: string, n: int): string {.role: helper, metaTags: {tagParentIntegration}.} =
+proc indentBlock(s: string, n: int): string {.role: helper, tag: "parentIntegration".} =
   ## s: source block to indent.
   ## n: indentation width in spaces.
   var
@@ -63,7 +63,7 @@ proc indentBlock(s: string, n: int): string {.role: helper, metaTags: {tagParent
   result = t
 
 
-proc normalizeWrappedSource(s: string): string {.role: helper, metaTags: {tagParentIntegration}.} =
+proc normalizeWrappedSource(s: string): string {.role: helper, tag: "parentIntegration".} =
   ## s: original source file contents.
   var
     lines: seq[string] = @[]
@@ -75,7 +75,7 @@ proc normalizeWrappedSource(s: string): string {.role: helper, metaTags: {tagPar
   result = t
 
 
-proc otterDependencyPaths*(): seq[string] {.role: helper, metaTags: {tagParentIntegration}.} =
+proc otterDependencyPaths*(): seq[string] {.role: helper, tag: "parentIntegration".} =
   var
     A: seq[string] = @[]
     p: string = ""
@@ -86,7 +86,7 @@ proc otterDependencyPaths*(): seq[string] {.role: helper, metaTags: {tagParentIn
   result = A
 
 
-proc hasArgWithPrefix(args: openArray[string], prefix: string): bool {.role: helper, metaTags: {tagParentIntegration}.} =
+proc hasArgWithPrefix(args: openArray[string], prefix: string): bool {.role: helper, tag: "parentIntegration".} =
   ## args: argument list.
   ## prefix: option prefix to search for.
   for a in args:
@@ -95,7 +95,7 @@ proc hasArgWithPrefix(args: openArray[string], prefix: string): bool {.role: hel
       return
 
 
-proc normalizeCliPath(p: string): string {.role: helper, metaTags: {tagParentIntegration}.} =
+proc normalizeCliPath(p: string): string {.role: helper, tag: "parentIntegration".} =
   ## p: raw path from a CLI `--path:` option.
   var
     t: string = ""
@@ -105,7 +105,7 @@ proc normalizeCliPath(p: string): string {.role: helper, metaTags: {tagParentInt
   result = normalizedPath(t)
 
 
-proc existingPathArgs(args: openArray[string]): seq[string] {.role: helper, metaTags: {tagParentIntegration}.} =
+proc existingPathArgs(args: openArray[string]): seq[string] {.role: helper, tag: "parentIntegration".} =
   ## args: raw CLI args to scan for `--path:` switches.
   var
     t: string = ""
@@ -118,7 +118,7 @@ proc existingPathArgs(args: openArray[string]): seq[string] {.role: helper, meta
       result.add(normalizeCliPath(t))
 
 
-proc containsPath(paths: openArray[string], p: string): bool {.role: helper, metaTags: {tagParentIntegration}.} =
+proc containsPath(paths: openArray[string], p: string): bool {.role: helper, tag: "parentIntegration".} =
   ## paths: normalized absolute paths.
   ## p: candidate path.
   var
@@ -130,14 +130,14 @@ proc containsPath(paths: openArray[string], p: string): bool {.role: helper, met
       return
 
 
-proc isCompileCommand(s: string): bool {.role: helper, metaTags: {tagParentIntegration}.} =
+proc isCompileCommand(s: string): bool {.role: helper, tag: "parentIntegration".} =
   ## s: nim command token.
   if s == "c" or s == "compile" or s == "r" or s == "cpp":
     result = true
     return
 
 
-proc findProjectIndex(args: openArray[string]): int {.role: helper, metaTags: {tagParentIntegration}.} =
+proc findProjectIndex(args: openArray[string]): int {.role: helper, tag: "parentIntegration".} =
   ## args: otter-nim arguments without argv[0].
   var
     a: string = ""
@@ -156,7 +156,7 @@ proc findProjectIndex(args: openArray[string]): int {.role: helper, metaTags: {t
   result = -1
 
 
-proc wrapperPathFor(targetPath: string): string {.role: helper, metaTags: {tagParentIntegration}.} =
+proc wrapperPathFor(targetPath: string): string {.role: helper, tag: "parentIntegration".} =
   ## targetPath: absolute project path.
   var
     f: tuple[dir, name, ext: string]
@@ -166,7 +166,7 @@ proc wrapperPathFor(targetPath: string): string {.role: helper, metaTags: {tagPa
   result = joinPath(f.dir, t)
 
 
-proc keepWrapperFileEnabled*(): bool {.role: helper, metaTags: {tagParentIntegration}.} =
+proc keepWrapperFileEnabled*(): bool {.role: helper, tag: "parentIntegration".} =
   var
     t: string = ""
   t = getEnv("OTTER_KEEP_WRAPPER")
@@ -175,7 +175,7 @@ proc keepWrapperFileEnabled*(): bool {.role: helper, metaTags: {tagParentIntegra
     return
 
 
-proc showForwardedCommandEnabled*(): bool {.role: helper, metaTags: {tagParentIntegration}.} =
+proc showForwardedCommandEnabled*(): bool {.role: helper, tag: "parentIntegration".} =
   var
     t: string = ""
   t = getEnv("OTTER_SHOW_CMD")
@@ -184,7 +184,7 @@ proc showForwardedCommandEnabled*(): bool {.role: helper, metaTags: {tagParentIn
     return
 
 
-proc shellEscapeArg(s: string): string {.role: helper, metaTags: {tagParentIntegration}.} =
+proc shellEscapeArg(s: string): string {.role: helper, tag: "parentIntegration".} =
   ## s: one CLI argument that will be displayed for debugging.
   var
     t: string = "'"
@@ -197,7 +197,7 @@ proc shellEscapeArg(s: string): string {.role: helper, metaTags: {tagParentInteg
   result = t
 
 
-proc formatForwardedCommand(args: openArray[string]): string {.role: helper, metaTags: {tagParentIntegration}.} =
+proc formatForwardedCommand(args: openArray[string]): string {.role: helper, tag: "parentIntegration".} =
   ## args: full argument vector passed to Nim.
   var
     A: seq[string] = @["nim"]
@@ -206,7 +206,7 @@ proc formatForwardedCommand(args: openArray[string]): string {.role: helper, met
   result = A.join(" ")
 
 
-proc buildWrapperSource(targetPath: string, sourceText: string): string {.role: helper, metaTags: {tagParentIntegration}.} =
+proc buildWrapperSource(targetPath: string, sourceText: string): string {.role: helper, tag: "parentIntegration".} =
   ## targetPath: absolute project path.
   ## sourceText: original project source.
   var
@@ -223,7 +223,7 @@ proc buildWrapperSource(targetPath: string, sourceText: string): string {.role: 
   result = A.join("\n") & "\n"
 
 
-proc forwardArgs(args: seq[string], projectIdx: int, wrapperPath: string): seq[string] {.role: helper, metaTags: {tagParentIntegration}.} =
+proc forwardArgs(args: seq[string], projectIdx: int, wrapperPath: string): seq[string] {.role: helper, tag: "parentIntegration".} =
   ## args: original CLI args.
   ## projectIdx: project argument index inside args.
   ## wrapperPath: generated wrapper path.
@@ -262,7 +262,7 @@ proc forwardArgs(args: seq[string], projectIdx: int, wrapperPath: string): seq[s
   result = A
 
 
-proc normalizeCliArgs(args: seq[string]): seq[string] {.role: helper, metaTags: {tagParentIntegration}.} =
+proc normalizeCliArgs(args: seq[string]): seq[string] {.role: helper, tag: "parentIntegration".} =
   ## args: raw `commandLineParams()` output.
   var
     i: int = 0
@@ -273,7 +273,7 @@ proc normalizeCliArgs(args: seq[string]): seq[string] {.role: helper, metaTags: 
     inc(i)
 
 
-proc runForwardedCompile(args: seq[string]): int {.role: orchestrator, metaTags: {tagParentIntegration}.} =
+proc runForwardedCompile(args: seq[string]): int {.role: orchestrator, tag: "parentIntegration".} =
   ## args: raw otter-nim arguments.
   var
     cliArgs: seq[string] = @[]

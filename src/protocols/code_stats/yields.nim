@@ -71,7 +71,7 @@ import std/[algorithm, sets, strutils, tables]
 import ../repo_graph/types as graphTypes
 import ../repo_graph/io_utils
 import ./state_writes
-import otterPragmas
+import runePragmas
 
 const
   maxChain*: int = 6
@@ -94,13 +94,13 @@ const
     ## Ways of ending that no caller can catch.
 
 type
-  OutcomeKind* {.role: other, metaTags: {tagGraph}.} = enum
+  OutcomeKind* {.role: other, tag: "graph".} = enum
     okRaise,
       ## An exception. Somebody above may catch it.
     okAbort
       ## The program stops. Nobody above can do anything.
 
-  Outcome* {.role: preparedData, metaTags: {tagGraph}.} = object
+  Outcome* {.role: preparedData, tag: "graph".} = object
     ## One way a routine can end other than by returning.
     name*: string
       ## The exception, or what stops the program.
@@ -110,7 +110,7 @@ type
     source*: string
       ## "raised here", "library" or "from a callee".
 
-  YieldPaths* {.role: truthState, metaTags: {tagGraph}.} = object
+  YieldPaths* {.role: truthState, tag: "graph".} = object
     target*: string
     path*: string
     line*: int
@@ -129,7 +129,7 @@ type
     notes*: seq[string]
     error*: string
 
-  TryRegion* {.role: preparedData, metaTags: {tagGraph}.} = object
+  TryRegion* {.role: preparedData, tag: "graph".} = object
     ## One `try` block of one routine, by line index into its body.
     first*: int
     last*: int
@@ -137,7 +137,7 @@ type
     catchAll*: bool
 
 proc libraryRaisers*(): Table[string, string] {.role: configurator,
-    metaTags: {tagGraph}.} =
+    tag: "graph".} =
   ## Names from the standard library whose ending is worth knowing,
   ## and what they end with.
   ##
@@ -162,7 +162,7 @@ proc libraryRaisers*(): Table[string, string] {.role: configurator,
       ("paramStr", "IndexDefect"), ("newHttpClient", "IOError")]:
     result[row[0]] = row[1]
 
-proc typeNameOf(s: string): string {.role: parser, metaTags: {tagGraph}.} =
+proc typeNameOf(s: string): string {.role: parser, tag: "graph".} =
   ## s: text that begins with a type name.
   ## That name and nothing else, so `IOError, "gone"` yields `IOError`.
   var
@@ -174,7 +174,7 @@ proc typeNameOf(s: string): string {.role: parser, metaTags: {tagGraph}.} =
   result = t[0 ..< i]
 
 proc tryRegionsOf*(f: FunctionInfo): seq[TryRegion] {.role: parser,
-    metaTags: {tagGraph}.} =
+    tag: "graph".} =
   ## f: one routine.
   ##
   ## Where its `try` blocks are, by line index into its body, and what
@@ -221,7 +221,7 @@ proc tryRegionsOf*(f: FunctionInfo): seq[TryRegion] {.role: parser,
     result.add(r)
 
 proc regionAt(regions: seq[TryRegion], k: int): int {.role: parser,
-    metaTags: {tagGraph}.} =
+    tag: "graph".} =
   ## regions: the try blocks of one routine   k: a line index.
   ## Which of them covers that line, or -1 when none does.
   result = -1
@@ -230,7 +230,7 @@ proc regionAt(regions: seq[TryRegion], k: int): int {.role: parser,
       result = i
 
 proc survives(regions: seq[TryRegion], k: int, name: string): bool
-    {.role: parser, metaTags: {tagGraph}.} =
+    {.role: parser, tag: "graph".} =
   ## regions: the try blocks   k: where the call or raise sits
   ## name: the exception. Whether it gets past the block around it.
   var
@@ -243,7 +243,7 @@ proc survives(regions: seq[TryRegion], k: int, name: string): bool
   result = name notin regions[at].caught
 
 proc callsOnLine*(s: string): seq[string] {.role: parser,
-    metaTags: {tagGraph}.} =
+    tag: "graph".} =
   ## s: one line of code.
   ## Every name written with a bracket after it. `a.b(c(d))` yields
   ## `b` and `c`, because those are the two things being called.
@@ -264,7 +264,7 @@ proc callsOnLine*(s: string): seq[string] {.role: parser,
       result.add(s[start ..< i])
 
 proc declaredRaises*(signature: string): tuple[stated: bool, names: seq[string]]
-    {.role: parser, metaTags: {tagGraph}.} =
+    {.role: parser, tag: "graph".} =
   ## signature: a routine declaration as written.
   ##
   ## What its own `{.raises: [...].}` says. That pragma is checked by
@@ -291,7 +291,7 @@ proc declaredRaises*(signature: string): tuple[stated: bool, names: seq[string]]
       result.names.add(typeNameOf(piece))
 
 proc notRunLines*(f: FunctionInfo): HashSet[int] {.role: parser,
-    metaTags: {tagGraph}.} =
+    tag: "graph".} =
   ## f: one routine.
   ##
   ## Which lines of its body do not run when the module is used as
@@ -337,7 +337,7 @@ proc notRunLines*(f: FunctionInfo): HashSet[int] {.role: parser,
 
 proc ownOutcomes*(f: FunctionInfo, lib: Table[string, string],
     known: HashSet[string]): seq[Outcome] {.role: truthBuilder,
-    metaTags: {tagGraph}.} =
+    tag: "graph".} =
   ## f: one routine   lib: the library names with a known ending
   ## known: every routine name this repository declares.
   ##
@@ -384,7 +384,7 @@ proc ownOutcomes*(f: FunctionInfo, lib: Table[string, string],
     k = k + 1
 
 proc callSitesOf*(f: FunctionInfo, known: HashSet[string]):
-    seq[tuple[name: string, at: int]] {.role: parser, metaTags: {tagGraph}.} =
+    seq[tuple[name: string, at: int]] {.role: parser, tag: "graph".} =
   ## f: one routine   known: every routine name in the repository.
   ## Which of them it calls, and on which line of its body, because
   ## the line decides whether a `try` covers the call.
@@ -397,7 +397,7 @@ proc callSitesOf*(f: FunctionInfo, known: HashSet[string]):
         result.add((name: c, at: k))
     k = k + 1
 
-proc shorterFirst(a, b: Outcome): int {.role: helper, metaTags: {tagGraph}.} =
+proc shorterFirst(a, b: Outcome): int {.role: helper, tag: "graph".} =
   ## Aborts before exceptions, then the shortest path, then by name.
   ## A reader deciding whether to add a call wants the ending nobody
   ## can catch at the top of the list.
@@ -408,7 +408,7 @@ proc shorterFirst(a, b: Outcome): int {.role: helper, metaTags: {tagGraph}.} =
     result = cmp(a.name, b.name)
 
 proc siteLines(f: FunctionInfo, name: string): seq[int] {.role: parser,
-    metaTags: {tagGraph}.} =
+    tag: "graph".} =
   ## f: one routine   name: something it calls.
   ## Which lines of its body call that. Empty when the call is there
   ## but not written out - through a macro, say - and the caller then
@@ -423,7 +423,7 @@ proc siteLines(f: FunctionInfo, name: string): seq[int] {.role: parser,
     k = k + 1
 
 proc anySurvives(regions: seq[TryRegion], ats: seq[int], name: string): bool
-    {.role: parser, metaTags: {tagGraph}.} =
+    {.role: parser, tag: "graph".} =
   ## regions: the try blocks   ats: every line the call sits on
   ## name: the exception.
   ##
@@ -437,7 +437,7 @@ proc anySurvives(regions: seq[TryRegion], ats: seq[int], name: string): bool
       return true
 
 proc escapingOf*(g: RepoGraph): Table[string, seq[Outcome]]
-    {.role: metaOrchestrator, metaTags: {tagGraph}.} =
+    {.role: metaOrchestrator, tag: "graph".} =
   ## g: the whole graph.
   ##
   ## For every routine name, every way a call to it can end other than
@@ -527,7 +527,7 @@ proc escapingOf*(g: RepoGraph): Table[string, seq[Outcome]]
     result[name].sort(shorterFirst)
 
 proc carrierFieldOf*(rootDir, tName: string): string {.role: parser,
-    metaTags: {tagGraph}.} =
+    tag: "graph".} =
   ## rootDir: the repository   tName: a return type.
   ## The entry of that type that holds a failure, or "" when it has
   ## none. A type carrying one can report trouble without raising, and
@@ -550,7 +550,7 @@ proc carrierFieldOf*(rootDir, tName: string): string {.role: parser,
 
 proc isBarrier(f: FunctionInfo, regions: seq[TryRegion],
     sites: seq[tuple[name: string, at: int]]): bool {.role: parser,
-    metaTags: {tagGraph}.} =
+    tag: "graph".} =
   ## f: one routine   regions: its try blocks   sites: its calls.
   ##
   ## Whether nothing from below reaches anybody above. True when the
@@ -568,7 +568,7 @@ proc isBarrier(f: FunctionInfo, regions: seq[TryRegion],
 
 proc yieldPathsOf*(g: RepoGraph, name: string,
     escaping: Table[string, seq[Outcome]]): YieldPaths
-    {.role: metaOrchestrator, metaTags: {tagGraph}.} =
+    {.role: metaOrchestrator, tag: "graph".} =
   ## g: the whole graph   name: the routine being asked about
   ## escaping: the answer for every routine, from `escapingOf`.
   ##
@@ -627,7 +627,7 @@ proc yieldPathsOf*(g: RepoGraph, name: string,
       "argues with it")
 
 proc yieldLines*(r: YieldPaths): seq[string] {.role: dataWriter,
-    metaTags: {tagGraph}.} =
+    tag: "graph".} =
   ## r: one answer, as plain lines. The value first, because that is
   ## the answer most of the time; then the endings that a signature
   ## does not mention, worst first.
@@ -681,7 +681,7 @@ proc yieldLines*(r: YieldPaths): seq[string] {.role: dataWriter,
     result.add("  note: " & note)
 
 type
-  AbortReach* {.role: preparedData, metaTags: {tagGraph}.} = object
+  AbortReach* {.role: preparedData, tag: "graph".} = object
     ## One routine that can stop the program because of something it
     ## calls, rather than because of anything written in it.
     routine*: string
@@ -692,7 +692,7 @@ type
     via*: seq[string]
 
 proc abortReachOf*(g: RepoGraph, escaping: Table[string, seq[Outcome]]):
-    seq[AbortReach] {.role: truthBuilder, metaTags: {tagGraph}.} =
+    seq[AbortReach] {.role: truthBuilder, tag: "graph".} =
   ## g: the whole graph   escaping: the answer for every routine.
   ##
   ## The routines that can stop the program because of something two

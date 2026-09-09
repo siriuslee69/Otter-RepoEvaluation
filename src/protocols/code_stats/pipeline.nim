@@ -19,7 +19,7 @@ import ./test_scan
 import ./types
 import ../repo_graph/io_utils
 import ../repo_graph/types as graphTypes
-import otterPragmas
+import runePragmas
 
 const
   roleLabels*: array[12, array[2, string]] = [
@@ -40,7 +40,7 @@ const
     ## How many unreachable routines are named. The rest are counted.
 
 type
-  CoverWalk* {.role: truthState, metaTags: {tagStats}.} = object
+  CoverWalk* {.role: truthState, tag: "stats".} = object
     ## What every test between them reaches, kept once so the rings,
     ## the per-file tally, and the unused list all read the same walk.
     hits*: CountTable[string]
@@ -51,7 +51,7 @@ type
     kinds*: seq[NameCount]
     declared*: int
 
-proc roleLabel*(raw: string): string {.role: helper, metaTags: {tagStats}.} =
+proc roleLabel*(raw: string): string {.role: helper, tag: "stats".} =
   ## raw: whatever was written after `role:` in the pragma.
   var
     t: string = raw.strip().toLowerAscii()
@@ -69,7 +69,7 @@ proc roleLabel*(raw: string): string {.role: helper, metaTags: {tagStats}.} =
 
 
 proc declaredRoleOf*(f: FunctionInfo): string {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## f: one routine. Empty when nothing declared what it is.
   result = ""
   for row in f.pragmaTags:
@@ -78,7 +78,7 @@ proc declaredRoleOf*(f: FunctionInfo): string {.role: parser,
       return
 
 
-proc lengthOf*(f: FunctionInfo): int {.role: parser, metaTags: {tagStats}.} =
+proc lengthOf*(f: FunctionInfo): int {.role: parser, tag: "stats".} =
   ## f: one routine, measured from its first line to its last.
   result = f.lineEnd - f.lineStart + 1
   if result < 1:
@@ -86,7 +86,7 @@ proc lengthOf*(f: FunctionInfo): int {.role: parser, metaTags: {tagStats}.} =
 
 
 proc templateNames*(A: seq[FunctionInfo]): HashSet[string]
-    {.role: truthBuilder, metaTags: {tagStats}.} =
+    {.role: truthBuilder, tag: "stats".} =
   ## A: every routine in the tree. The names declared as templates,
   ## lowered, so a use of one can be told from an ordinary call.
   result = initHashSet[string]()
@@ -95,7 +95,7 @@ proc templateNames*(A: seq[FunctionInfo]): HashSet[string]
       result.incl(row.name.toLowerAscii())
 
 
-proc pragmaKey*(tag: string): string {.role: parser, metaTags: {tagStats}.} =
+proc pragmaKey*(tag: string): string {.role: parser, tag: "stats".} =
   ## tag: one pragma read off a routine, such as `role:helper`. The
   ## name in front of the colon is the template that was applied.
   var
@@ -106,7 +106,7 @@ proc pragmaKey*(tag: string): string {.role: parser, metaTags: {tagStats}.} =
 
 
 proc templateCallsOf*(f: FunctionInfo, marks: HashSet[string]): int
-    {.role: parser, metaTags: {tagStats}.} =
+    {.role: parser, tag: "stats".} =
   ## f: one routine. marks: every template name in the tree, lowered.
   ## A template is used two ways in Nim — written as a call, or hung on
   ## a routine as a pragma — and both are counted, because a repository
@@ -121,7 +121,7 @@ proc templateCallsOf*(f: FunctionInfo, marks: HashSet[string]): int
 
 
 proc pragmaKeys*(A: seq[FunctionInfo]): HashSet[string] {.role: truthBuilder,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A: every routine in the tree. Every template name that was hung on
   ## a routine as a pragma, lowered. A pragma template is written once
   ## and used a thousand times without a single bracket after it, and
@@ -132,14 +132,14 @@ proc pragmaKeys*(A: seq[FunctionInfo]): HashSet[string] {.role: truthBuilder,
       result.incl(pragmaKey(tagRow))
 
 
-proc isInput*(f: FunctionInfo): bool {.role: parser, metaTags: {tagStats}.} =
+proc isInput*(f: FunctionInfo): bool {.role: parser, tag: "stats".} =
   ## f: one routine. True when it reads from outside the program or was
   ## declared as the thing that cleans such input up.
   result = f.handlesUserInput or declaredRoleOf(f) == "sanitizer"
 
 
 proc untestedIn*(A: seq[FunctionInfo], w: CoverWalk): int {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A: the routines of one file. w: the walk the tests made.
   result = 0
   for row in A:
@@ -148,7 +148,7 @@ proc untestedIn*(A: seq[FunctionInfo], w: CoverWalk): int {.role: parser,
 
 
 proc bandFor*(rank, total: int): SizeBand {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## rank: this file's place once every file is ordered longest first.
   ## total: how many files there are. Four bands of roughly equal size,
   ## because the grid has four row heights and no more.
@@ -166,7 +166,7 @@ proc bandFor*(rank, total: int): SizeBand {.role: parser,
     result = sbMid
 
 
-proc byLines(a, b: FileStat): int {.role: helper, metaTags: {tagStats}.} =
+proc byLines(a, b: FileStat): int {.role: helper, tag: "stats".} =
   ## a, b: two measured files. Longest first, then by path so two files
   ## of the same length never trade places between runs.
   result = cmp(b.lines, a.lines)
@@ -174,7 +174,7 @@ proc byLines(a, b: FileStat): int {.role: helper, metaTags: {tagStats}.} =
     result = cmp(a.path, b.path)
 
 
-proc applyBands*(S: var seq[FileStat]) {.role: actor, metaTags: {tagStats}.} =
+proc applyBands*(S: var seq[FileStat]) {.role: actor, tag: "stats".} =
   ## S: every measured file. Gives each one its size band and its share
   ## of the longest file, which is what the grid draws as height.
   var
@@ -191,7 +191,7 @@ proc applyBands*(S: var seq[FileStat]) {.role: actor, metaTags: {tagStats}.} =
 
 proc fileRow*(rootDir, path: string, A: seq[FunctionInfo],
     marks: HashSet[string], w: CoverWalk): FileStat {.role: truthBuilder,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## rootDir: the tree being measured. path: one file inside it.
   ## A: only the routines declared in that file. marks: template names.
   ## w: the walk the tests made, so the file can say how much of it no
@@ -224,7 +224,7 @@ proc fileRow*(rootDir, path: string, A: seq[FunctionInfo],
   result.untested = untestedIn(A, w)
 
 
-proc byInner(a, b: NestSite): int {.role: helper, metaTags: {tagStats}.} =
+proc byInner(a, b: NestSite): int {.role: helper, tag: "stats".} =
   ## a, b: two nesting sites. Deepest first, then longest, so the list
   ## the window shows starts with the worst of them.
   result = cmp(b.depth, a.depth)
@@ -233,7 +233,7 @@ proc byInner(a, b: NestSite): int {.role: helper, metaTags: {tagStats}.} =
 
 
 proc addSite(S: var NestStats, row: NestSite) {.role: actor,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## S: the tally. row: one site being counted into it.
   if row.depth == 2:
     S.doubles = S.doubles + 1
@@ -248,7 +248,7 @@ proc addSite(S: var NestStats, row: NestSite) {.role: actor,
 
 
 proc nestOf*(A: seq[FunctionInfo], marks: HashSet[string]): NestStats
-    {.role: truthBuilder, metaTags: {tagStats}.} =
+    {.role: truthBuilder, tag: "stats".} =
   ## A: every routine in the tree. marks: the template names.
   var
     sites: seq[NestSite] = @[]
@@ -275,7 +275,7 @@ proc nestOf*(A: seq[FunctionInfo], marks: HashSet[string]): NestStats
 
 
 proc nameIndex*(A: seq[FunctionInfo]): Table[string, seq[string]]
-    {.role: truthBuilder, metaTags: {tagStats}.} =
+    {.role: truthBuilder, tag: "stats".} =
   ## A: the routines a test may reach. Their names, each pointing at
   ## every routine that carries it, because one name can be overloaded.
   result = initTable[string, seq[string]]()
@@ -286,7 +286,7 @@ proc nameIndex*(A: seq[FunctionInfo]): Table[string, seq[string]]
 
 
 proc calleeIndex*(A: seq[CallEdge]): Table[string, seq[string]]
-    {.role: truthBuilder, metaTags: {tagStats}.} =
+    {.role: truthBuilder, tag: "stats".} =
   ## A: the call graph. Who each routine calls, ready to walk.
   result = initTable[string, seq[string]]()
   for row in A:
@@ -296,7 +296,7 @@ proc calleeIndex*(A: seq[CallEdge]): Table[string, seq[string]]
 
 
 proc reachedBy*(seeds: seq[string], edges: Table[string, seq[string]]):
-    HashSet[string] {.role: truthBuilder, metaTags: {tagStats}.} =
+    HashSet[string] {.role: truthBuilder, tag: "stats".} =
   ## seeds: the routines one test calls directly. edges: who calls whom.
   ## Everything the test can set running, not only what it names, so a
   ## helper three calls down still counts as tested.
@@ -319,7 +319,7 @@ proc reachedBy*(seeds: seq[string], edges: Table[string, seq[string]]):
 
 
 proc seedsOf*(t: TestInfo, names: Table[string, seq[string]]): seq[string]
-    {.role: parser, metaTags: {tagStats}.} =
+    {.role: parser, tag: "stats".} =
   ## t: one test. names: every routine name in the tree.
   result = @[]
   for row in t.calls:
@@ -328,7 +328,7 @@ proc seedsOf*(t: TestInfo, names: Table[string, seq[string]]): seq[string]
 
 
 proc markKind(S: var CoverWalk, kind, id: string) {.role: actor,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## S: the walk being filled. kind: what the test was for. id: one
   ## routine that test can set running.
   if kind == kindNames[1]:
@@ -343,7 +343,7 @@ proc markKind(S: var CoverWalk, kind, id: string) {.role: actor,
 
 proc walkTests*(A: seq[FunctionInfo], tests: var seq[TestInfo],
     edges: seq[CallEdge]): CoverWalk {.role: truthBuilder,
-    metaTags: {tagStats, tagTesting}.} =
+    tag: "stats|testing".} =
   ## A: the routines that are not themselves tests. tests: every test
   ## found; each is told afterwards how much it reaches. edges: the
   ## call graph the walk follows.
@@ -376,7 +376,7 @@ proc walkTests*(A: seq[FunctionInfo], tests: var seq[TestInfo],
 
 proc coverageOf*(A: seq[FunctionInfo], tests: seq[TestInfo],
     w: CoverWalk): TestStats {.role: truthBuilder,
-    metaTags: {tagStats, tagTesting}.} =
+    tag: "stats|testing".} =
   ## A: the routines under test. tests: every test found. w: the walk
   ## those tests already made through the call graph.
   var
@@ -391,7 +391,7 @@ proc coverageOf*(A: seq[FunctionInfo], tests: seq[TestInfo],
 
 
 proc calledSet*(A: seq[CallEdge]): HashSet[string] {.role: truthBuilder,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A: the call graph. Everything something else calls.
   result = initHashSet[string]()
   for row in A:
@@ -400,7 +400,7 @@ proc calledSet*(A: seq[CallEdge]): HashSet[string] {.role: truthBuilder,
 
 proc collectFiles*(rootDir: string, A: seq[FunctionInfo],
     files: seq[string], marks: HashSet[string], w: CoverWalk): seq[FileStat]
-    {.role: truthBuilder, metaTags: {tagStats}.} =
+    {.role: truthBuilder, tag: "stats".} =
   ## rootDir: the tree. A: every routine. files: every file that was
   ## read, so a file without a single routine still gets its cell.
   ## marks: the template names. w: the walk the tests made.
@@ -419,7 +419,7 @@ proc collectFiles*(rootDir: string, A: seq[FunctionInfo],
     result.add(fileRow(rootDir, path, byFile.getOrDefault(key, @[]), marks, w))
   applyBands(result)
 
-proc extOf(path: string): string {.inline, role: helper, metaTags: {tagStats}.} =
+proc extOf(path: string): string {.inline, role: helper, tag: "stats".} =
   var
     dot: int = path.rfind('.')
   if dot >= 0:
@@ -427,7 +427,7 @@ proc extOf(path: string): string {.inline, role: helper, metaTags: {tagStats}.} 
   else:
     result = "other"
 
-proc langOf(ext: string): string {.inline, role: helper, metaTags: {tagStats}.} =
+proc langOf(ext: string): string {.inline, role: helper, tag: "stats".} =
   case ext
   of "nim", "nims", "nimble": result = "nim"
   of "c", "h": result = "c"
@@ -440,7 +440,7 @@ proc langOf(ext: string): string {.inline, role: helper, metaTags: {tagStats}.} 
   else: result = "other"
 
 proc listAllSourceFiles*(rootDir: string): seq[string] {.role: dataFetcher,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## Recursively find all source and config files in rootDir, skipping the
   ## vendored folders named in `vendoredDirs`. Tests are kept: a repository's
   ## own tests are its own code, and the coverage figures need them.
@@ -457,7 +457,7 @@ proc listAllSourceFiles*(rootDir: string): seq[string] {.role: dataFetcher,
     discard
 
 proc gatherLangStats*(files: seq[string]): seq[LangStat] {.role: truthBuilder,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   var
     counts = initTable[string, tuple[files: int, lines: int]]()
   for path in files:
@@ -475,7 +475,7 @@ proc gatherLangStats*(files: seq[string]): seq[LangStat] {.role: truthBuilder,
     if counts.hasKey(key):
       result.add(LangStat(ext: key, files: counts[key].files, lines: counts[key].lines))
 
-proc parseGitignorePatterns(rootDir: string): seq[string] {.role: parser, metaTags: {tagStats}.} =
+proc parseGitignorePatterns(rootDir: string): seq[string] {.role: parser, tag: "stats".} =
   result = @[]
   let gitignorePath = rootDir / ".gitignore"
   if fileExists(gitignorePath):
@@ -485,7 +485,7 @@ proc parseGitignorePatterns(rootDir: string): seq[string] {.role: parser, metaTa
         result.add(s)
 
 proc gatherGitignoreStats*(rootDir: string): GitignoreStat {.role: truthBuilder,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   var
     ignoredFilesCount: int = 0
     ignoredLinesCount: int = 0
@@ -512,7 +512,7 @@ proc gatherGitignoreStats*(rootDir: string): GitignoreStat {.role: truthBuilder,
 
 proc scanInputDetailsAndSanitizers*(rootDir: string, files: seq[string],
     nimFunctions: seq[FunctionInfo]): tuple[inputs: seq[InputFuncInfo], inputCount: int, sanitizerCount: int] {.
-    role: truthBuilder, metaTags: {tagStats}.} =
+    role: truthBuilder, tag: "stats".} =
   var
     inputList: seq[InputFuncInfo] = @[]
     inCount: int = 0
@@ -572,7 +572,7 @@ proc scanInputDetailsAndSanitizers*(rootDir: string, files: seq[string],
 
 proc scanUnsafeDetails*(rootDir: string, files: seq[string],
     nimFunctions: seq[FunctionInfo], inputFuncs: seq[InputFuncInfo],
-    edges: seq[CallEdge]): seq[UnsafeFuncInfo] {.role: truthBuilder, metaTags: {tagStats}.} =
+    edges: seq[CallEdge]): seq[UnsafeFuncInfo] {.role: truthBuilder, tag: "stats".} =
   result = @[]
   var inputNames = initHashSet[string]()
   for item in inputFuncs:
@@ -624,7 +624,7 @@ proc scanUnsafeDetails*(rootDir: string, files: seq[string],
       lineIdx = lineIdx + 1
 
 proc scanUnusedImports*(rootDir: string, files: seq[string]): seq[UnusedImportInfo] {.
-    role: truthBuilder, metaTags: {tagStats}.} =
+    role: truthBuilder, tag: "stats".} =
   result = @[]
   for path in files:
     if extOf(path) notin ["nim", "nims"]: continue
@@ -648,7 +648,7 @@ proc scanUnusedImports*(rootDir: string, files: seq[string]): seq[UnusedImportIn
 
 proc scanWhenSitesAndPlatformCoverage*(rootDir: string, files: seq[string]): tuple[
     sites: seq[WhenSite], platforms: seq[NameCount], simd: seq[SimdSite]] {.
-    role: truthBuilder, metaTags: {tagStats}.} =
+    role: truthBuilder, tag: "stats".} =
   var
     sitesList: seq[WhenSite] = @[]
     platTable = initTable[string, int]()
@@ -696,7 +696,7 @@ proc scanWhenSitesAndPlatformCoverage*(rootDir: string, files: seq[string]): tup
   result = (sites: sitesList, platforms: platCounts, simd: simdList)
 
 proc buildImportGraphAndDepth*(rootDir: string, files: seq[string]): tuple[
-    depth: int, cycles: seq[CircularImportInfo]] {.role: truthBuilder, metaTags: {tagStats}.} =
+    depth: int, cycles: seq[CircularImportInfo]] {.role: truthBuilder, tag: "stats".} =
   var
     adj = initTable[string, seq[string]]()
     cyclesList: seq[CircularImportInfo] = @[]
@@ -745,7 +745,7 @@ proc buildImportGraphAndDepth*(rootDir: string, files: seq[string]): tuple[
 
 proc calculateScopeStats*(files: seq[FileStat]): tuple[
     src: ProjectScopeStats, all: ProjectScopeStats, test: ProjectScopeStats] {.
-    role: truthBuilder, metaTags: {tagStats}.} =
+    role: truthBuilder, tag: "stats".} =
   var
     srcS = ProjectScopeStats()
     allS = ProjectScopeStats()

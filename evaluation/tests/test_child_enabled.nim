@@ -3,10 +3,10 @@
 # | -> Child process used to verify exit-log flushing       |
 # ============================================================
 
-import otterPragmas
+import runePragmas
 import otter_repo_evaluation
 
-proc childLeaf*(a: int): int {.otterTimed, role: helper, metaTags: {tagTesting}.} =
+proc childLeaf*(a: int): int {.otterTimed, role: helper, tag: "testing".} =
   ## a: input value.
   var
     t: int = 0
@@ -14,7 +14,7 @@ proc childLeaf*(a: int): int {.otterTimed, role: helper, metaTags: {tagTesting}.
   result = t
 
 
-proc childBranch*(a: int): int {.otterBench, role: helper, metaTags: {tagTesting}.} =
+proc childBranch*(a: int): int {.otterBench, role: helper, tag: "testing".} =
   ## a: input value.
   var
     t: int = 0

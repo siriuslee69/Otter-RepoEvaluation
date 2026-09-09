@@ -5,7 +5,7 @@
 
 import std/macros
 
-import otterPragmas
+import runePragmas
 import ./state
 import ./evaluation/benchmarks
 
@@ -20,7 +20,7 @@ const
 
 
 template otterSpan*(n: string, p: string, l: int, c: int,
-    body: untyped): untyped {.role: helper, metaTags: {tagInstrumentation, tagTiming}.} =
+    body: untyped): untyped {.role: helper, tag: "instrumentation|timing".} =
   ## n: function name.
   ## p: source path.
   ## l: source line.
@@ -59,7 +59,7 @@ template otterSpan*(n: string, p: string, l: int, c: int,
     body
 
 
-proc otterRoutineName(n: NimNode): string {.compileTime, role: helper, metaTags: {tagInstrumentation}.} =
+proc otterRoutineName(n: NimNode): string {.compileTime, role: helper, tag: "instrumentation".} =
   var
     t: NimNode
     s: string = ""
@@ -70,10 +70,10 @@ proc otterRoutineName(n: NimNode): string {.compileTime, role: helper, metaTags:
   result = s
 
 
-proc otterInstrumentNode(n: NimNode, sourcePath: string = "", lineOffset: int = 0): NimNode {.compileTime, role: helper, metaTags: {tagInstrumentation}.}
+proc otterInstrumentNode(n: NimNode, sourcePath: string = "", lineOffset: int = 0): NimNode {.compileTime, role: helper, tag: "instrumentation".}
 
 
-proc otterInstrumentRoutine(n: NimNode, sourcePath: string = "", lineOffset: int = 0): NimNode {.compileTime, role: helper, metaTags: {tagInstrumentation}.} =
+proc otterInstrumentRoutine(n: NimNode, sourcePath: string = "", lineOffset: int = 0): NimNode {.compileTime, role: helper, tag: "instrumentation".} =
   var
     info: LineInfo
     r: NimNode
@@ -104,7 +104,7 @@ proc otterInstrumentRoutine(n: NimNode, sourcePath: string = "", lineOffset: int
 
 
 proc otterInstrumentNode(n: NimNode, sourcePath: string = "",
-    lineOffset: int = 0): NimNode {.compileTime, role: helper, metaTags: {tagInstrumentation}.} =
+    lineOffset: int = 0): NimNode {.compileTime, role: helper, tag: "instrumentation".} =
   var
     t: NimNode
   if n.kind in OtterRoutineKinds:
@@ -116,24 +116,24 @@ proc otterInstrumentNode(n: NimNode, sourcePath: string = "",
   result = t
 
 
-macro otterTimed*(body: untyped): untyped {.role: helper, metaTags: {tagInstrumentation, tagParentIntegration}.} =
+macro otterTimed*(body: untyped): untyped {.role: helper, tag: "instrumentation|parentIntegration".} =
   ## body: statement list or single routine definition.
   result = otterInstrumentNode(body)
 
 
-macro otterInstrument*(body: untyped): untyped {.role: helper, metaTags: {tagInstrumentation, tagParentIntegration}.} =
+macro otterInstrument*(body: untyped): untyped {.role: helper, tag: "instrumentation|parentIntegration".} =
   ## body: statement list or single routine definition.
   result = otterInstrumentNode(body)
 
 
-macro otterBench*(body: untyped): untyped {.role: helper, metaTags: {tagInstrumentation, tagParentIntegration}.} =
+macro otterBench*(body: untyped): untyped {.role: helper, tag: "instrumentation|parentIntegration".} =
   ## body: statement list or single routine definition.
   ## Supports both block-macro use and direct routine pragmas.
   result = otterInstrumentNode(body)
 
 
 proc otterUiRoutineName(n: NimNode): NimNode {.compileTime, role: helper,
-    metaTags: {tagInstrumentation, tagUi}.} =
+    tag: "instrumentation|ui".} =
   ## n: annotated routine whose callable symbol is returned.
   var
     t: NimNode
@@ -144,7 +144,7 @@ proc otterUiRoutineName(n: NimNode): NimNode {.compileTime, role: helper,
 
 
 proc validateOtterUiMetadata(n: NimNode) {.compileTime, role: parser,
-    metaTags: {tagInstrumentation, tagUi}.} =
+    tag: "instrumentation|ui".} =
   ## n: literal four-string tuple or array attached to an UI test.
   if n.kind notin {nnkTupleConstr, nnkBracket}:
     error("otterUiTest expects (test name, menu, filters, version)", n)
@@ -156,7 +156,7 @@ proc validateOtterUiMetadata(n: NimNode) {.compileTime, role: parser,
 
 
 macro otterUiTest*(metadata: untyped, body: untyped): untyped
-    {.role: helper, metaTags: {tagInstrumentation, tagParentIntegration, tagUi}.} =
+    {.role: helper, tag: "instrumentation|parentIntegration|ui".} =
   ## metadata: test name, menu point, comma-separated filters, and version label.
   ## body: zero-argument routine compiled and called by the isolated UI worker.
   var
@@ -186,7 +186,7 @@ macro otterUiTest*(metadata: untyped, body: untyped): untyped
 
 
 macro otterWrapFile*(p: static[string], lineOffset: static[int],
-    body: untyped): untyped {.role: helper, metaTags: {tagInstrumentation, tagParentIntegration}.} =
+    body: untyped): untyped {.role: helper, tag: "instrumentation|parentIntegration".} =
   ## p: original source path for debug output.
   ## lineOffset: wrapper header line count added before the original file.
   ## body: original source body to instrument.

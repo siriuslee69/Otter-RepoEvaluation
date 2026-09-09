@@ -65,7 +65,7 @@ import ../repo_graph/analysis_pipeline
 import ./types
 import ./project
 import ./blast
-import otterPragmas
+import runePragmas
 
 const
   maxReach*: int = 12
@@ -92,13 +92,13 @@ const
     ## as an unfinished one because of a word in it.
 
 type
-  Hunk* {.role: preparedData, metaTags: {tagStats}.} = object
+  Hunk* {.role: preparedData, tag: "stats".} = object
     ## One run of lines the diff touched, in the file as it is now.
     path*: string
     first*: int
     last*: int
 
-  Finding* {.role: preparedData, metaTags: {tagStats}.} = object
+  Finding* {.role: preparedData, tag: "stats".} = object
     ## One thing worth looking at, and how to look at it again.
     kind*: string
     what*: string
@@ -107,7 +107,7 @@ type
     command*: string
       ## The command that found this, ready to run.
 
-  ReachRow* {.role: preparedData, metaTags: {tagStats}.} = object
+  ReachRow* {.role: preparedData, tag: "stats".} = object
     ## One changed routine, and who would feel it.
     routine*: string
     path*: string
@@ -117,7 +117,7 @@ type
     notes*: seq[string]
     command*: string
 
-  DiffReview* {.role: truthState, metaTags: {tagStats}.} = object
+  DiffReview* {.role: truthState, tag: "stats".} = object
     rootDir*: string
     baseRev*: string
     files*: seq[string]
@@ -136,13 +136,13 @@ type
     error*: string
 
 proc runGit(rootDir: string, args: string): tuple[output: string,
-    exitCode: int] {.role: dataFetcher, metaTags: {tagStats}.} =
+    exitCode: int] {.role: dataFetcher, tag: "stats".} =
   ## rootDir: the repository   args: the rest of the command line.
   ## What git said, and whether it was happy.
   result = execCmdEx("git -C " & quoteShell(rootDir) & " " & args)
 
 proc relTo(root, path: string): string {.role: sanitizer,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## root: where the measurement was taken   path: one path from it.
   ## The path with the root cut off, so it matches what git prints.
   var
@@ -155,7 +155,7 @@ proc relTo(root, path: string): string {.role: sanitizer,
   result = p.strip(chars = {'/', '.'}, trailing = false)
 
 proc parseHunkHeader*(s, path: string): Hunk {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## s: a line like `@@ -12,3 +40,5 @@`   path: the file it is in.
   ##
   ## The run of lines it names in the file as it is now. A count of
@@ -184,7 +184,7 @@ proc parseHunkHeader*(s, path: string): Hunk {.role: parser,
 
 proc changedLines(rootDir, rev: string): tuple[hunks: seq[Hunk],
     files: seq[string], added, removed: int, cut: seq[string]]
-    {.role: dataFetcher, metaTags: {tagStats}.} =
+    {.role: dataFetcher, tag: "stats".} =
   ## rootDir: the repository   rev: what to compare against.
   ##
   ## Which lines differ, which files, and the text of every line the
@@ -229,7 +229,7 @@ proc changedLines(rootDir, rev: string): tuple[hunks: seq[Hunk],
   result.files.sort(system.cmp[string])
 
 proc findingsOf(s: ProjectStats, root: string): seq[Finding]
-    {.role: truthBuilder, metaTags: {tagStats}.} =
+    {.role: truthBuilder, tag: "stats".} =
   ## s: the measured tree   root: how to write it in a command.
   ##
   ## Every finding the measurement holds, flattened into one list with
@@ -285,7 +285,7 @@ proc findingsOf(s: ProjectStats, root: string): seq[Finding]
       command: stats & " --json   (.embedded)"))
 
 proc touched(hunks: seq[Hunk], path: string, line: int): bool
-    {.role: parser, metaTags: {tagStats}.} =
+    {.role: parser, tag: "stats".} =
   ## hunks: the runs of lines the change touched   path, line: a finding.
   ## Whether that finding sits on one of them.
   result = false
@@ -294,7 +294,7 @@ proc touched(hunks: seq[Hunk], path: string, line: int): bool
       return true
 
 proc orphansOf(g: RepoGraph, cut: seq[string], root: string): seq[Finding]
-    {.role: truthBuilder, metaTags: {tagStats}.} =
+    {.role: truthBuilder, tag: "stats".} =
   ## g: the tree as it is   cut: the text of every removed line
   ## root: how to write the repository in a command.
   ##
@@ -324,7 +324,7 @@ proc orphansOf(g: RepoGraph, cut: seq[string], root: string): seq[Finding]
       command: "otter-repo-graph blast " & root & " " & f.name))
 
 proc definedIn(g: RepoGraph, files: seq[string]): seq[FunctionInfo]
-    {.role: parser, metaTags: {tagStats}.} =
+    {.role: parser, tag: "stats".} =
   ## g: the tree as it is   files: the paths that changed.
   ##
   ## The routines those files declare, out of the source only. A
@@ -345,7 +345,7 @@ proc definedIn(g: RepoGraph, files: seq[string]): seq[FunctionInfo]
       result.add(fn)
 
 proc reachOf(g: RepoGraph, touchedFns: seq[FunctionInfo], root: string):
-    seq[ReachRow] {.role: truthBuilder, metaTags: {tagStats}.} =
+    seq[ReachRow] {.role: truthBuilder, tag: "stats".} =
   ## g: the tree   touchedFns: the routines that changed
   ## root: how to write the repository in a command.
   ##
@@ -379,7 +379,7 @@ proc reachOf(g: RepoGraph, touchedFns: seq[FunctionInfo], root: string):
       result = cmp(a.routine, b.routine))
 
 proc diffReview*(rootDir, rev: string): DiffReview {.role: metaOrchestrator,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## rootDir: the repository as it stands   rev: what to compare with.
   ##
   ## The one call to make before saying a change is finished. One
@@ -453,7 +453,7 @@ proc diffReview*(rootDir, rev: string): DiffReview {.role: metaOrchestrator,
     "`stats` still answers that")
 
 proc findingBlock(rows: seq[Finding], title: string, cap: int): seq[string]
-    {.role: dataWriter, metaTags: {tagStats}.} =
+    {.role: dataWriter, tag: "stats".} =
   ## rows: what to show   title: the heading   cap: how many fit.
   ## One heading and its findings, each with the command that found it
   ## on the line below.
@@ -474,7 +474,7 @@ proc findingBlock(rows: seq[Finding], title: string, cap: int): seq[string]
       "   " & f.command)
 
 proc diffLines*(r: DiffReview): seq[string] {.role: dataWriter,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## r: one answer, as plain lines.
   ##
   ## Ordered by how likely a line is to be the reader's own doing.

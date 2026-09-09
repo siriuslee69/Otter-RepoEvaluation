@@ -13,4 +13,10 @@ if fileExists("submodules/Fylgia-Utils/src/protocols/math/vector_space.nim"):
 
 ## Pragma module, named for this repository so no other repo on the Nim
 ## path can capture it. See CONTRIBUTING in Proto-RepoTemplate.
-switch("path", thisDir() & "/meta")
+
+## Shared pragma module: one file for the whole workspace, so there is no
+## per-repository copy to drift or to collide on the Nim path.
+if dirExists(thisDir() & "/../Rune-Pragmas/meta"):
+  switch("path", thisDir() & "/../Rune-Pragmas/meta")
+if dirExists(thisDir() & "/submodules/Rune-Pragmas/meta"):
+  switch("path", thisDir() & "/submodules/Rune-Pragmas/meta")

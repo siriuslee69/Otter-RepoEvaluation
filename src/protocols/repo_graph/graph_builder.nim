@@ -6,9 +6,9 @@
 import std/[sets, tables]
 
 import ./types
-import otterPragmas
+import runePragmas
 
-proc importPreference(f: FunctionInfo, callName, targetModulePath: string): int {.role: helper, metaTags: {tagGraph, tagResolution, tagImportContext}.} =
+proc importPreference(f: FunctionInfo, callName, targetModulePath: string): int {.role: helper, tag: "graph|resolution|importContext".} =
   var
     i: int = 0
   while i < f.importBindings.len:
@@ -29,7 +29,7 @@ proc importPreference(f: FunctionInfo, callName, targetModulePath: string): int 
 
 
 proc chooseTargetIndex(fs: seq[FunctionInfo], callerIdx: int,
-    idxs: seq[int], callName: string): int {.role: helper, metaTags: {tagGraph, tagResolution}.} =
+    idxs: seq[int], callName: string): int {.role: helper, tag: "graph|resolution".} =
   var
     bestIdx: int = -1
     bestRank: int = high(int)
@@ -58,7 +58,7 @@ proc chooseTargetIndex(fs: seq[FunctionInfo], callerIdx: int,
 
 
 proc buildCallGraph*(fs: seq[FunctionInfo]): tuple[edges: seq[CallEdge],
-    unresolved: seq[string]] {.role: truthBuilder, metaTags: {tagGraph, tagResolution}.} =
+    unresolved: seq[string]] {.role: truthBuilder, tag: "graph|resolution".} =
   var
     nameMap: Table[string, seq[int]]
     edgeSet: HashSet[string]

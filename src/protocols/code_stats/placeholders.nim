@@ -34,7 +34,7 @@
 import std/[algorithm, sets, strutils]
 
 import ../repo_graph/types as graphTypes
-import otterPragmas
+import runePragmas
 
 const
   placeholderFloor*: float = 0.45
@@ -53,7 +53,7 @@ const
     ## Bodies that amount to doing nothing.
 
 type
-  PlaceholderKind* {.role: other, metaTags: {tagStats}.} = enum
+  PlaceholderKind* {.role: other, tag: "stats".} = enum
     ## Why one routine was flagged. The first that fits, in order of
     ## how much it can be trusted.
     ##
@@ -65,7 +65,7 @@ type
     ##   pkUncalled    nothing calls it, and it is thin
     pkDeclared, pkEmpty, pkRaises, pkConstant, pkNoted, pkUncalled
 
-  PlaceholderInfo* {.role: preparedData, metaTags: {tagStats}.} = object
+  PlaceholderInfo* {.role: preparedData, tag: "stats".} = object
     ## One routine that looks unfinished, and how sure we are.
     ##
     ##   score    0..1. 1.0 only ever means a pragma said so.
@@ -83,7 +83,7 @@ type
     declared*: bool
     called*: bool
 
-  PlaceholderReport* {.role: truthState, metaTags: {tagStats}.} = object
+  PlaceholderReport* {.role: truthState, tag: "stats".} = object
     ## What the whole repository looks like on this measure.
     items*: seq[PlaceholderInfo]
     total*: int
@@ -92,7 +92,7 @@ type
     uncalledCount*: int
 
 proc kindName*(k: PlaceholderKind): string {.role: helper,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## k <- why a routine was flagged, as a word for a window.
   case k
   of pkDeclared: result = "declared"
@@ -103,7 +103,7 @@ proc kindName*(k: PlaceholderKind): string {.role: helper,
   of pkUncalled: result = "uncalled"
 
 proc declaredStage*(f: FunctionInfo): string {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## f <- one routine. What its `stage` pragma says, or "".
   ##
   ## Read out of the pragma text rather than from a compiled value,
@@ -120,7 +120,7 @@ proc declaredStage*(f: FunctionInfo): string {.role: parser,
       return "deprecated"
 
 proc codeLines*(A: seq[string]): seq[string] {.role: sanitizer,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A <- a routine's body. Only the lines that are code: blanks and
   ## comment-only lines are dropped, and a trailing comment is cut off
   ## the end of a line that also holds code.
@@ -151,7 +151,7 @@ proc codeLines*(A: seq[string]): seq[string] {.role: sanitizer,
       result.add(t)
 
 proc commentText*(f: FunctionInfo): string {.role: sanitizer,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## f <- one routine. Everything a person wrote about it in words,
   ## lowered and run together, for the TODO search.
   var
@@ -165,7 +165,7 @@ proc commentText*(f: FunctionInfo): string {.role: sanitizer,
   result = parts.join(" ").toLowerAscii()
 
 proc mentionsAny*(s: string, A: openArray[string]): bool {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## s <- text already lowered   A <- words looked for
   result = false
   for word in A:
@@ -173,7 +173,7 @@ proc mentionsAny*(s: string, A: openArray[string]): bool {.role: parser,
       return true
 
 proc paramNames*(A: seq[string]): seq[string] {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A <- parameters as written, such as `count: int`. Just the names.
   ## `a, b: int` declares two names on one line, so commas are split
   ## as well as the colon.
@@ -191,7 +191,7 @@ proc paramNames*(A: seq[string]): seq[string] {.role: parser,
         result.add(piece.strip())
 
 proc usesAnyName*(A: seq[string], N: seq[string]): bool {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A <- a routine's code lines   N <- the names it takes in
   ##
   ## Whether the body ever mentions one of the things handed to it. A
@@ -225,7 +225,7 @@ proc usesAnyName*(A: seq[string], N: seq[string]): bool {.role: parser,
         at = at + name.len
 
 proc touchesVarParam*(A: seq[FunctionSocket]): bool {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A <- one routine's connections. Whether any of what it takes in
   ## is something it is expected to change rather than only read.
   result = false
@@ -234,7 +234,7 @@ proc touchesVarParam*(A: seq[FunctionSocket]): bool {.role: parser,
       return true
 
 proc onlyRefuses*(A: seq[string]): bool {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A <- a routine's code lines. Whether the whole body is one
   ## refusal: `raise newException(...)` or `quit "..."` and no more.
   var
@@ -251,7 +251,7 @@ proc onlyRefuses*(A: seq[string]): bool {.role: parser,
   result = n > 0
 
 proc isDeclarationOnly*(f: FunctionInfo, A: seq[string]): bool
-    {.role: parser, metaTags: {tagStats}.} =
+    {.role: parser, tag: "stats".} =
   ## f <- one routine   A <- its code lines
   ##
   ## Two kinds of routine are *supposed* to have nothing in them, and
@@ -273,7 +273,7 @@ proc isDeclarationOnly*(f: FunctionInfo, A: seq[string]): bool
   result = A.len == 0
 
 proc isEmptyBody*(A: seq[string]): bool {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A <- a routine's code lines. Whether it says, in so many words,
   ## to do nothing. An empty list is *not* one of these: see
   ## `isDeclarationOnly` for why.
@@ -290,7 +290,7 @@ proc isEmptyBody*(A: seq[string]): bool {.role: parser,
       return false
 
 proc handsBackConstant*(f: FunctionInfo, A: seq[string],
-    N: seq[string]): bool {.role: parser, metaTags: {tagStats}.} =
+    N: seq[string]): bool {.role: parser, tag: "stats".} =
   ## f <- one routine   A <- its code lines   N <- the names it takes in
   ##
   ## Whether every answer it gives is written into the source rather
@@ -329,7 +329,7 @@ proc handsBackConstant*(f: FunctionInfo, A: seq[string],
 
 proc scoreOf*(f: FunctionInfo, called: bool):
     tuple[score: float, kind: PlaceholderKind, reasons: seq[string]]
-    {.role: truthBuilder, metaTags: {tagStats}.} =
+    {.role: truthBuilder, tag: "stats".} =
   ## f <- one routine   called <- whether anything in the tree calls it
   ##
   ## Every signal that fires adds to the score. They are added rather
@@ -374,7 +374,7 @@ proc scoreOf*(f: FunctionInfo, called: bool):
   result = (score: score, kind: kind, reasons: reasons)
 
 proc byScoreThenSize(a, b: PlaceholderInfo): int {.role: helper,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## a, b <- two flagged routines, surest first and biggest after.
   result = cmp(b.score, a.score)
   if result == 0:
@@ -384,7 +384,7 @@ proc byScoreThenSize(a, b: PlaceholderInfo): int {.role: helper,
 
 proc placeholdersOf*(A: seq[FunctionInfo], calledNames: HashSet[string],
     root: string): PlaceholderReport {.role: orchestrator,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A <- every routine in the tree
   ## calledNames <- every name that something in the tree calls, lowered
   ## root <- the repository folder, cut off the front of each path

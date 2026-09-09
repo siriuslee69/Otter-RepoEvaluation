@@ -11,7 +11,7 @@
 import std/[os, osproc, strutils, unittest]
 
 import ../../src/protocols/invariants
-import otterPragmas
+import runePragmas
 
 proc withdraw(balance, amount: int): int {.needs: amount <= balance,
     gives: result >= 0.} =

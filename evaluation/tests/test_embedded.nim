@@ -11,7 +11,7 @@
 import std/[strutils, unittest]
 
 import ../../src/protocols/code_stats/embedded
-import otterPragmas
+import runePragmas
 
 proc nimHosting(body: string): seq[EmbeddedBlock] {.testKind: tkUnit,
     covers: "blocksIn".} =

@@ -11,7 +11,7 @@ from webui/bindings import set_custom_parameters
 when not defined(windows):
   import std/posix
 
-import otterPragmas
+import runePragmas
 import ../../otter_repo_evaluation
 
 const
@@ -25,7 +25,7 @@ var
   GLastBrowserHeartbeat: Atomic[int64]
 
 proc argumentValue(A: openArray[string], prefix: string): string {.role: parser,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## A/prefix: command arguments and one recognized key prefix.
   var
     i: int = 0
@@ -35,12 +35,12 @@ proc argumentValue(A: openArray[string], prefix: string): string {.role: parser,
     i = i + 1
 
 proc appMode(A: openArray[string]): string {.role: parser,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## A: command arguments containing an optional Otter process mode.
   result = argumentValue(A, "--otter-mode:")
 
 proc argumentList(A: openArray[string], prefix: string): seq[string]
-    {.role: parser, metaTags: {tagExecution, tagTesting, tagUi}.} =
+    {.role: parser, tag: "execution|testing|ui".} =
   ## A/prefix: command arguments and comma-separated value prefix.
   var
     value: string = argumentValue(A, prefix)
@@ -51,7 +51,7 @@ proc argumentList(A: openArray[string], prefix: string): seq[string]
       result.add(item)
 
 proc normalizeResultsPath(path: string): string {.role: helper,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## path: typed or picker-selected output directory to validate and create.
   var
     expanded: string = path.strip()
@@ -70,7 +70,7 @@ proc normalizeResultsPath(path: string): string {.role: helper,
   result = expanded
 
 proc pickerCommand(initialPath: string): string {.role: helper,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## initialPath: directory displayed first by the native folder picker.
   when defined(windows):
     result = "powershell -NoProfile -STA -Command \"Add-Type -AssemblyName System.Windows.Forms; " &
@@ -92,7 +92,7 @@ proc pickerCommand(initialPath: string): string {.role: helper,
         " \"Select test output folder\""
 
 proc chooseResultsPath(): string {.role: actor,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## Opens the OS folder picker and returns its validated selected directory.
   var
     command: string = pickerCommand(GResultsPath)
@@ -112,7 +112,7 @@ proc chooseResultsPath(): string {.role: actor,
   result = normalizeResultsPath(selected)
 
 proc actionPayload(request: JsonNode): string {.role: actor,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   var
     action: string = request{"action"}.getStr("")
     response: JsonNode
@@ -129,7 +129,7 @@ proc actionPayload(request: JsonNode): string {.role: actor,
     result = $(%*{"ok": false, "error": exc.msg})
 
 proc otterUiBootstrap(request: JsonNode): string {.webuiCb, role: dataFetcher,
-    metaTags: {tagTesting, tagUi}.} =
+    tag: "testing|ui".} =
   ## request: explicit browser payload used to keep the WebUI call serializable.
   discard request
   try:
@@ -140,27 +140,27 @@ proc otterUiBootstrap(request: JsonNode): string {.webuiCb, role: dataFetcher,
     result = $(%*{"ok": false, "error": exc.msg})
 
 proc otterUiAction(request: JsonNode): string {.webuiCb, role: actor,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   result = actionPayload(request)
 
 proc otterUiHeartbeat(request: JsonNode): string {.webuiCb, role: dataFetcher,
-    metaTags: {tagExecution, tagTesting, tagUi, tagTiming}.} =
+    tag: "execution|testing|ui|timing".} =
   ## request: explicit browser ping proving the WebUI client is still alive.
   discard request
   GLastBrowserHeartbeat.store(getMonoTime().ticks)
   writeHeartbeat(GRuntimeDir, "webui")
   result = $(%*{"ok": true})
 
-proc webRoot(): string {.role: helper, metaTags: {tagTesting, tagUi}.} =
+proc webRoot(): string {.role: helper, tag: "testing|ui".} =
   result = joinPath(currentSourcePath().splitFile.dir, "web")
 
 proc browserProfile(): string {.role: helper,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## Returns the private browser profile used by this Otter UI process.
   result = joinPath(GRuntimeDir, "browser-profile")
 
 proc showUi(window: Window): bool {.role: actor,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## window: prepared WebUI window opened with the first available renderer.
   var
     Browsers: array[5, WebuiBrowser] = [
@@ -178,7 +178,7 @@ proc showUi(window: Window): bool {.role: actor,
     i = i + 1
 
 proc runUi() {.role: metaOrchestrator,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   var
     window: Window = newWindow()
     profile: string = browserProfile()
@@ -214,7 +214,7 @@ proc runUi() {.role: metaOrchestrator,
   writeFile(joinPath(GRuntimeDir, NormalExitFile), "closed\n")
 
 proc terminateChild(process: Process) {.role: actor,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## process: supervisor-owned process and its immediate descendants.
   if process == nil or not process.running():
     return
@@ -226,13 +226,13 @@ proc terminateChild(process: Process) {.role: actor,
       process.kill()
 
 proc childArguments(mode, repoRoot, runtimeDir: string): seq[string]
-    {.role: truthBuilder, metaTags: {tagExecution, tagTesting, tagUi}.} =
+    {.role: truthBuilder, tag: "execution|testing|ui".} =
   ## mode/repoRoot/runtimeDir: child process launch values.
   result = @["--otter-mode:" & mode, "--repo-root:" & repoRoot,
     "--runtime-path:" & runtimeDir]
 
 proc startBackend(mode, repoRoot, runtimeDir: string): Process {.role: actor,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## mode/repoRoot/runtimeDir: persistent backend role and launch context.
   var
     options: set[ProcessOption] = {poParentStreams}
@@ -251,7 +251,7 @@ proc startBackend(mode, repoRoot, runtimeDir: string): Process {.role: actor,
       options = options)
 
 proc restartBackend(process: var Process, mode, repoRoot, runtimeDir: string)
-    {.role: actor, metaTags: {tagExecution, tagTesting, tagUi}.} =
+    {.role: actor, tag: "execution|testing|ui".} =
   ## process/mode/repoRoot/runtimeDir: monitored backend and restart context.
   if process != nil and process.running():
     return
@@ -262,7 +262,7 @@ proc restartBackend(process: var Process, mode, repoRoot, runtimeDir: string)
   process = startBackend(mode, repoRoot, runtimeDir)
 
 proc stopBackend(process: var Process) {.role: actor,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   ## process: persistent backend handle stopped during supervisor shutdown.
   terminateChild(process)
   if process != nil:
@@ -271,7 +271,7 @@ proc stopBackend(process: var Process) {.role: actor,
     process = nil
 
 proc runSupervisor(repoRoot: string) {.role: metaOrchestrator,
-    metaTags: {tagExecution, tagTesting, tagUi}.} =
+    tag: "execution|testing|ui".} =
   var
     runtimeDir: string = joinPath(getTempDir(), "otter-test-ui-" &
       $getCurrentProcessId())

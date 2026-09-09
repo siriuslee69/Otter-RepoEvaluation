@@ -32,10 +32,10 @@ import ./coupling
 # that a caller importing this file gets the whole shape in one go.
 export shape, placeholders, secrets, config_touch, timeline, unused
 export call_depth, coupling
-import otterPragmas
+import runePragmas
 
 type
-  HealthBand* {.role: other, metaTags: {tagStats}.} = enum
+  HealthBand* {.role: other, tag: "stats".} = enum
     ## How long the average routine in one file is.
     ##
     ##   hbOk        short enough to read in one sitting
@@ -44,30 +44,30 @@ type
     ##   hbCritical  nobody reads these top to bottom
     hbOk, hbAlright, hbPoor, hbCritical
 
-  SizeBand* {.role: other, metaTags: {tagStats}.} = enum
+  SizeBand* {.role: other, tag: "stats".} = enum
     ## How big one file is against every other file in the same tree.
     ## Four bands, because the grid changes its row height every two
     ## rows and so has room for exactly four heights.
     sbHuge, sbBig, sbMid, sbSmall
 
-  NameCount* {.role: preparedData, metaTags: {tagStats}.} = object
+  NameCount* {.role: preparedData, tag: "stats".} = object
     ## One label and how often it was seen. Used for role tallies and
     ## test kinds, so the window never has to know the enums.
     name*: string
     count*: int
 
-  LangStat* {.role: preparedData, metaTags: {tagStats}.} = object
+  LangStat* {.role: preparedData, tag: "stats".} = object
     ## Language extension breakdown
     ext*: string
     files*: int
     lines*: int
 
-  GitignoreStat* {.role: preparedData, metaTags: {tagStats}.} = object
+  GitignoreStat* {.role: preparedData, tag: "stats".} = object
     ## Metrics for files ignored by .gitignore
     ignoredFiles*: int
     ignoredLines*: int
 
-  InputFuncInfo* {.role: preparedData, metaTags: {tagStats}.} = object
+  InputFuncInfo* {.role: preparedData, tag: "stats".} = object
     ## Details of an input-accepting or sanitizer function
     name*: string
     path*: string
@@ -77,7 +77,7 @@ type
     inputSource*: string
     sanitizerName*: string
 
-  UnsafeFuncInfo* {.role: preparedData, metaTags: {tagStats}.} = object
+  UnsafeFuncInfo* {.role: preparedData, tag: "stats".} = object
     ## Unsafe functions (cast, addr, uncheckedArray, etc.) and data reach
     name*: string
     path*: string
@@ -87,29 +87,29 @@ type
     touchesExternalData*: bool
     externalDataTrace*: string
 
-  UnusedImportInfo* {.role: preparedData, metaTags: {tagStats}.} = object
+  UnusedImportInfo* {.role: preparedData, tag: "stats".} = object
     ## Unused import location
     moduleName*: string
     path*: string
     line*: int
 
-  WhenSite* {.role: preparedData, metaTags: {tagStats}.} = object
+  WhenSite* {.role: preparedData, tag: "stats".} = object
     ## Conditional compilation sites
     path*: string
     line*: int
     condition*: string
 
-  CircularImportInfo* {.role: preparedData, metaTags: {tagStats}.} = object
+  CircularImportInfo* {.role: preparedData, tag: "stats".} = object
     ## Dependency cycle detection
     cycle*: seq[string]
 
-  SimdSite* {.role: preparedData, metaTags: {tagStats}.} = object
+  SimdSite* {.role: preparedData, tag: "stats".} = object
     ## SIMD usage sites
     path*: string
     line*: int
     feature*: string
 
-  ProjectScopeStats* {.role: preparedData, metaTags: {tagStats}.} = object
+  ProjectScopeStats* {.role: preparedData, tag: "stats".} = object
     ## Summary metrics scoped by subtab (src, ALL, tests)
     files*: int
     lines*: int
@@ -120,7 +120,7 @@ type
     unsafeFunctions*: int
     avgLines*: float
 
-  FileStat* {.role: truthState, metaTags: {tagStats}.} = object
+  FileStat* {.role: truthState, tag: "stats".} = object
     ## One source file, measured.
     ##
     ##   avgLines   the average length of the routines declared here
@@ -150,7 +150,7 @@ type
     unusedImportsCount*: int
     isTest*: bool
 
-  NestSite* {.role: preparedData, metaTags: {tagStats}.} = object
+  NestSite* {.role: preparedData, tag: "stats".} = object
     ## One place where a block sits inside another block.
     ##
     ##   depth       2 is a block in a block, 3 is one deeper again
@@ -165,7 +165,7 @@ type
     innerLines*: int
     leaf*: bool
 
-  NestStats* {.role: truthState, metaTags: {tagStats}.} = object
+  NestStats* {.role: truthState, tag: "stats".} = object
     ## The bar chart: how much of the tree is nested, and how deep.
     templateCalls*: int
     doubles*: int
@@ -179,7 +179,7 @@ type
       ## 21-40, 41 and up.
     sites*: seq[NestSite]
 
-  TestInfo* {.role: preparedData, metaTags: {tagStats}.} = object
+  TestInfo* {.role: preparedData, tag: "stats".} = object
     ## One test, wherever it was written: a `test "..."` block, or a
     ## routine carrying a testKind pragma.
     ##
@@ -195,7 +195,7 @@ type
     calls*: seq[string]
     reaches*: int
 
-  TestStats* {.role: truthState, metaTags: {tagStats}.} = object
+  TestStats* {.role: truthState, tag: "stats".} = object
     ## The rings: how many tests reach each routine, and which kinds.
     ##
     ##   buckets  routines reached by 0, 1, 2, 3, 4, and 5 or more tests
@@ -209,7 +209,7 @@ type
     bugfixCovered*: int
     kinds*: seq[NameCount]
 
-  ProjectStats* {.role: truthState, metaTags: {tagStats}.} = object
+  ProjectStats* {.role: truthState, tag: "stats".} = object
     ## One whole repository, measured.
     rootDir*: string
     isGitRepo*: bool
@@ -295,16 +295,16 @@ const
     ## longest ones are kept; the rest are only counted.
 
 proc healthName*(b: HealthBand): string {.role: helper,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   result = healthNames[b]
 
 
-proc sizeName*(b: SizeBand): string {.role: helper, metaTags: {tagStats}.} =
+proc sizeName*(b: SizeBand): string {.role: helper, tag: "stats".} =
   result = sizeNames[b]
 
 
 proc healthOf*(avg: float): HealthBand {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## avg: the average routine length in one file.
   result = hbCritical
   if avg <= avgOkLines.float:
@@ -315,7 +315,7 @@ proc healthOf*(avg: float): HealthBand {.role: parser,
     result = hbPoor
 
 
-proc bucketOf*(innerLines: int): int {.role: parser, metaTags: {tagStats}.} =
+proc bucketOf*(innerLines: int): int {.role: parser, tag: "stats".} =
   ## innerLines: code lines inside the last nesting layer.
   result = 5
   if innerLines <= 2:
@@ -331,7 +331,7 @@ proc bucketOf*(innerLines: int): int {.role: parser, metaTags: {tagStats}.} =
 
 
 proc addCount*(A: var seq[NameCount], name: string, n: int = 1)
-    {.role: actor, metaTags: {tagStats}.} =
+    {.role: actor, tag: "stats".} =
   ## A: tally being grown. name: the label. n: how much to add.
   var
     i: int = 0
@@ -346,7 +346,7 @@ proc addCount*(A: var seq[NameCount], name: string, n: int = 1)
 
 
 proc countOf*(A: seq[NameCount], name: string): int {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## A: tally. name: the label wanted. Missing labels read as zero.
   result = 0
   for row in A:

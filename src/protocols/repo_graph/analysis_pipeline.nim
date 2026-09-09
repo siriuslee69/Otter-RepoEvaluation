@@ -12,9 +12,9 @@ import ./io_utils
 import ./nim_parser
 import ./role_inference
 import ./types
-import otterPragmas
+import runePragmas
 
-proc analyzeRepo*(rootDir: string, bIncludeTests: bool = false): RepoGraph {.role: orchestrator, metaTags: {tagGraph}.} =
+proc analyzeRepo*(rootDir: string, bIncludeTests: bool = false): RepoGraph {.role: orchestrator, tag: "graph".} =
   var
     files: seq[string] = @[]
     fs: seq[FunctionInfo] = @[]
@@ -35,7 +35,7 @@ proc analyzeRepo*(rootDir: string, bIncludeTests: bool = false): RepoGraph {.rol
   result.groups = collectOrchestratorGroups(result)
 
 
-proc graphSummaryLines*(g: RepoGraph): seq[string] {.role: helper, metaTags: {tagGraph}.} =
+proc graphSummaryLines*(g: RepoGraph): seq[string] {.role: helper, tag: "graph".} =
   var
     nHelpers: int = 0
     nWrappers: int = 0
@@ -91,11 +91,11 @@ proc graphSummaryLines*(g: RepoGraph): seq[string] {.role: helper, metaTags: {ta
   result.add("User Input Handlers: " & $nUserInput)
 
 
-proc defaultOutputDir*(rootDir: string): string {.role: helper, metaTags: {tagGraph}.} =
+proc defaultOutputDir*(rootDir: string): string {.role: helper, tag: "graph".} =
   result = normalizeSlashes(joinPath(rootDir, "builds", "analysis"))
 
 
-proc writeArtifacts*(g: RepoGraph, outputDir: string): seq[string] {.role: dataWriter, metaTags: {tagGraph}.} =
+proc writeArtifacts*(g: RepoGraph, outputDir: string): seq[string] {.role: dataWriter, tag: "graph".} =
   var
     outRoot: string = outputDir
     pLayout: string = ""

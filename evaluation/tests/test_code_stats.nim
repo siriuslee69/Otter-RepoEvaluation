@@ -10,7 +10,7 @@
 import std/[os, unittest]
 
 import otter_repo_evaluation
-import otterPragmas
+import runePragmas
 
 const
   sampleSource = """
@@ -58,7 +58,7 @@ suite "sample":
     check walk(@[@[1, 2]]) == 3
 """
 
-proc sampleTree(): string {.role: dataWriter, metaTags: {tagStats}.} =
+proc sampleTree(): string {.role: dataWriter, tag: "stats".} =
   ## The tree every test below reads, rebuilt from nothing each run.
   result = joinPath(getCurrentDir(), "build", "code_stats_sample")
   if dirExists(result):
@@ -71,7 +71,7 @@ proc sampleTree(): string {.role: dataWriter, metaTags: {tagStats}.} =
 
 
 proc pick(S: ProjectStats, name: string): FileStat {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## S: the measured tree. name: the file wanted, by its bare name.
   result = FileStat()
   for row in S.files:

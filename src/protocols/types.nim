@@ -3,10 +3,10 @@
 # | -> Timing tuples and in-memory timing store             |
 # ============================================================
 
-import otterPragmas
+import runePragmas
 
 type
-  OtterTimingTuple* {.role: memory, metaTags: {tagTiming, tagState}.} = tuple
+  OtterTimingTuple* {.role: memory, tag: "timing|state".} = tuple
     functionName: string
     sourcePath: string
     sourceLine: int
@@ -14,14 +14,14 @@ type
     startTick: int64
     endTick: int64
 
-  OtterTimingMemory* {.role: memory, metaTags: {tagTiming, tagState, tagLogging}.} = object
+  OtterTimingMemory* {.role: memory, tag: "timing|state|logging".} = object
     entries*: seq[OtterTimingTuple]
     logPath*: string
     hookRegistered*: bool
     flushed*: bool
 
 
-proc durationTicks*(t: OtterTimingTuple): int64 {.role: helper, metaTags: {tagTiming, tagState}.} =
+proc durationTicks*(t: OtterTimingTuple): int64 {.role: helper, tag: "timing|state".} =
   ## t: captured timing tuple.
   var
     q: int64 = 0

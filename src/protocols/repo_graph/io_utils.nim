@@ -5,7 +5,7 @@
 
 import std/[algorithm, os, strutils]
 
-import otterPragmas
+import runePragmas
 
 const
   vendoredDirs*: array[9, string] = [
@@ -62,7 +62,7 @@ proc extensionOf*(p: string): string {.inline.} =
 
 
 proc isIgnoredPath*(relPath: string, bIncludeTests: bool): bool {.role: parser,
-    metaTags: {tagGraph}.} =
+    tag: "graph".} =
   ## relPath: one path below the repository root, either slash style.
   ## bIncludeTests: keep `tests/` when true.
   ## True when the path belongs to something this repository did not write.
@@ -77,7 +77,7 @@ proc isIgnoredPath*(relPath: string, bIncludeTests: bool): bool {.role: parser,
   result = false
 
 proc isScannablePath*(relPath: string): bool {.role: parser,
-    metaTags: {tagGraph}.} =
+    tag: "graph".} =
   ## relPath: one path below the repository root.
   ## True when the file is this repository's own, and of a kind a person
   ## writes by hand. This is the one question both the folder walk and

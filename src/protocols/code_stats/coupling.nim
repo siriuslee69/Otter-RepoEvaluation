@@ -40,7 +40,7 @@
 import std/[algorithm, sets, strutils, tables]
 
 import ../repo_graph/types as graphTypes
-import otterPragmas
+import runePragmas
 
 const
   guardHops*: int = 3
@@ -57,7 +57,7 @@ const
     ## convention is never second-guessed.
 
 type
-  GuardKind* {.role: other, metaTags: {tagStats}.} = enum
+  GuardKind* {.role: other, tag: "stats".} = enum
     ## How a door came to be guarded.
     ##
     ##   gkSelf     the door cleans what it takes in itself
@@ -66,7 +66,7 @@ type
     ##   gkNone     nothing found: this door is open
     gkSelf, gkDirect, gkIndirect, gkNone
 
-  InputGuard* {.role: preparedData, metaTags: {tagStats}.} = object
+  InputGuard* {.role: preparedData, tag: "stats".} = object
     ## One door, and what guards it.
     ##
     ##   hops   0 when the door cleans its own input, 1 when it calls
@@ -83,7 +83,7 @@ type
     hops*: int
     guarded*: bool
 
-  SanitizerTests* {.role: preparedData, metaTags: {tagStats}.} = object
+  SanitizerTests* {.role: preparedData, tag: "stats".} = object
     ## One guard, and what proves it works.
     ##
     ##   verdict  "unchecked", "shallow", or "solid"
@@ -99,7 +99,7 @@ type
       ## How many doors lean on this one guard. A guard holding up six
       ## doors with no edge-case test is the first thing to fix.
 
-  CouplingStats* {.role: truthState, metaTags: {tagStats}.} = object
+  CouplingStats* {.role: truthState, tag: "stats".} = object
     ## Both answers, for one repository.
     inputs*: seq[InputGuard]
     sanitizers*: seq[SanitizerTests]
@@ -114,7 +114,7 @@ type
     regressionCovered*: int
 
 proc guardName*(k: GuardKind): string {.role: helper,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## k <- how a door is guarded, as a word for a window.
   case k
   of gkSelf: result = "cleans its own"
@@ -123,7 +123,7 @@ proc guardName*(k: GuardKind): string {.role: helper,
   of gkNone: result = "open"
 
 proc declaredRole*(f: FunctionInfo): string {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## f <- one routine. What its `role` pragma says, lowered, or "".
   var
     t: string = ""
@@ -134,7 +134,7 @@ proc declaredRole*(f: FunctionInfo): string {.role: parser,
       return t[5 .. ^1].strip()
 
 proc isSanitizer*(f: FunctionInfo): bool {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## f <- one routine. Whether it cleans what it is handed.
   ##
   ## A declared role is believed outright. Only when nothing was
@@ -151,7 +151,7 @@ proc isSanitizer*(f: FunctionInfo): bool {.role: parser,
       return true
 
 proc isDoor*(f: FunctionInfo): bool {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## f <- one routine. Whether something from outside comes in here.
   ##
   ## A routine that is itself a sanitizer is not counted as a door: it
@@ -169,7 +169,7 @@ proc isDoor*(f: FunctionInfo): bool {.role: parser,
 proc findGuard*(id: string, M: Table[string, seq[string]],
     guards: HashSet[string], names: Table[string, string], hops: int):
     tuple[found: bool, at: string, route: seq[string]] {.role: parser,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## id <- the door   M <- who calls whom   guards <- every sanitizer
   ## names <- what each id is called   hops <- how far out to look
   ##
@@ -208,7 +208,7 @@ proc findGuard*(id: string, M: Table[string, seq[string]],
     step = step + 1
 
 proc verdictOf*(tests: int, edge, regression: bool): string
-    {.role: parser, metaTags: {tagStats}.} =
+    {.role: parser, tag: "stats".} =
   ## tests <- how many tests reach this guard
   ## edge, regression <- whether any of them is of that kind
   ##
@@ -222,7 +222,7 @@ proc verdictOf*(tests: int, edge, regression: bool): string
   if not edge and not regression:
     return "shallow"
 
-proc byHops(a, b: InputGuard): int {.role: helper, metaTags: {tagStats}.} =
+proc byHops(a, b: InputGuard): int {.role: helper, tag: "stats".} =
   ## a, b <- two doors. Open ones first, then the ones whose guard is
   ## furthest away, because both are things to go and look at.
   result = cmp(a.guarded, b.guarded)
@@ -232,7 +232,7 @@ proc byHops(a, b: InputGuard): int {.role: helper, metaTags: {tagStats}.} =
     result = cmp(a.path, b.path)
 
 proc byRisk(a, b: SanitizerTests): int {.role: helper,
-    metaTags: {tagStats}.} =
+    tag: "stats".} =
   ## a, b <- two guards. Least proven first, and among those the one
   ## holding up the most doors.
   var
@@ -256,7 +256,7 @@ proc byRisk(a, b: SanitizerTests): int {.role: helper,
 
 proc couplingOf*(A: seq[FunctionInfo], E: seq[CallEdge], root: string,
     hits: CountTable[string], edge, regress, bug: HashSet[string]):
-    CouplingStats {.role: orchestrator, metaTags: {tagStats}.} =
+    CouplingStats {.role: orchestrator, tag: "stats".} =
   ## A <- every routine   E <- every call between them
   ## root <- the repository folder
   ## hits <- how many tests reach each routine, by name
