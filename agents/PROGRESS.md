@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: Own the text-level convention rules, so callers stop copying them
+Commit Message: Pin Fylgia at a commit that exists, so a recursive clone works
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.
