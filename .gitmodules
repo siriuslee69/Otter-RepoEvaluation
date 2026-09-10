@@ -1,3 +1,4 @@
 [submodule "submodules/Fylgia-Utils"]
 	path = submodules/Fylgia-Utils
 	url = https://github.com/siriuslee69/Fylgia-Utils.git
+	branch = main
