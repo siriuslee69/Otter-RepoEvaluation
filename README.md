@@ -719,12 +719,19 @@ which is the opposite of what is true.
 
 ╭⟢ Promises a routine has to keep 🐦‍🔥
 
-`src/protocols/invariants.nim` is not a measurement. It is a small
-library a repository imports so that a sentence a signature cannot say
-gets checked instead of rotting in a comment.
+This used to live here, as `src/protocols/invariants.nim`, and was
+re-exported from Otter's umbrella module. It is a library rather than a
+measurement, so it now has its own repository:
+
+```
+submodules/Var-Invariants    <- pinned here
+../Var-Invariants            <- or a sibling clone
+```
+
+`config.nims` finds either, so one import is enough:
 
 ```nim
-import otter_repo_evaluation/protocols/invariants
+import var_invariants
 
 proc withdraw(balance, amount: int): int {.
   needs: amount <= balance,
@@ -733,61 +740,24 @@ proc withdraw(balance, amount: int): int {.
   balance - amount
 ```
 
-| written | checked while building | checked while running |
-|---|---|---|
-| `needs` / `gives` / `keeps` | yes | no |
-| `needsRun` / `givesRun` / `keepsRun` | yes | yes |
-
 | word | checked | what it says |
 |---|---|---|
 | `needs` | on the way in | "I refuse bad input." |
 | `gives` | on the way out | "I promise good output." |
 | `keeps` | at both ends | "I do not break this." |
 
-`keeps` is `needs` and `gives` in one word, with the same sentence at
-both ends - and that is what makes it an invariant rather than a
-precondition: it was true when we arrived, and this routine has not
-broken it. `result` names what comes back.
+The three above are checked while the compiler runs a routine and cost
+nothing in the finished program. `needsRun`, `givesRun` and `keepsRun`
+are the same three carried into the program as well. The full
+explanation - the two tiers, `forall` / `exists`, `old(x)`, and why the
+names are not `requires` and `ensures` - is in that repository's README.
 
-The first three cost **nothing**. Not almost nothing: the check sits
-inside `when nimvm:`, a branch the compiler keeps for its own
-interpreter and never writes into the program. Two programs, one with
-the promises and one without, build to the same number of bytes, and
-`nimble test` compiles both and compares them.
-
-A build-time check runs wherever the compiler runs the routine - in a
-`const`, in a `static:` block, inside a macro:
-
-```nim
-static:
-  discard withdraw(100, 40)     # checked, and passes
-  discard withdraw(40, 100)     # the build stops here, and says why
-```
-
-```
-needs failed in `withdraw`: amount <= balance [ContractDefect]
-```
-
-The `Run` three add the check to the program too, raising a
-`ContractDefect`. They are on in an ordinary build, off with
-`-d:danger` or `-d:noOtterContracts`, and on again with
-`-d:otterContracts`.
-
-Saying something about many values at once, or about the way in:
-
-```nim
-gives: forall(i in 1 ..< A.len, A[i - 1] <= A[i])   # A comes back sorted
-needs: exists(c in s, c == '=')                     # s has an equals sign
-givesRun: S.len == old(S).len + 1                   # exactly one was added
-```
-
-**Why the names are not `requires` and `ensures`.** ୨୧ Those two are
-pragmas the Nim compiler already knows: they belong to DrNim, a
-separate build of the compiler that proves them with a solver. The
-ordinary compiler reads them, checks that what is written makes sense,
-and then does nothing with it. Written that way a broken promise
-builds cleanly and nobody is told, which is worse than having no
-promise at all. So these are called something else.
+**What Otter still has to know about it.** A pragma is applied by name
+and never called, so a macro written to be used as one reads as a
+routine nothing uses. Otter counts a name written in a pragma as a use,
+which is why `needs` and friends do not show up as dead code in the
+repositories that import them. See `pragmaNames` in
+`src/protocols/repo_graph/nim_parser.nim`.
 
 ╭⟢ Making a program say where it is 🍣
 

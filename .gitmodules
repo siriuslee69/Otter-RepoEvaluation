@@ -2,3 +2,7 @@
 	path = submodules/Fylgia-Utils
 	url = https://github.com/siriuslee69/Fylgia-Utils.git
 	branch = main
+[submodule "submodules/Var-Invariants"]
+	path = submodules/Var-Invariants
+	url = https://github.com/siriuslee69/Var-Invariants.git
+	branch = nightly

@@ -91,7 +91,6 @@ task test, "Run smoke tests":
   exec "nim c --path:src -r evaluation/tests/test_ui_depth.nim"
   exec "nim c --path:src -r evaluation/tests/test_state_writes.nim"
   exec "nim c --path:src -r evaluation/tests/test_yields.nim"
-  exec "nim c --path:src -r evaluation/tests/test_invariants.nim"
   exec "nim c --path:src -r evaluation/tests/test_diff_review.nim"
   exec "nim c --path:src -r evaluation/tests/test_checks.nim"
   exec "nim c --path:src -r evaluation/tests/test_conventions.nim"
