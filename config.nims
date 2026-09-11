@@ -20,3 +20,16 @@ if dirExists(thisDir() & "/../Rune-Pragmas/meta"):
   switch("path", thisDir() & "/../Rune-Pragmas/meta")
 if dirExists(thisDir() & "/submodules/Rune-Pragmas/meta"):
   switch("path", thisDir() & "/submodules/Rune-Pragmas/meta")
+
+## Contract pragmas: `needs`, `gives`, `keeps` and their `Run` tier. They
+## used to live in this repository, under `src/protocols/invariants.nim`,
+## and were re-exported from the umbrella module. They are a library
+## rather than a measurement, so they moved out to Var-Invariants and are
+## pinned back in here the same way Fylgia is.
+##
+## Order matters: Nim takes the LAST matching `--path` entry, so the
+## pinned submodule wins and the sibling clone is the fallback.
+if dirExists(thisDir() & "/../Var-Invariants/src"):
+  switch("path", thisDir() & "/../Var-Invariants/src")
+if dirExists(thisDir() & "/submodules/Var-Invariants/src"):
+  switch("path", thisDir() & "/submodules/Var-Invariants/src")

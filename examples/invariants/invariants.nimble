@@ -1,5 +1,0 @@
-version       = "0.1.0"
-author        = "siriuslee69"
-description   = "Promises written next to the routines that make them."
-license       = "Unlicense"
-srcDir        = "src"

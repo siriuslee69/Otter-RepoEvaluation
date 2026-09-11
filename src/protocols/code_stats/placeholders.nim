@@ -347,6 +347,8 @@ proc scoreOf*(f: FunctionInfo, called: bool):
   result = (score: 0.0, kind: pkUncalled, reasons: @[])
   if stage.len > 0 and stage != "stdone" and stage != "done":
     return (1.0, pkDeclared, @["a pragma says this is " & stage])
+  if stage == "stdone" or stage == "done":
+    return
   if isDeclarationOnly(f, code):
     return
   if isEmptyBody(code):
@@ -390,7 +392,8 @@ proc placeholdersOf*(A: seq[FunctionInfo], calledNames: HashSet[string],
   ## root <- the repository folder, cut off the front of each path
   var
     rows: seq[PlaceholderInfo] = @[]
-    got: tuple[score: float, kind: PlaceholderKind, reasons: seq[string]]
+    got: tuple[score: float, kind: PlaceholderKind, reasons: seq[string]] =
+      (score: 0.0, kind: pkUncalled, reasons: @[])
     called: bool = false
     rel: string = ""
   result = PlaceholderReport(items: @[], total: 0, declaredCount: 0,

@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: Pin Fylgia at a commit that exists, so a recursive clone works
+Commit Message: Move the contract pragmas out to Var-Invariants and pin them back as a submodule
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.
@@ -31,11 +31,12 @@ Features (Done):
   the change did rather than what the repository is like. Findings are
   matched by path, routine name and kind, never by line, so moved lines
   are not reported as new work.
-- Contracts: `needs` / `gives` / `keeps` are checked wherever the
-  compiler runs the routine and cost nothing - the check sits in the
-  `nimvm` branch, which is never written into the program - and the
-  `Run` three add the check at run time as well. `forall`, `exists` and
-  `old(x)` work in either tier.
+- Contracts: moved out to the Var-Invariants repository and pinned back
+  here as `submodules/Var-Invariants`. `needs` / `gives` / `keeps` and
+  their `Run` tier are a library rather than a measurement, so they no
+  longer sit in `src/protocols` and are no longer re-exported from the
+  umbrella module. `config.nims` puts the submodule (or a sibling clone)
+  on the path, so `import var_invariants` is all a routine here needs.
 - Yield paths: `otter_repo_graph yields` names every way a routine can
   end, followed along the resolved call edges, with what stops the
   program told apart from what merely raises.
@@ -107,3 +108,16 @@ Notes:
   reading the names on the lines the change removed. One thing stands
   open: building the whole measurement of Tyr takes 32 seconds by
   itself, which is most of any run, and nothing has been done about it.
+- Last change: `src/protocols/invariants.nim`, its test, and its example
+  left this repository for Var-Invariants. Nothing here used the pragmas
+  - the two apparent call sites in `code_stats/project.nim` and
+  `repo_graph/nim_parser.nim` turned out to be comments explaining why a
+  pragma-applied macro must count as used - so removing the umbrella's
+  `export invariants` broke nothing. 209 tests still pass.
+- Fix made alongside: an explicit `stage: stDone` now clears the guessed
+  placeholder signals in `code_stats/placeholders.nim`. Before, it only
+  skipped the "a pragma says this is unfinished" shortcut, so a routine
+  whose whole job is to raise - `contractFailed` was the one that
+  surfaced it - scored 0.7 for "the body only refuses to work" no matter
+  what it said about itself. A declared stage is a person's statement
+  and now outranks every guess.
