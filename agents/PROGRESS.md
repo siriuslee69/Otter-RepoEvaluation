@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: Move the contract pragmas out to Var-Invariants and pin them back as a submodule
+Commit Message: Ask whether a routine sits anywhere near the thing that uses it
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.
@@ -11,6 +11,21 @@ Features (Planned):
 - Parent-repo adoption of the pragma-driven test UI after Otter example validation.
 
 Features (Done):
+- LAYOUT (`code_stats/layout.nim`): the first check that asks whether
+  code is FINDABLE rather than whether it is right. Two findings from
+  one idea -- a file has an order, and it is either telling you
+  something or it is not.
+
+    siblings apart  three routines that build the same thing, or three
+                    steps one orchestrator calls, with a file of other
+                    material between them
+    a thin waist    a line in a long file where the top half stops
+                    being needed by the bottom half, named with the
+                    line number to cut at. Thin is both absolute and
+                    proportional: twelve shared names is thin in a
+                    file of thirty-six routines and fat in one of
+                    fourteen.
+
 - Visibility: `{.visGroup: 3.}` and `-d:otterVis:3` make a routine say
   when it starts, when it stops, and what every loop in it is doing,
   timed from the first message. With no group asked for the routine is
@@ -121,3 +136,73 @@ Notes:
   surfaced it - scored 0.7 for "the body only refuses to work" no matter
   what it said about itself. A declared stage is a person's statement
   and now outranks every guess.
+- Where LAYOUT came from, and how it was calibrated. It was written
+  after splitting two files in Bifrost by hand -- a 1796-line
+  `session.nim` and an 1835-line `handshake.nim` -- and the question
+  was whether Otter could have found both without being told.
+
+  It can. Measured against the commit BEFORE those splits, the four
+  worst findings in the whole repository are:
+
+    1. session.nim:706   SEAM, waist 12 of 36        <- the file split
+    2. file_ops.nim:354  SEAM, waist 11 of 21
+    3. handshake.nim:223 APART, the three            <- the exact thing
+                         AmeAuthentication              found by hand
+                         constructors, 86 strangers
+    4. handshake.nim:345 APART, one orchestrator's   <- the other file
+                         ten scattered steps            split
+
+  Both hand-found problems are in the top four, and neither was known
+  to the check. After the splits: scattered 72 -> 55.
+
+  Four calibration traps, each found by running it and reading the
+  output rather than by reasoning:
+
+    a shared return type is far too weak on its own. Four routines
+      returning `ByteSeq` are not alternatives, they are four
+      encoders: a byte buffer is a MEDIUM, not an identity. The fix
+      is that the names must also share a prefix or a suffix, which
+      is the author saying "these are a set".
+    a file's CURRENCY type says nothing. Where more than a quarter of
+      a file's exported routines return the same type, that type
+      cannot tell anybody apart. With a floor: below eight exported
+      routines the share is a rounding error, not a ratio, and three
+      out of three is 100%.
+    four orchestrators calling the same five helpers is ONE thing out
+      of place. Reported four times it buried everything else, so
+      findings are merged by their member list -- and that several
+      callers agreed is said out loud, because it is stronger
+      evidence rather than weaker.
+    balancing a cut by ROUTINE count alone is wrong. Fourteen small
+      helpers at the top of a file are half its routines and a
+      fourteenth of its lines. Both halves must carry 30% of the
+      lines too.
+    an ABSOLUTE waist cap alone is wrong for the same reason in the
+      other direction. `nim_parser.nim` needed twelve of the fourteen
+      routines above its best cut -- six of every seven -- and twelve
+      was under the cap. The waist has to be a small SHARE of the
+      routines above it as well. That one rule took the false
+      positives on Bifrost's pre-split tree from two cuts to one: the
+      one file that really was two.
+- The waist is measured in the direction people do not expect. Nim
+  declares before use, so "nothing above calls below" is true at
+  almost every line in almost every file and is worth nothing as a
+  signal. What discriminates is the other direction: how many of the
+  routines ABOVE the cut the half BELOW it still needs. Twelve out of
+  thirty-six is a seam; thirty out of thirty-six is one file.
+- Findings are sorted worst-first with cuts ahead of scatters. That is
+  not cosmetic: the gate prints the first five and nothing else, and
+  before the sort existed it printed whatever the hash table happened
+  to yield.
+- `test_layout.nim` builds `FunctionInfo` records by hand rather than
+  shaping an example repository, unlike `test_families.nim` next door.
+  The check is a set of thresholds and a threshold is tested by
+  standing on both sides of it, which is fiddly to arrange in real
+  source and trivial in a record. Three of the sixteen tests are
+  regressions pinning calibration traps above.
+- Running it on Bifrost AFTER the two hand splits still reports a seam
+  in each of the files that were split -- `handshake.nim:322` at the
+  client/server boundary and `framing.nim:624` at the epoch-exchange
+  boundary. Both are true: the splits were topical, and these are
+  thinner seams the dominant one had been hiding. Files keep having
+  seams until they are one thing.

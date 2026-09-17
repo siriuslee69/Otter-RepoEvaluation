@@ -11,6 +11,7 @@
 import ./code_stats/types
 import ./code_stats/embedded
 import ./code_stats/families
+import ./code_stats/layout
 import ./code_stats/blast
 import ./code_stats/state_writes
 import ./code_stats/yields
@@ -27,6 +28,7 @@ import ./code_stats/json_out
 export types
 export embedded
 export families
+export layout
 export blast
 export state_writes
 export yields

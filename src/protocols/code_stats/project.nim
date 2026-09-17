@@ -25,6 +25,7 @@ import ./shape
 import ./placeholders
 import ./embedded
 import ./families
+import ./layout
 import ./state_writes
 import ./yields
 import ./secrets
@@ -273,6 +274,7 @@ proc analyzeProject*(rootDir: string): ProjectStats {.role: orchestrator,
   result.secrets = secretsOf(normDir, allSourceFiles)
   result.embedded = embeddedOf(normDir, allSourceFiles)
   result.families = familiesOf(result.shape.shapes, parts.src)
+  result.layout = layoutOf(parts.src, normDir)
   wholeGraph = RepoGraph(rootDir: normDir, functions: parts.src,
     edges: graph.edges)
   result.state = stateWritesOf(wholeGraph)

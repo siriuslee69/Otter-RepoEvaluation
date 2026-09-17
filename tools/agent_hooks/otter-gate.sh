@@ -87,6 +87,14 @@ REPO="$root" CHANGED="$changed" THRESH="$THRESHOLD" FORCED="$force" jq -r '
       ["SECRETS — \(.secrets.total) candidate(s). Remove or move behind config:"]
       + ([.secrets.items[]? | "  \(.path):\(.line)  \(.kind)  \(.preview)"] | top(8))
      else [] end)
+  + (if nz(.layout.total) then
+      ["LAYOUT — \(.layout.total) place(s) where the order of a file is not helping (\(.layout.cuts) file(s) with a seam in them, \(.layout.scattered) group(s) sitting apart).",
+       "  Rule: a routine belongs beside the thing that uses it, and a file that is already two files should be two files."]
+      + ([.layout.items[]?
+          | if .kind == "cut"
+            then "  \(.path):\(.line)  SEAM — \(.evidence)\n      -> \(.remedy)"
+            else "  \(.path):\(.line)  APART — \(.routines|join(", "))\n      \(.evidence)\n      -> \(.remedy)" end] | top(5))
+     else [] end)
   + (if nz(.families.total) then
       ["FAMILIES — \(.families.total) group(s) of routines that are one routine with a knob on it (\(.families.routinesInFamilies) routines, about \(.families.linesSaved) lines).",
        "  Rule: no complex logic; build modular, parallel, multipass logic. Siblings differing in one or two places want one routine and a parameter."]
