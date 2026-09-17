@@ -682,12 +682,87 @@ not one it missed. Controls reachable only by a key are counted apart:
 nothing hides them, but somebody who does not know the key cannot
 reach them at all.
 
-Routine families and embedded code have no command of their own; both
-appear in `stats` and in the gate script. A **family** is a group of
-routines that are one routine with a knob on it. **Embedded code** is
-a string holding another language - the report names which, because a
-comment written on those lines has to be written the way *that*
-language writes one.
+Routine families, embedded code and layout have no command of their
+own; all three appear in `stats` and in the gate script. A **family**
+is a group of routines that are one routine with a knob on it.
+**Embedded code** is a string holding another language - the report
+names which, because a comment written on those lines has to be
+written the way *that* language writes one.
+
+### Layout: is a routine anywhere near the thing that uses it?
+
+Every other check asks whether the code is right. This one asks
+whether it is **findable**, which is the question a maintainer meets
+first. Two findings, one idea: a file has an order, and that order is
+either telling you something or it is not.
+
+**Siblings sitting apart.** Three routines that build the same thing,
+or three steps one orchestrator calls in a row, belong within sight of
+each other. When they drift apart nothing breaks and nobody notices:
+
+```text
+  line  223   initAmePskAuthentication          ─┐
+  line  ...   (fifteen hundred lines of other     │  all three build
+              things, none of them related)       │  one AmeAuthentication
+  line 1784   initAmePinnedAuthentication        ─┤
+  line 1792   initAmeCertificateAuthentication   ─┘
+```
+
+Distance alone is not the test - a long file can hold siblings at
+either end and read perfectly well. What counts is how much OTHER
+material sits between them, so the measure is a ratio: members that
+fill most of the span they cover are a section, not a scatter.
+
+Two grounds count as evidence that routines are siblings:
+
+```text
+  the same routine calls all of them      they are its steps
+  they all return the same type AND       they are alternatives,
+  share a prefix or suffix                named as a set by somebody
+```
+
+The second half of that second rule matters. A shared return type on
+its own is far too weak: a byte buffer is a medium, not an identity,
+and every encoder in a file returns one. `initAmePsk…` /
+`initAmePinned…` / `initAmeCertificate…` share both ends of their
+names, which is the author saying they are a set.
+
+**A file that is already two files.** A big file is not automatically
+a problem. A big file with a **thin waist** is: somewhere in it there
+is a line where the top half stops being needed by the bottom half.
+
+```text
+  routines above the cut:  36
+  routines below the cut:  63
+  routines above that the bottom half actually calls:  12
+                                                       ^^
+                     everything else above is private business
+                     the bottom half never touches
+```
+
+Cutting there produces two files that share twelve names, and one
+import line carries them. A file that is genuinely one thing has no
+such line - wherever you cut it, the bottom half reaches back into
+most of the top half - and is reported as nothing, however long.
+
+Note the direction. Nim declares before use, so "nothing above calls
+below" is true almost everywhere and is worth nothing as a signal.
+The waist is the other direction: how much of the top the bottom
+NEEDS.
+
+Thin means both few and proportional: at most twelve shared names AND
+at most 40% of the routines above the cut. Twelve is a thin waist in a
+file of thirty-six routines and a fat one in a file of fourteen, where
+it means the bottom half needs six of every seven routines above it.
+
+Both halves of a cut must carry at least 30% of the file's routines
+**and** 30% of its lines. Routines alone are not enough - fourteen
+small helpers at the top of a file are half its routines and a
+fourteenth of its lines, and lifting them out is not the repair
+anybody wanted.
+
+Findings are sorted worst-first, cuts ahead of scatters, because a
+gate prints the first few and nothing else.
 
 ### Several questions at once
 

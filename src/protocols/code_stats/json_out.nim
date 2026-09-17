@@ -11,6 +11,7 @@ import std/[json]
 import ./types
 import ./embedded
 import ./families
+import ./layout
 import ./blast
 import ./state_writes
 import ./yields
@@ -154,6 +155,27 @@ proc familyJson*(S: FamilyReport): JsonNode {.role: dataWriter,
     "items": items, "total": S.total,
     "routinesInFamilies": S.routinesInFamilies,
     "linesSaved": S.linesSaved, "error": S.error
+  }
+
+proc layoutJson*(S: LayoutReport): JsonNode {.role: dataWriter,
+    tag: "stats".} =
+  ## S: routines sitting nowhere near what uses them, and files with a
+  ## thin waist in them.
+  var
+    items: JsonNode = newJArray()
+    kindNames: array[LayoutKind, string] = ["scattered", "cut"]
+  for row in S.items:
+    items.add(%*{
+      "kind": kindNames[row.kind], "path": row.path, "line": row.line,
+      "routines": row.routines, "lines": row.lines, "span": row.span,
+      "ownLines": row.ownLines, "strangers": row.strangers,
+      "above": row.above, "below": row.below,
+      "aboveLines": row.aboveLines, "belowLines": row.belowLines,
+      "evidence": row.evidence, "remedy": row.remedy
+    })
+  result = %*{
+    "items": items, "total": S.total, "scattered": S.scattered,
+    "cuts": S.cuts, "error": S.error
   }
 
 proc embeddedJson*(S: EmbeddedReport): JsonNode {.role: dataWriter,
@@ -435,6 +457,7 @@ proc statsJson*(S: ProjectStats): JsonNode {.role: dataWriter,
     "placeholders": placeholderJson(S.placeholders),
     "embedded": embeddedJson(S.embedded),
     "families": familyJson(S.families),
+    "layout": layoutJson(S.layout),
     "state": statsJsonState(S),
     "aborts": statsJsonAborts(S),
     "secrets": secretsJson(S.secrets),

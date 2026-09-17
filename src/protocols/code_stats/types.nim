@@ -19,6 +19,7 @@ import ./placeholders
 import ./secrets
 import ./embedded
 import ./families
+import ./layout
 import ./state_writes
 import ./yields
 import ./config_touch
@@ -266,6 +267,10 @@ type
     families*: FamilyReport
       ## groups of sibling routines that are one routine with a knob
       ## on it. See `families.nim`.
+    layout*: LayoutReport
+      ## siblings that sit nowhere near each other, and files with a
+      ## thin waist in them -- one file that is already two. See
+      ## `layout.nim`.
     embedded*: EmbeddedReport
       ## strings that hold another language entirely, and which
       ## comment marks that language uses. See `embedded.nim`.
