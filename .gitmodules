@@ -6,3 +6,7 @@
 	path = submodules/Var-Invariants
 	url = https://github.com/siriuslee69/Var-Invariants.git
 	branch = nightly
+[submodule "submodules/Nimble-Tasks"]
+	path = submodules/Nimble-Tasks
+	url = https://github.com/siriuslee69/Nimble-Tasks.git
+	branch = main

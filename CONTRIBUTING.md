@@ -27,7 +27,7 @@ Read the Agent-Conventions repo first.
 ## Commands
 - `nimble test`
 - `nimble buildtests`
-- `nimble buildgraphcli`
-- `nimble buildwebui`
+- `nimble buildCli`
+- `nimble buildWebui`
 - `nimble buildvscode`
 - `nimble find`

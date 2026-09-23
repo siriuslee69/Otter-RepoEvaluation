@@ -23,14 +23,14 @@ Compile-time timing instrumentation, debug tracing, and interactive Nim repo gra
 For a plain Nim file:
 
 ```sh
-nimble buildcli
+nimble buildNimCli
 ./bin/otter-nim c -r my_file.nim
 ```
 
 ### 2. Analyze a repo graph
 
 ```sh
-nimble buildgraphcli
+nimble buildCli
 ./bin/otter-repo-graph snapshot .
 ./bin/otter-repo-graph artifacts .
 ./bin/otter-repo-graph run . 'src/protocols/foo::bar:42'
@@ -109,14 +109,14 @@ there is none, and `declaredKinds` says how many were declared so a
 guess is never mistaken for a promise.
 
 The pragmas themselves come from
-`Proto-RepoTemplate/meta/metaPragmas.nim`, which every repository
+`Rune-Pragmas/meta/runePragmas.nim`, one shared file that every repository
 copies. Otter reads those names out of whatever tree it is pointed at,
 so a repository that renames them drops out of every chart.
 
 ### 5. Open the interactive UI
 
 ```sh
-nimble buildwebui
+nimble buildWebui
 ./bin/otter-repo-graph-webui
 ```
 
@@ -937,13 +937,13 @@ The shared WebUI now uses qlacier-style floating menu shells: repo root search o
   - discover `.otterUiTest` routines, build the host, and open the isolated test dashboard.
 - `nimble buildTestUi`
   - build `bin/otter-test-ui` without opening a browser.
-- `nimble buildcli`
+- `nimble buildNimCli`
   - build `bin/otter-nim`.
-- `nimble buildgraphcli`
+- `nimble buildCli`
   - build `bin/otter-repo-graph`.
-- `nimble buildwebui`
+- `nimble buildWebui`
   - build `bin/otter-repo-graph-webui`.
-- `nimble runwebui`
+- `nimble runWebui`
   - compile and run the WebUI shell.
 - `nimble buildvscode`
   - verify the VS Code extension source files exist.

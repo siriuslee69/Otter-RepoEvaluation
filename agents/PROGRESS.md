@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: Pin Fylgia-Utils and Var-Invariants at their rewritten history
+Commit Message: Take the generic nimble tasks from Nimble-Tasks; buildcli -> buildNimCli, buildgraphcli -> buildCli
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.
@@ -92,7 +92,7 @@ Features (Done):
 - Added ordered per-panel version execution, status glyphs on version tabs, and an editable/native-picker output path carried into each worker.
 - Consolidated dashboard customization into eleven solid semantic colors; Otter now derives all gradients, transparency, surfaces, glows, shadows, and state treatments internally.
 - Added checkbox/card multi-selection with Ctrl/Cmd and Shift ranges, selected-card batch runs, structured worker failure details, source popups, and plain-text/JSON clipboard export.
-- Added safe `autopush`, `switch`, and fast-forward-only `applynightly` Nimble tasks for the nightly development workflow.
+- Added safe `autopush`, `switch`, and fast-forward-only `applyNightly` Nimble tasks (now from the Nimble-Tasks submodule) for the nightly development workflow.
 - Split the Test UI runtime into a monitored main supervisor, direct WebUI host, relay-only orchestrator, persistent test backend, and disposable per-test workers.
 - Made every `.otterUiTest` routine run on its own joined thread inside its isolated worker process.
 - Added contracts proving distinct persistent process identities, dedicated test threads, worker-crash containment, and backend reuse after a test process exits.
