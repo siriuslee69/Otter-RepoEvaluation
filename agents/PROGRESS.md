@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: Ask whether a routine sits anywhere near the thing that uses it
+Commit Message: Let the gate find workspace folders itself instead of naming one path
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.

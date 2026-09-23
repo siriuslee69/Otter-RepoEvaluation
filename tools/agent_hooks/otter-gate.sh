@@ -20,8 +20,10 @@ here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 THRESHOLD="${OTTER_LINE_THRESHOLD:-150}"
 CACHE="${OTTER_CACHE:-$HOME/.cache/otter-agent-hooks}"
 STATE="$CACHE/state"
-# Workspace roots holding many sibling projects — measuring them means nothing.
-SKIP_ROOTS="${OTTER_SKIP_ROOTS:-/mnt/temp/CodingMain}"
+# Folders holding many sibling projects -- measuring them together means
+# nothing. A folder like that has no `.nimble` of its own, so the check
+# below already skips it; list extra ones here, separated by spaces.
+SKIP_ROOTS="${OTTER_SKIP_ROOTS:-}"
 
 force=0
 target=""
@@ -40,8 +42,8 @@ done
 
 root=$(git -C "$target" rev-parse --show-toplevel 2>/dev/null) || exit 2
 for skip in $SKIP_ROOTS; do [ "$root" = "$skip" ] && exit 2; done
-# Only meaningful on Nim repos.
-[ -n "$(find "$root" -maxdepth 2 -name '*.nimble' -print -quit 2>/dev/null)" ] || exit 2
+# Only meaningful on Nim repos: a `.nimble` file must sit in the repo's own root.
+[ -n "$(find "$root" -maxdepth 1 -name '*.nimble' -print -quit 2>/dev/null)" ] || exit 2
 
 mkdir -p "$STATE"
 key=$(printf '%s' "$root" | sha1sum | cut -c1-16)
