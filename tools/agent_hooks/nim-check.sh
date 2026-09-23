@@ -3,6 +3,7 @@
 #
 #   nim-check.sh FILE...        -> one line per finding on stdout
 #   nim-check.sh $(git ls-files '*.nim')
+#   OTTER_REPORT_LOG=off ...    -> print findings without de-duplication
 #
 # Exit: 0 nothing to report | 1 findings printed | 2 nothing checkable given.
 #
@@ -10,12 +11,16 @@
 # call graph — nesting depth, dead code, roles, scored placeholders — belongs to
 # `otter-gate.sh`, which asks Otter itself.
 set -uo pipefail
+here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
 [ $# -gt 0 ] || { echo "usage: nim-check.sh FILE..." >&2; exit 2; }
 
 MAX_PER_FILE="${NIM_CHECK_MAX:-24}"
 found=0
 checked=0
+root=""
+report=$(mktemp "${TMPDIR:-/tmp}/otter-nim-check.XXXXXX") || exit 2
+trap 'rm -f "$report"' EXIT
 
 for f in "$@"; do
   [ -f "$f" ] || continue
@@ -24,6 +29,13 @@ for f in "$@"; do
     *) continue ;;
   esac
   checked=$((checked + 1))
+
+  if [ -z "$root" ]; then
+    fileDir=$(cd -- "$(dirname -- "$f")" 2>/dev/null && pwd)
+    if [ -n "$fileDir" ]; then
+      root=$(git -C "$fileDir" rev-parse --show-toplevel 2>/dev/null || true)
+    fi
+  fi
 
   out=$(MAXN="$MAX_PER_FILE" awk '
   function flag(line, msg) { if (n < max) { n++; printf "%s:%d  %s\n", FILENAME, line, msg } }
@@ -100,11 +112,16 @@ for f in "$@"; do
   esac
 
   if [ -n "${out//[[:space:]]/}" ]; then
-    printf '%s\n' "$out"
+    printf '%s\n' "$out" >> "$report"
     found=1
   fi
 done
 
 [ "$checked" -gt 0 ] || exit 2
 [ "$found" = 0 ] && exit 0
+if [ -n "$root" ]; then
+  bash "$here/report-once.sh" --root "$root" < "$report"
+else
+  cat "$report"
+fi
 exit 1

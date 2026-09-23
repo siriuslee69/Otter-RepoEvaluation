@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: Take the generic nimble tasks from Nimble-Tasks; buildcli -> buildNimCli, buildgraphcli -> buildCli
+Commit Message: Add per-repository report-once logging for agent hooks
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.
@@ -11,6 +11,9 @@ Features (Planned):
 - Parent-repo adoption of the pragma-driven test UI after Otter example validation.
 
 Features (Done):
+- Agent hooks keep a local `.otter/reported-findings.log` in each checked
+  repository. Previously recorded report rows stay out of later console
+  output; removing a row makes Otter report it again.
 - LAYOUT (`code_stats/layout.nim`): the first check that asks whether
   code is FINDABLE rather than whether it is right. Two findings from
   one idea -- a file has an order, and it is either telling you

@@ -5,6 +5,7 @@
 #   otter-gate.sh /path/to/repo      -> check that repo
 #   otter-gate.sh --force /path      -> measure now, whatever the line count
 #   otter-gate.sh --threshold 400 .  -> use a different line budget
+#   OTTER_REPORT_LOG=off ...         -> print findings without de-duplication
 #
 # Exit: 0 nothing to report | 1 report printed on stdout | 2 not applicable.
 #
@@ -75,7 +76,7 @@ jq -e . "$json" >/dev/null 2>&1 || exit 2
 # Anchor forward so the next window starts here, whatever the findings are.
 anchor_here
 
-REPO="$root" CHANGED="$changed" THRESH="$THRESHOLD" FORCED="$force" jq -r '
+report=$(REPO="$root" CHANGED="$changed" THRESH="$THRESHOLD" FORCED="$force" jq -r '
   def top(n): .[0:n];
   def nz(x): if (x // 0) > 0 then true else false end;
   [
@@ -160,6 +161,12 @@ REPO="$root" CHANGED="$changed" THRESH="$THRESHOLD" FORCED="$force" jq -r '
      "Coverage: \(.tests.buckets[0] // 0) of \(.functions) routines untested; \(.tests.tests) tests, \(.tests.declaredKinds) with a declared testKind.",
      "Shape: \(.totalLines) lines, \(.functions) routines, avg \(.avgLines | floor)."]
   | join("\n")
-' "$json" 2>/dev/null
+' "$json" 2>/dev/null)
+jqStatus=$?
+[ "$jqStatus" -eq 0 ] || exit 2
+
+printf '%s\n' "$report" | bash "$here/report-once.sh" --root "$root"
+reportStatus=$?
+[ "$reportStatus" -eq 2 ] && exit 2
 
 exit 1

@@ -45,6 +45,26 @@ nimble statsjson                  # the whole shape, to evaluation/statistics
 ./bin/otter-repo-graph stats <dir> --json
 ```
 
+### Keep agent reports from repeating
+
+The shared agent checks keep a finding log in the repository they check:
+
+```sh
+tools/agent_hooks/nim-check.sh src/protocols/example.nim
+tools/agent_hooks/otter-gate.sh --force .
+```
+
+New report lines are printed and added to `.otter/reported-findings.log` in
+that repository. Later runs leave already recorded lines out of the report.
+When a finding points to source code, Otter matches the file, source line text,
+and diagnostic, so moving the line does not make the same result appear new.
+
+The log is local to the checked repository. Remove one row to show that result
+again, or delete the file to start with an empty log. Set
+`OTTER_REPORT_LOG=off` to print every finding without using a log. Set
+`OTTER_REPORT_LOG=path` to store it at a different path; a relative path is
+resolved from the checked repository root.
+
 ```
 Files: 61   Lines: 10457
 Routines: 412   average 18.5 lines

@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+# Keep each checked repository's Otter report rows, and print new rows once.
+#
+# The identity uses the repository path, source line text, and finding text
+# when the report names a source location. Moving code therefore does not turn
+# the same result into a new message. Rows without a source location use their
+# full text.
+set -uo pipefail
+
+root="$PWD"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --root)
+      root="${2:-$root}"
+      shift 2
+      ;;
+    --root=*)
+      root="${1#*=}"
+      shift
+      ;;
+    *)
+      echo "usage: report-once.sh [--root REPO]" >&2
+      exit 2
+      ;;
+  esac
+done
+
+repo=$(git -C "$root" rev-parse --show-toplevel 2>/dev/null) || exit 2
+repo=${repo%/}
+
+case "${OTTER_REPORT_LOG:-}" in
+  off|false|0)
+    cat
+    exit 0
+    ;;
+esac
+
+log="$repo/.otter/reported-findings.log"
+if [ -n "${OTTER_REPORT_LOG:-}" ]; then
+  case "$OTTER_REPORT_LOG" in
+    /*) log="$OTTER_REPORT_LOG" ;;
+    *) log="$repo/$OTTER_REPORT_LOG" ;;
+  esac
+fi
+
+if ! command -v sha256sum >/dev/null 2>&1; then
+  echo "sha256sum is required to keep the Otter finding log" >&2
+  exit 2
+fi
+
+mkdir -p "$(dirname "$log")" || exit 2
+touch "$log" || exit 2
+work=$(mktemp -d "${TMPDIR:-/tmp}/otter-report-once.XXXXXX") || exit 2
+trap 'rm -rf "$work"' EXIT
+input="$work/input"
+fresh="$work/fresh"
+cat > "$input" || exit 2
+: > "$fresh"
+
+lineCount=0
+oldCount=0
+category="OTTER"
+
+isReportRow() {
+  local row="$1"
+  if [[ "$row" == "  "* ]]; then
+    return 0
+  fi
+  if [[ "$row" =~ ^[^[:space:]].*:[0-9]+[[:space:]][[:space:]] ]]; then
+    return 0
+  fi
+  if [[ "$row" =~ ^[^[:space:]][^[:space:]]*[[:space:]][[:space:]][^[:space:]] ]]; then
+    return 0
+  fi
+  if [[ "$row" == *" — "* ]]; then
+    local heading="${row%% — *}"
+    [[ "$heading" =~ ^[A-Z][A-Z[:space:]-]*$ ]] && return 0
+  fi
+  return 1
+}
+
+findingId() {
+  local row="$1"
+  local identity="$category"$'\034'"$row"
+  local sourcePath=""
+  local relativePath=""
+  local sourceText=""
+  local body=""
+  local location=""
+  local lineNumber=""
+  local locationPattern='^([[:space:]]*)(.+):([0-9]+)[[:space:]]+(.*)$'
+
+  if [[ "$row" =~ $locationPattern ]]; then
+    location="${BASH_REMATCH[2]}"
+    lineNumber="${BASH_REMATCH[3]}"
+    body="${BASH_REMATCH[4]}"
+    relativePath="$location"
+    sourcePath="$location"
+    case "$sourcePath" in
+      "$repo"/*)
+        relativePath="${sourcePath#"$repo"/}"
+        ;;
+      /*) ;;
+      *) sourcePath="$repo/$sourcePath" ;;
+    esac
+    if [ -f "$sourcePath" ]; then
+      sourceText=$(sed -n "${lineNumber}p" "$sourcePath" 2>/dev/null || true)
+      identity="$category"$'\034'"$relativePath"$'\034'"$sourceText"$'\034'"$body"
+    else
+      identity="$category"$'\034'"$relativePath"$'\034'"$body"
+    fi
+  fi
+
+  printf '%s' "$identity" | sha256sum | awk '{print $1}'
+}
+
+while IFS= read -r row || [ -n "$row" ]; do
+  if [[ "$row" == *" — "* ]]; then
+    heading="${row%% — *}"
+    if [[ "$heading" =~ ^[A-Z][A-Z[:space:]-]*$ ]]; then
+      category="$heading"
+    fi
+  fi
+
+  if ! isReportRow "$row"; then
+    continue
+  fi
+
+  id=$(findingId "$row")
+  if grep -Fq -- "$id"$'\t' "$log"; then
+    oldCount=$((oldCount + 1))
+    continue
+  fi
+
+  display="$row"
+  if [[ "$row" == "  "* ]]; then
+    display="[$category] ${row#"${row%%[![:space:]]*}"}"
+  elif [[ "$row" == "$category — "* ]]; then
+    display="[$category] ${row#"$category — "}"
+  elif [[ "$row" != *" — "* ]]; then
+    display="[NIM] $row"
+  fi
+  display=${display//$'\t'/ }
+  printf '%s\t%s\n' "$id" "$display" >> "$log" || exit 2
+  printf '%s\n' "$display" >> "$fresh"
+  lineCount=$((lineCount + 1))
+done < "$input"
+
+if [ "$lineCount" -gt 0 ]; then
+  printf 'Otter: %s new report line(s). Log: %s\n' "$lineCount" "$log"
+  cat "$fresh"
+  exit 1
+fi
+
+if [ "$oldCount" -gt 0 ]; then
+  printf 'Otter: no new report lines; %s already recorded. Log: %s\n' \
+    "$oldCount" "$log"
+  exit 0
+fi
+
+# A measurement with no findings still has useful summary lines. Keep those.
+cat "$input"
+exit 0
