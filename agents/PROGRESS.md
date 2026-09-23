@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: Let the gate find workspace folders itself instead of naming one path
+Commit Message: Pin Fylgia-Utils and Var-Invariants at their rewritten history
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.
