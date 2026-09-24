@@ -40,6 +40,34 @@ import ../repo_graph/nim_parser
 import ../repo_graph/types as graphTypes
 import runePragmas
 
+proc hasBody(f: FunctionInfo): bool {.role: parser, tag: "stats".} =
+  ## f: true when the routine has at least one line of code.
+  result = false
+  for row in f.bodyLines:
+    if row.strip().len > 0 and not row.strip().startsWith("#"):
+      return true
+
+proc dropForwardDeclarations(A: seq[FunctionInfo]): seq[FunctionInfo] {.
+    role: sanitizer, tag: "stats".} =
+  ## A: every routine. A forward declaration is a promise, not a routine:
+  ##
+  ##   proc parse(n: int): Node          <- line 101, no body
+  ##   ...
+  ##   proc parse(n: int): Node =        <- line 273, the routine
+  ##
+  ## Kept, calls resolved to the first one, so the real routine was never
+  ## reached by any test and read as untested. A body-less routine goes
+  ## when its module defines one with a body under the same name.
+  var
+    bodied: HashSet[string] = initHashSet[string]()
+  for f in A:
+    if hasBody(f):
+      bodied.incl(f.modulePath & "::" & f.name)
+  result = @[]
+  for f in A:
+    if hasBody(f) or (f.modulePath & "::" & f.name) notin bodied:
+      result.add(f)
+
 proc parseTree*(rootDir: string, files: seq[string]): seq[FunctionInfo]
     {.role: parser, tag: "stats".} =
   ## rootDir: the tree. files: every Nim file in it, tests included.
@@ -47,6 +75,7 @@ proc parseTree*(rootDir: string, files: seq[string]): seq[FunctionInfo]
   for path in files:
     for row in parseNimFile(rootDir, path):
       result.add(row)
+  result = dropForwardDeclarations(result)
 
 
 proc splitTests*(A: seq[FunctionInfo]): tuple[src: seq[FunctionInfo],
@@ -142,6 +171,21 @@ proc totalsOf(S: var ProjectStats, A: seq[FunctionInfo]) {.role: actor,
     S.avgLines = total.float / A.len.float
 
 
+proc addPassedCalls(A: var seq[FunctionInfo]) {.role: actor, tag: "stats".} =
+  ## A: every routine. A routine another hands over by name
+  ## (`runTasks(ts, n, encryptChunk)`, `createThread(t, serve, a)`) runs
+  ## when that one does, so it is added to its calls: the call graph, and
+  ## with it the test walk, then follows it.
+  var
+    known: HashSet[string] = initHashSet[string]()
+  for f in A:
+    known.incl(f.name.toLowerAscii())
+  for f in A.mitems:
+    for name in passedNames(f.bodyLines, known):
+      if name notin f.calls:
+        f.calls.add(name)
+
+
 proc analyzeProject*(rootDir: string): ProjectStats {.role: orchestrator,
     input: trusted, risk: rkLow, speed: spLong, tag: "stats".} =
   ## rootDir: the folder to measure. An unreadable folder comes back
@@ -184,11 +228,14 @@ proc analyzeProject*(rootDir: string): ProjectStats {.role: orchestrator,
   result.gitignore = gatherGitignoreStats(rootDir)
 
   all = parseTree(rootDir, files)
+  addPassedCalls(all)
   parts = splitTests(all)
   graph = buildCallGraph(all)
   marks = templateNames(all)
   tests = gatherTests(files, parts.tests)
-  walk = walkTests(parts.src, tests, graph.edges)
+  ## `all`, not only the library: a test that calls a helper in its own
+  ## file (`waitFor runRelayChecks()`) reaches the library THROUGH it.
+  walk = walkTests(all, tests, graph.edges)
   result.files = collectFiles(rootDir, all, files, marks, walk)
   result.nest = nestOf(parts.src, marks)
   result.tests = coverageOf(parts.src, tests, walk)

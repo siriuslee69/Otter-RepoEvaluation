@@ -324,3 +324,69 @@ proc start*(): string =
       got: seq[string] = passedNames(@["  result = fill(A, \"cipher\",",
         "    checkBuilt)"], known)
     check "checkBuilt" in got
+
+suite "otter test walk: what a test really reaches":
+  # {.testKind: tkRegression, pins: "calls resolved to a forward declaration, so the routine itself read as untested".}
+  test "a forward-declared routine is reached through its declaration":
+    var
+      root: string = joinPath(getCurrentDir(), "build", "test_fwd_repo")
+      s: ProjectStats = ProjectStats()
+    if dirExists(root):
+      removeDir(root)
+    createDir(joinPath(root, "src"))
+    createDir(joinPath(root, "evaluation", "tests"))
+    writeFile(joinPath(root, "sample.nimble"), "srcDir = \"src\"\n")
+    writeFile(joinPath(root, "src", "fwd.nim"), """
+proc parseNode*(n: int): int
+
+proc parseList*(n: int): int =
+  result = parseNode(n) + 1
+
+proc parseNode*(n: int): int =
+  result = n * 2
+""")
+    writeFile(joinPath(root, "evaluation", "tests", "test_fwd.nim"), """
+import unittest
+import ../../src/fwd
+suite "fwd":
+  test "list":
+    check parseList(1) == 3
+""")
+    s = analyzeProject(root)
+    check s.tests.untested.len == 0
+    removeDir(root)
+
+  # {.testKind: tkRegression, pins: "a routine a test reached only through a thread or a callback read as untested".}
+  test "a routine handed over by name is reached through the one it is handed to":
+    var
+      root: string = joinPath(getCurrentDir(), "build", "test_walk_passed_repo")
+      s: ProjectStats = ProjectStats()
+    if dirExists(root):
+      removeDir(root)
+    createDir(joinPath(root, "src"))
+    createDir(joinPath(root, "evaluation", "tests"))
+    writeFile(joinPath(root, "sample.nimble"), "srcDir = \"src\"\n")
+    writeFile(joinPath(root, "src", "tasks.nim"), """
+proc doubleIt*(x: var int) =
+  x = x * 2
+
+proc runAll*(A: var seq[int], work: proc (x: var int)) =
+  for a in A.mitems:
+    work(a)
+
+proc doubleAll*(A: var seq[int]) =
+  runAll(A, doubleIt)
+""")
+    writeFile(joinPath(root, "evaluation", "tests", "test_tasks.nim"), """
+import unittest
+import ../../src/tasks
+proc helper(): seq[int] =
+  result = @[1, 2]
+  doubleAll(result)
+suite "tasks":
+  test "doubles":
+    check helper() == @[2, 4]
+""")
+    s = analyzeProject(root)
+    check s.tests.untested.len == 0
+    removeDir(root)

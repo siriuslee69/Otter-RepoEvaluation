@@ -388,6 +388,8 @@ proc coverageOf*(A: seq[FunctionInfo], tests: seq[TestInfo],
   for row in A:
     n = min(5, w.hits.getOrDefault(row.id))
     result.buckets[n] = result.buckets[n] + 1
+    if n == 0:
+      result.untested.add(row.sourcePath & ":" & $row.lineStart & " " & row.name)
 
 
 proc calledSet*(A: seq[CallEdge]): HashSet[string] {.role: truthBuilder,

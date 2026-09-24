@@ -1252,7 +1252,7 @@ proc addPassedNames(s: string, known: HashSet[string], prevEnd: char,
     if before == ' ':
       before = prevEnd
     if before in {'(', ','} and edgeAfter(s, stop) in {',', ')'} and
-        name.toLowerAscii() in known and name notin R:
+        (known.len == 0 or name.toLowerAscii() in known) and name notin R:
       R.add(name)
     i = stop
 
@@ -1267,7 +1267,8 @@ proc passedNames*(lines: seq[string], known: HashSet[string]): seq[string]
   ##   rows.sort(cmpRows)                    <- cmpRows runs, inside sort
   ##
   ## Only names of real routines count, so an ordinary variable passed
-  ## the same way is never mistaken for one.
+  ## the same way is never mistaken for one. An empty `known` keeps every
+  ## name, for a caller that resolves them itself later.
   var
     s: string = ""
     prevEnd: char = ' '

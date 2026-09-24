@@ -93,7 +93,8 @@ proc testsJson*(t: TestStats): JsonNode {.role: dataWriter,
     "functions": t.functions, "buckets": buckets,
     "edgeCovered": t.edgeCovered, "benchCovered": t.benchCovered,
     "regressionCovered": t.regressionCovered,
-    "bugfixCovered": t.bugfixCovered, "kinds": countsJson(t.kinds)
+    "bugfixCovered": t.bugfixCovered, "kinds": countsJson(t.kinds),
+    "untested": %t.untested
   }
 
 

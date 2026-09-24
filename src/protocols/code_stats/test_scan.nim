@@ -14,11 +14,12 @@
 # and the window is told how many kinds were declared rather than
 # guessed, so nobody mistakes a guess for a promise.
 
-import std/[strutils]
+import std/[sets, strutils]
 
 import ./types
 import ../repo_graph/io_utils
 import ../repo_graph/types as graphTypes
+import ../repo_graph/nim_parser
 import runePragmas
 
 const
@@ -188,6 +189,11 @@ proc callNames*(A: seq[string]): seq[string] {.role: parser,
       if j < raw.len and raw[j] == '(' and name notin result:
         result.add(name)
       i = j
+  ## A routine handed over by name (`createThread(t, serve, a)`) runs too;
+  ## the walk keeps only names that are real routines.
+  for name in passedNames(A, initHashSet[string]()):
+    if name notin result:
+      result.add(name)
 
 
 proc blockBody*(A: seq[string], start, indent: int): seq[string]

@@ -33,7 +33,13 @@ Features (Done):
                               out a start value by design; a raise built
                               from the routine's own inputs is an error
                               helper, not a stub
+    test coverage             `tests.untested` lists every routine no test
+                              reaches; the walk follows routines passed by
+                              name, starts from helpers in test files, and
+                              no longer stops at a forward declaration
   Still unseen: reads inside `test "..."` blocks, which are not routines.
+  Still unseen: which overload a call picks (the first is assumed), and
+  calls made while compiling (`const x = f()`).
 - report-once.sh prints a new finding under its heading and rule, with its
   detail lines; headings are never logged, details never printed alone.
 - Agent hooks keep a local `.otter/reported-findings.log` in each checked

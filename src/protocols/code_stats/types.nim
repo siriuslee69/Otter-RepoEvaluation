@@ -209,6 +209,9 @@ type
     regressionCovered*: int
     bugfixCovered*: int
     kinds*: seq[NameCount]
+    untested*: seq[string]
+      ## `path:line name` of every routine no test reaches, so a person can
+      ## go and look rather than only read a count.
 
   ProjectStats* {.role: truthState, tag: "stats".} = object
     ## One whole repository, measured.
