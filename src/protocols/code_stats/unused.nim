@@ -32,7 +32,7 @@
 ## | being entirely dead.                                        |
 ## ==============================================================
 
-import std/[algorithm, sets, strutils]
+import std/[algorithm, sequtils, sets, strutils]
 
 import ../repo_graph/types as graphTypes
 import runePragmas
@@ -168,6 +168,13 @@ proc unusedReportOf*(A: seq[FunctionInfo], calledNames: HashSet[string],
     # A pragma template is applied by name, never called, and would
     # otherwise fill this list.
     if "pragma" in f.pragmaTags:
+      continue
+    # A converter is called by the compiler, where a value of one type is
+    # handed to something wanting the other; no call is ever written.
+    if f.declKind == "converter":
+      continue
+    # An operator (`[]`, `$`, `==`) is used through syntax: `A[i]`, `$x`.
+    if not f.name.anyIt(it.isAlphaNumeric()):
       continue
     kind = classify(f, isLib)
     rel = f.sourcePath

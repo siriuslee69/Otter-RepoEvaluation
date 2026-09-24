@@ -887,6 +887,25 @@ proc addCall(cs: var seq[string], hs: var HashSet[string], name: string) {.role:
     cs.add(t)
 
 
+proc genericCallAt(line: string, j: int): bool {.role: parser,
+    tag: "graph|parsing".} =
+  ## line/j: whether `[` at j opens type arguments of a call:
+  ##   decode[FomkeRole](v)   -> true      rows[i]   -> false
+  var
+    d: int = 0
+    k: int = j
+  result = false
+  if j >= line.len or line[j] != '[':
+    return
+  while k < line.len:
+    if line[k] == '[':
+      d = d + 1
+    if line[k] == ']':
+      d = d - 1
+    if d == 0:
+      return k + 1 < line.len and line[k + 1] == '('
+    k = k + 1
+
 proc extractCalls*(bodyLines: seq[string]): seq[string] {.role: parser, tag: "graph|parsing".} =
   ## bodyLines: any lines of Nim. Every name written with a bracket
   ## after it. Exported because the diff review reads the lines a
@@ -914,7 +933,7 @@ proc extractCalls*(bodyLines: seq[string]): seq[string] {.role: parser, tag: "gr
         j = i
         while j < line.len and line[j].isSpaceAscii():
           j = j + 1
-        if j < line.len and line[j] == '(':
+        if j < line.len and (line[j] == '(' or genericCallAt(line, j)):
           addCall(result, seen, name)
       elif line[i] == '.':
         j = i + 1

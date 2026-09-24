@@ -280,3 +280,39 @@ proc start*() =
       dead.add(it.name)
     check "worker" notin dead
     check "cmpRows" notin dead
+
+  # {.testKind: tkRegression, pins: "converters, generic calls and operators were reported as dead".}
+  test "a converter, a generic call and an operator are used":
+    var
+      root: string = joinPath(getCurrentDir(), "build", "test_implicit_repo")
+      s: ProjectStats = ProjectStats()
+      dead: seq[string] = @[]
+    if dirExists(root):
+      removeDir(root)
+    createDir(joinPath(root, "src"))
+    writeFile(joinPath(root, "sample.nimble"), "srcDir = \"src\"\n")
+    writeFile(joinPath(root, "src", "implicit.nim"), """
+type
+  Row = object
+    n: int
+
+converter toRow*(n: int): Row =
+  result = Row(n: n)
+
+proc `$`*(r: Row): string =
+  result = "row"
+
+proc decodeAs[T](v: int): T =
+  result = T(v)
+
+proc start*(): string =
+  var
+    r: Row = 3
+  result = $r & $decodeAs[int](4)
+""")
+    s = analyzeProject(root)
+    for it in s.unusedFuncs.items:
+      dead.add(it.name)
+    check "toRow" notin dead
+    check "decodeAs" notin dead
+    check "$" notin dead

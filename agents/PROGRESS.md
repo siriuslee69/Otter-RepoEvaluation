@@ -25,6 +25,9 @@ Features (Done):
                               `if`/`case` never both run
     dead code                 a routine handed over by name
                               (`createThread(t, worker, a)`) is used
+                              ... and so is a converter (the compiler calls
+                              it), a generic call `decode[T](v)`, and an
+                              operator (`$x`, `A[i]`)
   Still unseen: reads inside `test "..."` blocks, which are not routines.
 - report-once.sh prints a new finding under its heading and rule, with its
   detail lines; headings are never logged, details never printed alone.
