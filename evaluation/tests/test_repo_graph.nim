@@ -224,3 +224,59 @@ proc viaEnumSet*() {.role: parser, tag: "ame|kdf".} =
       check "kdf" in byName[name].pragmaTags
       check "tagame" notin byName[name].pragmaTags
       check "{tagame" notin byName[name].pragmaTags
+    removeDir(root)
+
+suite "otter repo graph: headers and uses that read like something else":
+  # {.testKind: tkRegression, pins: "a default value ending a line was read as the body, and the role after it was lost".}
+  test "a parameter default at the end of a line is not the body":
+    var
+      root: string = joinPath(getCurrentDir(), "build", "test_default_eq_repo")
+      g: RepoGraph
+      byName: Table[string, FunctionInfo] = initTable[string, FunctionInfo]()
+    if dirExists(root):
+      removeDir(root)
+    createDir(joinPath(root, "src"))
+    writeFile(joinPath(root, "src", "limits.nim"), """
+proc openConnection*(L: int =
+    defaultLimit()): int {.role: truthBuilder,
+    tag: "http".} =
+  result = L
+""")
+    g = analyzeRepo(root)
+    for f in g.functions:
+      byName[f.name] = f
+    check byName.hasKey("openConnection")
+    check "role:truth_builder" in byName["openConnection"].pragmaTags
+    removeDir(root)
+
+  # {.testKind: tkRegression, pins: "a routine only handed to createThread was reported as dead".}
+  test "a routine handed over by name is used":
+    var
+      root: string = joinPath(getCurrentDir(), "build", "test_passed_repo")
+      s: ProjectStats = ProjectStats()
+      dead: seq[string] = @[]
+    if dirExists(root):
+      removeDir(root)
+    createDir(joinPath(root, "src"))
+    writeFile(joinPath(root, "sample.nimble"), "srcDir = \"src\"\n")
+    writeFile(joinPath(root, "src", "threads.nim"), """
+proc worker(a: int) {.thread.} =
+  ## a: any number.
+  discard a
+
+proc cmpRows(a, b: int): int =
+  ## a, b: two rows.
+  result = a - b
+
+proc start*() =
+  var
+    t: Thread[int]
+    rows: seq[int] = @[3, 1]
+  createThread(t, worker, 1)
+  rows.sort(cmpRows)
+""")
+    s = analyzeProject(root)
+    for it in s.unusedFuncs.items:
+      dead.add(it.name)
+    check "worker" notin dead
+    check "cmpRows" notin dead

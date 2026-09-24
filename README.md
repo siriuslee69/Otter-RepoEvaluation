@@ -59,6 +59,19 @@ that repository. Later runs leave already recorded lines out of the report.
 When a finding points to source code, Otter matches the file, source line text,
 and diagnostic, so moving the line does not make the same result appear new.
 
+A new finding is printed under its heading and rule, with its detail lines
+(the `->` suggestion) beneath it, so it still reads on its own:
+
+```
+[LAYOUT] 3 place(s) where the order of a file is not helping ...
+  Rule: a routine belongs beside the thing that uses it, ...
+  src/net/session.nim:706  SEAM — only 12 of the 36 routine(s) above ...
+      -> cut at line 706: 36 routine(s) and about 576 lines above, ...
+```
+
+The heading is context, not a finding: its counts change on every run, so it
+is never logged. A detail line is never printed without its finding.
+
 The log is local to the checked repository. Remove one row to show that result
 again, or delete the file to start with an empty log. Set
 `OTTER_REPORT_LOG=off` to print every finding without using a log. Set

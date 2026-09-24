@@ -188,6 +188,23 @@ proc extractFunctionNameData(line: string): tuple[name: string, isExported: bool
     result.name = result.name[0 .. ^2]
 
 
+proc openBrackets(s: string): int {.role: parser, tag: "graph|parsing".} =
+  ## s: header text so far -> how many ( and [ are still open. A line ending
+  ## in `=` inside them is a default value (`L: Limits =`), not the body.
+  var
+    inDouble: bool = false
+    i: int = 0
+  result = 0
+  while i < s.len:
+    if s[i] == '"':
+      inDouble = not inDouble
+    if not inDouble and s[i] in {'(', '['}:
+      result = result + 1
+    if not inDouble and s[i] in {')', ']'}:
+      result = result - 1
+    i = i + 1
+
+
 proc parseHeader(ls: seq[string], iStart: int): tuple[sHeader: string, iEnd: int] {.role: helper, tag: "graph|parsing".} =
   var
     i: int = iStart
@@ -200,7 +217,7 @@ proc parseHeader(ls: seq[string], iStart: int): tuple[sHeader: string, iEnd: int
     t = stripComment(raw).strip()
     if t.len > 0:
       parts.add(t)
-    if t.endsWith("="):
+    if t.endsWith("=") and openBrackets(parts.join(" ")) <= 0:
       break
     if i > iStart and t.len == 0:
       break
@@ -1165,3 +1182,67 @@ proc topLevelCalls*(lines: seq[string], A: seq[FunctionInfo]): seq[string]
       rest.add(lines[i])
     i = i + 1
   result = extractCalls(rest)
+
+proc nameEndsAt(s: string, start: int): int {.role: parser,
+    tag: "graph|parsing".} =
+  ## s: one line   start: where a name begins. The index just past it.
+  result = start
+  while result < s.len and (s[result].isAlphaNumeric() or s[result] == '_'):
+    result = result + 1
+
+proc edgeBefore(s: string, i: int): char {.role: parser,
+    tag: "graph|parsing".} =
+  ## s/i: the first non-space character left of `i`, or ' ' at the start.
+  var
+    k: int = i - 1
+  result = ' '
+  while k >= 0 and s[k] == ' ':
+    k = k - 1
+  if k >= 0:
+    result = s[k]
+
+proc edgeAfter(s: string, i: int): char {.role: parser,
+    tag: "graph|parsing".} =
+  ## s/i: the first non-space character from `i` on, or ' ' at the end.
+  var
+    k: int = i
+  result = ' '
+  while k < s.len and s[k] == ' ':
+    k = k + 1
+  if k < s.len:
+    result = s[k]
+
+proc addPassedNames(s: string, known: HashSet[string],
+    R: var seq[string]) {.role: truthBuilder, tag: "graph|parsing".} =
+  ## s: one line, comments gone   known: routine names, lowered
+  ## R: names found so far, added to.
+  var
+    i: int = 0
+    stop: int = 0
+    name: string = ""
+  while i < s.len:
+    stop = nameEndsAt(s, i)
+    if stop == i:
+      i = i + 1
+      continue
+    name = s[i ..< stop]
+    if edgeBefore(s, i) in {'(', ','} and edgeAfter(s, stop) in {',', ')'} and
+        name.toLowerAscii() in known and name notin R:
+      R.add(name)
+    i = stop
+
+proc passedNames*(lines: seq[string], known: HashSet[string]): seq[string]
+    {.role: parser, tag: "graph|parsing".} =
+  ## lines: one file   known: every routine name in the tree, lowered.
+  ##
+  ## Routines handed over by name instead of called. The name sits alone
+  ## between two argument edges, so nothing reads it as a call:
+  ##
+  ##   createThread(t, serveThread, args)    <- serveThread runs, on a thread
+  ##   rows.sort(cmpRows)                    <- cmpRows runs, inside sort
+  ##
+  ## Only names of real routines count, so an ordinary variable passed
+  ## the same way is never mistaken for one.
+  result = @[]
+  for raw in lines:
+    addPassedNames(stripComment(raw), known, result)

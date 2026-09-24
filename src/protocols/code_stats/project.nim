@@ -179,7 +179,7 @@ proc analyzeProject*(rootDir: string): ProjectStats {.role: orchestrator,
     result.error = "no Nim files under " & rootDir
     return
 
-  allSourceFiles = listAllSourceFiles(rootDir)
+  allSourceFiles = gitKept(rootDir, listAllSourceFiles(rootDir))
   result.langStats = gatherLangStats(allSourceFiles)
   result.gitignore = gatherGitignoreStats(rootDir)
 
@@ -240,24 +240,27 @@ proc analyzeProject*(rootDir: string): ProjectStats {.role: orchestrator,
   # `calledNames` is every name anything in the tree calls, lowered.
   # Two of the reports need it and neither should build it again.
   #
-  # Three kinds of use count, not one. A routine reads as dead only
+  # Four kinds of use count, not one. A routine reads as dead only
   # when none of them names it:
   #
   #   something calls it        parseWidth(s)
   #   a pragma applies it       {.needs: b <= a.}   <- never "called"
   #   top-level code calls it   when isMainModule: stream(1)
+  #   something is handed it    createThread(t, serveThread, args)
   #
-  # The last two used to be invisible, so every macro written to be
-  # used as a pragma, and every routine only ever reached from a
-  # module's own top level, was reported as dead weight.
+  # The last three used to be invisible, so every macro written to be
+  # used as a pragma, every routine only ever reached from a module's
+  # own top level, and every thread body was reported as dead weight.
   var
     calledNames: HashSet[string] = initHashSet[string]()
+    known: HashSet[string] = initHashSet[string]()
     perFile: Table[string, seq[FunctionInfo]] = initTable[string,
       seq[FunctionInfo]]()
     lines: seq[string] = @[]
   for fn in all:
     for name in fn.calls:
       calledNames.incl(name.toLowerAscii())
+    known.incl(fn.name.toLowerAscii())
     if not perFile.hasKey(fn.sourcePath):
       perFile[fn.sourcePath] = @[]
     perFile[fn.sourcePath].add(fn)
@@ -266,6 +269,8 @@ proc analyzeProject*(rootDir: string): ProjectStats {.role: orchestrator,
     for name in pragmaNamesIn(lines):
       calledNames.incl(name.toLowerAscii())
     for name in topLevelCalls(lines, perFile.getOrDefault(p, @[])):
+      calledNames.incl(name.toLowerAscii())
+    for name in passedNames(lines, known):
       calledNames.incl(name.toLowerAscii())
   result.shape = shapeReport(parts.src, normDir)
   result.placeholders = placeholdersOf(all, calledNames, normDir)
@@ -277,7 +282,7 @@ proc analyzeProject*(rootDir: string): ProjectStats {.role: orchestrator,
   result.layout = layoutOf(parts.src, normDir)
   wholeGraph = RepoGraph(rootDir: normDir, functions: parts.src,
     edges: graph.edges)
-  result.state = stateWritesOf(wholeGraph)
+  result.state = stateWritesOf(wholeGraph, outside = parts.tests)
   result.aborts = abortReachOf(wholeGraph, escapingOf(wholeGraph))
   result.timeline = timelineOf(normDir)
 

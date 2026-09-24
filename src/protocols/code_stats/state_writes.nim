@@ -255,28 +255,70 @@ proc bareCode*(s: string): string {.role: sanitizer,
   ## one reads, so none of them can be fooled by prose.
   result = withoutStrings(codeOf(s))
 
+proc openerOf(s: string, close: int, a, b: char): int {.role: parser,
+    tag: "graph|state".} =
+  ## s: one line   close: the index of a closing `b`. The index of the `a`
+  ## that opens it, or -1.
+  var
+    d: int = 0
+    i: int = close
+  result = -1
+  while i >= 0:
+    if s[i] == b:
+      d = d + 1
+    if s[i] == a:
+      d = d - 1
+    if d == 0:
+      return i
+    i = i - 1
+
+proc openParenOf(s: string, close: int): int {.inline.} =
+  result = openerOf(s, close, '(', ')')
+
+proc openBracketOf(s: string, close: int): int {.inline.} =
+  result = openerOf(s, close, '[', ']')
+
+proc callNameBefore(s: string, close: int): string {.role: parser,
+    tag: "graph|state".} =
+  ## s: one line   close: the `)` ending a call. `getFeed(a, b)` -> "getFeed()".
+  var
+    p: int = openParenOf(s, close)
+    i: int = p - 1
+  result = ""
+  if p <= 0:
+    return
+  while i >= 0 and isIdentChar(s[i]):
+    i = i - 1
+  if i + 1 < p:
+    result = s[i + 1 ..< p] & "()"
+
 proc rootIdentAt(s: string, at: int): string {.role: parser,
     tag: "graph|state".} =
   ## s: one line   at: the index of a dot.
   ## The name the dotted chain starts from: in `a.b.field` the answer
   ## is `a`, because `a` is the variable that holds the object. A
-  ## chain starting from a call - `getFeed().price` - yields "" and is
-  ## therefore never counted.
+  ## chain starting from a call - `getFeed().price` - yields "getFeed()": a
+  ## writer never matches it, a reader does when `getFeed` hands out the type
+  ## (`producersOf`). A subscript is stepped over: `tasks[i].hash` -> `tasks`.
   var
     i: int = at - 1
     chain: string = ""
-    dot: int = 0
+    cut: int = 0
   result = ""
-  while i >= 0 and (isIdentChar(s[i]) or s[i] == '.'):
+  if i >= 0 and s[i] == ')':
+    return callNameBefore(s, i)
+  while i >= 0 and (isIdentChar(s[i]) or s[i] in {'.', ']'}):
+    if s[i] == ']':
+      i = max(openBracketOf(s, i), 0)
     i = i - 1
   if i + 1 > at - 1:
     return
   chain = s[i + 1 .. at - 1]
-  dot = chain.find('.')
-  if dot < 0:
+  cut = chain.find({'.', '['})
+  if cut < 0:
     result = chain
   else:
-    result = chain[0 ..< dot]
+    result = chain[0 ..< cut]
 
 proc skipSubscript(s: string): tuple[rest: string, stepped: bool]
     {.role: parser, tag: "graph|state".} =
@@ -432,7 +474,7 @@ proc namesTypedAs(text, tName: string, bSharedOnly: bool): seq[string]
     shared: bool = false
     n: string = ""
   result = @[]
-  for raw in text.split(','):
+  for raw in text.split({',', ';'}):
     piece = raw.strip()
     if piece.len == 0:
       continue
@@ -502,6 +544,42 @@ proc localsTypedAs(f: FunctionInfo, tName: string,
         n notin result:
       result.add(n)
 
+proc nameBefore(text: string, colon: int): string {.role: parser,
+    tag: "graph|state".} =
+  ## text: source   colon: the `:` of a declaration. `ts: seq[T]` -> "ts".
+  var
+    j: int = colon - 1
+  result = ""
+  if colon <= 0:
+    return
+  while j >= 0 and text[j] == ' ':
+    j = j - 1
+  while j >= 0 and isIdentChar(text[j]):
+    j = j - 1
+  result = text[j + 1 ..< colon].strip()
+
+proc listsTypedAs(text, tName: string): seq[string] {.role: parser,
+    tag: "graph|state".} =
+  ## text: a routine, signature and body   tName: the state type.
+  ## Names declared as a list of them:
+  ##   ts: seq[Task]    rows: openArray[Task]    A: array[4, Task]  -> ts, rows, A
+  ## Walking one (`for t in ts`, `ts[i].ok`) reads the type.
+  var
+    at: int = 0
+    colon: int = 0
+    decl: string = ""
+    n: string = ""
+  result = @[]
+  at = text.find(tName & "]")
+  while at > 0:
+    colon = text.rfind(':', 0, at)
+    decl = text[max(colon, 0) ..< at]
+    n = nameBefore(text, colon)
+    if n.len > 0 and text[at - 1] in {'[', ' '} and "\n" notin decl and
+        ("seq[" in decl or "openArray[" in decl or "array[" in decl):
+      result.add(n)
+    at = text.find(tName & "]", at + 1)
+
 proc writeReceivers*(f: FunctionInfo, tName: string,
     globals: HashSet[string]): HashSet[string] {.role: truthBuilder,
     tag: "graph|state".} =
@@ -529,23 +607,35 @@ proc writeReceivers*(f: FunctionInfo, tName: string,
     result.incl(n)
 
 proc readReceivers*(f: FunctionInfo, tName: string, globals,
-    containers: HashSet[string]): HashSet[string] {.role: truthBuilder,
+    containers: HashSet[string],
+    producers: HashSet[string] = initHashSet[string]()): HashSet[string] {.role: truthBuilder,
     tag: "graph|state".} =
   ## f: one routine   tName: the state type   globals: as above
   ## containers: field names holding a list of them.
+  ## producers: `name()` of every routine handing one out, so
+  ## `currentConfig().flag` reads `flag`.
   ##
   ## Which names this routine might read one through. Generous on
   ## purpose, and the opposite of `writeReceivers` for a reason: a
   ## reader that is counted by mistake only ever silences a finding,
   ## while a writer counted by mistake invents one. Silence is the
   ## cheaper mistake.
+  var
+    lists: seq[string] = listsTypedAs(f.signature & "\n" &
+      f.bodyLines.join("\n"), tName)
+    walked: HashSet[string] = containers
   result = writeReceivers(f, tName, globals)
   for n in namesTypedAs(paramText(f.signature), tName, bSharedOnly = false):
     result.incl(n)
-  for n in localsTypedAs(f, tName, containers):
+  for n in lists:
+    result.incl(n)
+    walked.incl(n)
+  for n in localsTypedAs(f, tName, walked):
     result.incl(n)
   if wholeWord(f.returnType, tName) or wholeWord(f.signature, tName):
     result.incl("result")
+  for n in producers:
+    result.incl(n)
 
 proc replacesWholeObject(f: FunctionInfo, recvs: HashSet[string],
     tName: string): bool {.role: parser, tag: "graph|state".} =
@@ -754,7 +844,8 @@ proc globalsAt(globals: Table[string, seq[tuple[name, typ: string]]],
     if g.typ == tName:
       result.incl(g.name)
 
-proc mightHold(text, tName: string, containers: HashSet[string]): bool
+proc mightHold(text, tName: string, containers,
+    producers: HashSet[string]): bool
     {.role: parser, tag: "graph|state".} =
   ## text: one routine, signature and body together   tName: a type
   ## containers: entry names holding a list of them.
@@ -770,10 +861,24 @@ proc mightHold(text, tName: string, containers: HashSet[string]): bool
   for c in containers:
     if wholeWord(text, c):
       return true
+  for p in producers:
+    if wholeWord(text, p[0 .. ^3]):
+      return true
+
+proc producersOf(g: RepoGraph, tName: string): HashSet[string] {.role: parser,
+    tag: "graph|state".} =
+  ## g: the whole graph   tName: a state type.
+  ## `name()` of every routine whose return type is exactly `tName`:
+  ##   proc currentConfig(): Config   ->  "currentConfig()"
+  result = initHashSet[string]()
+  for f in g.functions:
+    if f.returnType.strip() == tName or f.returnType.strip() == "var " & tName:
+      result.incl(f.name & "()")
 
 proc holdersOf(g: RepoGraph, texts: seq[string], tName: string,
     states: seq[StateType],
-    globals: Table[string, seq[tuple[name, typ: string]]]): seq[StateHolder]
+    globals: Table[string, seq[tuple[name, typ: string]]],
+    producers: HashSet[string]): seq[StateHolder]
     {.role: truthBuilder, tag: "graph|state".} =
   ## g: the whole graph   texts: each routine as one string
   ## tName: a state type   states: every type
@@ -791,12 +896,13 @@ proc holdersOf(g: RepoGraph, texts: seq[string], tName: string,
     i: int = 0
   result = @[]
   while i < g.functions.len:
-    if not mightHold(texts[i], tName, containers):
+    if not mightHold(texts[i], tName, containers, producers):
       i = i + 1
       continue
     mine = globalsAt(globals, g.functions[i].sourcePath, tName)
     writes = writeReceivers(g.functions[i], tName, mine)
-    reads = readReceivers(g.functions[i], tName, mine, containers)
+    reads = readReceivers(g.functions[i], tName, mine, containers,
+      producers)
     if writes.len + reads.len > 0:
       result.add(StateHolder(f: g.functions[i], writes: writes,
         reads: reads))
@@ -824,6 +930,9 @@ proc fillTraffic(st: var StateType, holders: seq[StateHolder])
     for h in holders:
       w = (writes: 0, folds: 0, reads: 0)
       r = (writes: 0, folds: 0, reads: 0)
+      ## A default argument reads too: `c: bool = currentConfig().flag`.
+      one = fieldUses(h.f.signature, h.reads, st.entries[k].field)
+      r.reads = r.reads + one.reads
       for raw in h.f.bodyLines:
         one = fieldUses(raw, h.writes, st.entries[k].field)
         w.writes = w.writes + one.writes
@@ -896,6 +1005,36 @@ proc readsBetween(f: FunctionInfo, recvs: HashSet[string], field: string,
       return true
     k = k + 1
 
+proc isBranchHead(s: string): bool {.inline.} =
+  result = s.startsWith("of ") or s.startsWith("elif ") or
+    s.startsWith("else:") or s.startsWith("else ")
+
+proc otherBranch(f: FunctionInfo, i, j: int): bool {.role: parser,
+    tag: "graph|state".} =
+  ## f: the routine   i, j: two call lines, i first.
+  ## True when j sits in a later branch of the if or case that holds i,
+  ## so only one of the two ever runs:
+  ##
+  ##   case D.state
+  ##   of cdsSize: stepSize(D)      <- i
+  ##   of cdsData: stepData(D)      <- j   one or the other, never both
+  ##
+  ## A branch head between them counts when it sits left of i, or level
+  ## with i when i is itself on a branch head (`of x: call()`).
+  var
+    first: string = bareCode(f.bodyLines[i])
+    base: int = indentOf(f.bodyLines[i])
+    inline: bool = isBranchHead(first.strip())
+    k: int = i + 1
+    s: string = ""
+  result = false
+  while k <= j:
+    s = bareCode(f.bodyLines[k]).strip()
+    if isBranchHead(s) and (indentOf(f.bodyLines[k]) < base or
+        (inline and indentOf(f.bodyLines[k]) == base)):
+      return true
+    k = k + 1
+
 proc firstUnguarded(h: StateHolder, e: FieldTraffic,
     readers: seq[string]): Pairing {.role: parser,
     tag: "graph|state".} =
@@ -920,6 +1059,7 @@ proc firstUnguarded(h: StateHolder, e: FieldTraffic,
       continue
     result = Pairing(found: true,
       guarded: readsBetween(h.f, h.reads, e.field, readers, offsets[k].at,
+        offsets[k + 1].at) or otherBranch(h.f, offsets[k].at,
         offsets[k + 1].at),
       a: absLine(h.f, offsets[k].at), b: absLine(h.f, offsets[k + 1].at),
       first: offsets[k].name, second: offsets[k + 1].name)
@@ -1031,9 +1171,34 @@ proc isState(st: StateType): bool {.inline.} =
   ## st: one type. Whether it was declared to be shared, written state.
   result = st.role in stateRoles
 
-proc stateWritesOf*(g: RepoGraph, focus: string = ""): StateReport
+proc readsField(h: StateHolder, field: string): bool {.role: parser,
+    tag: "graph|state".} =
+  ## h: one routine holding the state   field: an entry. Whether it reads it.
+  result = false
+  for raw in h.f.bodyLines:
+    if fieldUses(raw, h.reads, field).reads > 0:
+      return true
+
+proc addOutsideReaders(st: var StateType, outside: seq[StateHolder])
+    {.role: truthBuilder, tag: "graph|state".} =
+  ## st: one state type   outside: tests and examples holding one.
+  ## An entry only a test reads is a result handed to the caller, such as
+  ## `output.connected`: the library fills it, the caller looks at it. The
+  ## test stands in for that caller, so it counts as a reader. Tests are
+  ## never writers: they cannot make a loss inside the library.
+  var
+    k: int = 0
+  while k < st.entries.len:
+    for h in outside:
+      if st.entries[k].readers.len == 0 and readsField(h, st.entries[k].field):
+        st.entries[k].readers.add(h.f.name)
+    k = k + 1
+
+proc stateWritesOf*(g: RepoGraph, focus: string = "",
+    outside: seq[FunctionInfo] = @[]): StateReport
     {.role: metaOrchestrator, tag: "graph|state".} =
   ## g: the whole graph   focus: one type name, or "" for all of them.
+  ## outside: routines from tests and examples; they only count as readers.
   ##
   ## The one call to make before adding a routine that writes shared
   ## state. Types carrying `{.role: truthState.}` or `{.role: memory.}`
@@ -1046,11 +1211,16 @@ proc stateWritesOf*(g: RepoGraph, focus: string = ""): StateReport
     st: StateType = StateType()
     texts: seq[string] = @[]
     touched: int = 0
+    made: HashSet[string] = initHashSet[string]()
+    others: RepoGraph = RepoGraph(rootDir: g.rootDir, functions: outside)
+    otherTexts: seq[string] = @[]
   result = StateReport(rootDir: g.rootDir, states: @[], hazards: @[],
     unread: @[], notes: @[], error: "")
   found = statesIn(g.rootDir)
   for f in g.functions:
     texts.add(f.signature & "\n" & f.bodyLines.join("\n"))
+  for f in outside:
+    otherTexts.add(f.signature & "\n" & f.bodyLines.join("\n"))
   if found.states.len == 0:
     result.error = "no object types found below " & g.rootDir
     return
@@ -1058,10 +1228,13 @@ proc stateWritesOf*(g: RepoGraph, focus: string = ""): StateReport
     if focus.len > 0 and candidate.name != focus:
       continue
     st = candidate
-    holders = holdersOf(g, texts, st.name, found.states, found.globals)
+    made = producersOf(g, st.name)
+    holders = holdersOf(g, texts, st.name, found.states, found.globals, made)
     if holders.len == 0:
       continue
     fillTraffic(st, holders)
+    addOutsideReaders(st, holdersOf(others, otherTexts, st.name,
+      found.states, found.globals, made))
     touched = 0
     for e in st.entries:
       touched = touched + e.blindWriters.len + e.foldingWriters.len

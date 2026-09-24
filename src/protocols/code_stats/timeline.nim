@@ -286,3 +286,40 @@ proc timelineLines*(S: TimelineStats): seq[string] {.role: helper,
   result.add("  now:   " & $row.trackedFiles & " files, " &
     $row.srcFiles & " src, " & $row.testFiles & " tests, " &
     $(row.bytes div 1024) & " KiB")
+
+proc ignoredPrefixes*(dir: string): seq[string] {.role: dataFetcher,
+    tag: "stats".} =
+  ## dir <- the repository. What `.gitignore` leaves out, as paths
+  ## relative to `dir`; a whole folder comes back once, ending in `/`.
+  ##   ".android-sdk/"   <- one row for 20 000 files
+  ##   "build.log"
+  ## Empty outside a git repository: then nothing is left out.
+  var
+    got: tuple[text: string, ok: bool] = (text: "", ok: false)
+    row: string = ""
+  result = @[]
+  got = gitOut(dir, ["ls-files", "--others", "--ignored",
+    "--exclude-standard", "--directory"])
+  if not got.ok:
+    return
+  for line in got.text.splitLines():
+    row = line.strip().replace('\\', '/')
+    if row.len > 0:
+      result.add(row)
+
+proc gitKept*(dir: string, files: seq[string]): seq[string] {.role: sanitizer,
+    tag: "stats".} =
+  ## dir <- the repository   files <- full paths below it.
+  ## The files `.gitignore` does not leave out. A vendored SDK or a build
+  ## folder is somebody else's code: its keys and its inline HTML are not
+  ## findings about this repository.
+  var
+    ignored: seq[string] = ignoredPrefixes(dir)
+    rel: string = ""
+  if ignored.len == 0:
+    return files
+  result = @[]
+  for path in files:
+    rel = relativePath(path, dir).replace('\\', '/')
+    if not ignored.anyIt(rel == it or (it.endsWith("/") and rel.startsWith(it))):
+      result.add(path)

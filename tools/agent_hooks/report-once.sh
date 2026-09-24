@@ -114,12 +114,47 @@ findingId() {
   printf '%s' "$identity" | sha256sum | awk '{print $1}'
 }
 
+# A report is made of three kinds of line:
+#
+#   LAYOUT — 62 place(s) ...        heading: context, its counts change every
+#     Rule: a routine belongs ...   run, so it is never a finding of its own
+#     src/x.nim:640  SEAM — ...     finding: logged and printed once
+#         -> cut at line 640 ...    detail (4+ spaces): belongs to the finding
+#                                   above; printed with it, never alone
+#
+# A fresh finding is printed under its heading, so a row like
+# "BifrostConfig.ameSignedExchanges" still says what is wrong with it.
+heading=""
+rule=""
+headingShown=0
+lastFresh=0
+
+printHeading() {
+  [ "$headingShown" = 1 ] && return
+  headingShown=1
+  [ -n "$heading" ] && printf '[%s] %s\n' "$category" "${heading#"$category — "}" >> "$fresh"
+  [ -n "$rule" ] && printf '  %s\n' "$rule" >> "$fresh"
+}
+
 while IFS= read -r row || [ -n "$row" ]; do
   if [[ "$row" == *" — "* ]]; then
-    heading="${row%% — *}"
-    if [[ "$heading" =~ ^[A-Z][A-Z[:space:]-]*$ ]]; then
-      category="$heading"
+    lead="${row%% — *}"
+    if [[ "$lead" =~ ^[A-Z][A-Z[:space:]-]*$ ]]; then
+      category="$lead"
+      heading="$row"
+      rule=""
+      headingShown=0
+      lastFresh=0
+      continue
     fi
+  fi
+  if [[ "$row" =~ ^[[:space:]]{2}Rule: ]]; then
+    rule="${row#  }"
+    continue
+  fi
+  if [[ "$row" =~ ^[[:space:]]{4,} ]]; then
+    [ "$lastFresh" = 1 ] && printf '%s\n' "$row" >> "$fresh"
+    continue
   fi
 
   if ! isReportRow "$row"; then
@@ -129,21 +164,23 @@ while IFS= read -r row || [ -n "$row" ]; do
   id=$(findingId "$row")
   if grep -Fq -- "$id"$'\t' "$log"; then
     oldCount=$((oldCount + 1))
+    lastFresh=0
     continue
   fi
 
   display="$row"
+  logged="[$category] ${row#"${row%%[![:space:]]*}"}"
   if [[ "$row" == "  "* ]]; then
-    display="[$category] ${row#"${row%%[![:space:]]*}"}"
-  elif [[ "$row" == "$category — "* ]]; then
-    display="[$category] ${row#"$category — "}"
-  elif [[ "$row" != *" — "* ]]; then
+    printHeading
+  else
     display="[NIM] $row"
+    logged="$display"
   fi
   display=${display//$'\t'/ }
-  printf '%s\t%s\n' "$id" "$display" >> "$log" || exit 2
+  printf '%s\t%s\n' "$id" "${logged//$'\t'/ }" >> "$log" || exit 2
   printf '%s\n' "$display" >> "$fresh"
   lineCount=$((lineCount + 1))
+  lastFresh=1
 done < "$input"
 
 if [ "$lineCount" -gt 0 ]; then

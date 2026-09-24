@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: Add per-repository report-once logging for agent hooks
+Commit Message: Fewer false findings: gitignored files, default values, reads through calls, subscripts and tests, routines passed by name; report rows keep their heading
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.
@@ -11,6 +11,23 @@ Features (Planned):
 - Parent-repo adoption of the pragma-driven test UI after Otter example validation.
 
 Features (Done):
+- False findings fixed, all seen on Bifrost-ExchangeProtocols:
+    secrets / embedded code   files `.gitignore` leaves out are skipped
+                              (a vendored Android SDK gave 430 of 473)
+    roles                     `proc f(L: T =` on its own line was read as the
+                              body, so the role pragma after it was lost
+    written and never read    reads through a call (`currentConfig().flag`),
+                              a subscript (`tasks[i].hash`), a default
+                              argument, a `seq[T]` parameter walked by `for`,
+                              and `;`-separated parameters now count; tests
+                              count as readers, never as writers
+    one write lost            two calls in different branches of one
+                              `if`/`case` never both run
+    dead code                 a routine handed over by name
+                              (`createThread(t, worker, a)`) is used
+  Still unseen: reads inside `test "..."` blocks, which are not routines.
+- report-once.sh prints a new finding under its heading and rule, with its
+  detail lines; headings are never logged, details never printed alone.
 - Agent hooks keep a local `.otter/reported-findings.log` in each checked
   repository. Previously recorded report rows stay out of later console
   output; removing a row makes Otter report it again.

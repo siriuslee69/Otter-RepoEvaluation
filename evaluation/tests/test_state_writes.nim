@@ -154,3 +154,21 @@ suite "state writes: who may change an entry":
       currentSourcePath())))))
     check r.error.len == 0
     check r.states.len > 0
+
+suite "state writes: reads that do not start from a name":
+  # {.testKind: tkRegression, pins: "currentConfig().flag was never counted as reading flag".}
+  test "a read through a call counts when the call hands out the type":
+    var
+      producers = ["currentConfig()"].toHashSet()
+      writers = ["S"].toHashSet()
+    check fieldUses("if currentConfig().flag:", producers, "flag").reads == 1
+    check fieldUses("x = f(a, b).flag", producers, "flag").reads == 0
+    ## A call is never a writer: the object it hands out is a copy.
+    check fieldUses("currentConfig().flag = true", writers, "flag").writes == 0
+
+  # {.testKind: tkRegression, pins: "tasks[i].hash was never counted as reading hash".}
+  test "a read through a subscript starts from the list":
+    var
+      recvs = ["tasks"].toHashSet()
+    check fieldUses("hashes[i] = tasks[i].hash", recvs, "hash").reads == 1
+    check fieldUses("x = tasks[idx[j]].hash", recvs, "hash").reads == 1
