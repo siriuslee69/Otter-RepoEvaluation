@@ -28,6 +28,11 @@ Features (Done):
                               ... and so is a converter (the compiler calls
                               it), a generic call `decode[T](v)`, and an
                               operator (`$x`, `A[i]`)
+                              ... and one passed on a continuation line
+    placeholders              a no-input `default...`/`init...` routine hands
+                              out a start value by design; a raise built
+                              from the routine's own inputs is an error
+                              helper, not a stub
   Still unseen: reads inside `test "..."` blocks, which are not routines.
 - report-once.sh prints a new finding under its heading and rule, with its
   detail lines; headings are never logged, details never printed alone.

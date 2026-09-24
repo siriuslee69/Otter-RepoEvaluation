@@ -187,6 +187,31 @@ suite "placeholders: routines that do nothing yet":
         calls = @["compute"], docs = @["## TODO: work this out"])
     check scoreOf(noted, true).score > scoreOf(plain, true).score
 
+  # {.testKind: tkRegression.}
+  test "a default or a constructor taking nothing in is not flagged":
+    ## pins: every `defaultLimits()` and `initDecoder()` in a tree read as
+    ## a placeholder, because a starting value never depends on input.
+    var
+      d: FunctionInfo = fn("defaultLimits", @["result.maxBytes = 1024",
+        "result.maxLines = 64"], ret = "Limits")
+      i: FunctionInfo = fn("initDecoder", @["result.state = dsStart"],
+        ret = "Decoder")
+      w: FunctionInfo = fn("widthOf", @["result = 80"], ret = "int")
+    check scoreOf(d, true).score < placeholderFloor
+    check scoreOf(i, true).score < placeholderFloor
+    ## Not by name: a routine with no input and no such name still counts.
+    check scoreOf(w, true).score >= 0.5
+
+  # {.testKind: tkRegression.}
+  test "an error helper that raises what it was handed is not flagged":
+    ## pins: `proc raiseMissing(p, name)` raising a message built from its
+    ## inputs read as "only refuses to work".
+    var
+      f: FunctionInfo = fn("raiseMissing",
+        @["raise newException(ValueError, msgFor(p, name))"],
+        params = @["p", "name"], calls = @["msgFor"])
+    check scoreOf(f, true).score < placeholderFloor
+
 suite "secrets: things that should never have been typed in":
   # {.testKind: tkUnit.}
   test "jumbledness tells noise from words":

@@ -327,6 +327,22 @@ proc handsBackConstant*(f: FunctionInfo, A: seq[string],
     return
   result = not usesAnyName(A, N)
 
+proc isStartValue*(f: FunctionInfo, N: seq[string]): bool {.role: parser,
+    tag: "stats".} =
+  ## f <- one routine   N <- the names it takes in
+  ##
+  ## A routine that takes nothing in and says by its name that it hands
+  ## out a starting value is SUPPOSED to give the same answer every time:
+  ##
+  ##   proc defaultLimits(): Limits =    <- the defaults, by design
+  ##   proc initDecoder(): Decoder =     <- a fresh one, by design
+  ##
+  ## Counting these as "constant" flagged every default and constructor
+  ## in a tree as unfinished.
+  var
+    n: string = f.name.toLowerAscii()
+  result = N.len == 0 and (n.startsWith("default") or n.startsWith("init"))
+
 proc scoreOf*(f: FunctionInfo, called: bool):
     tuple[score: float, kind: PlaceholderKind, reasons: seq[string]]
     {.role: truthBuilder, tag: "stats".} =
@@ -355,11 +371,14 @@ proc scoreOf*(f: FunctionInfo, called: bool):
     score = score + 0.7
     kind = pkEmpty
     reasons.add("the body does nothing")
-  elif onlyRefuses(code):
+  elif onlyRefuses(code) and not usesAnyName(code, names):
+    ## A refusal built from what came in (`raise ...(msg(a, b))`) is an
+    ## error helper doing its job; a stub refuses the same way every time.
     score = score + 0.7
     kind = pkRaises
     reasons.add("the body only refuses to work")
-  elif handsBackConstant(f, code, names) and not mutates:
+  elif handsBackConstant(f, code, names) and not mutates and
+      not isStartValue(f, names):
     score = score + 0.55
     kind = pkConstant
     reasons.add("hands back the same answer whatever comes in")

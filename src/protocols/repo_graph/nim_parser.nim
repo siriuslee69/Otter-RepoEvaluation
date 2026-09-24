@@ -1231,21 +1231,27 @@ proc edgeAfter(s: string, i: int): char {.role: parser,
   if k < s.len:
     result = s[k]
 
-proc addPassedNames(s: string, known: HashSet[string],
+proc addPassedNames(s: string, known: HashSet[string], prevEnd: char,
     R: var seq[string]) {.role: truthBuilder, tag: "graph|parsing".} =
   ## s: one line, comments gone   known: routine names, lowered
+  ## prevEnd: last character of the line before, which stands in for the
+  ##   edge when a name opens a continuation line:  f(a, "x",\n    check)
   ## R: names found so far, added to.
   var
     i: int = 0
     stop: int = 0
     name: string = ""
+    before: char = ' '
   while i < s.len:
     stop = nameEndsAt(s, i)
     if stop == i:
       i = i + 1
       continue
     name = s[i ..< stop]
-    if edgeBefore(s, i) in {'(', ','} and edgeAfter(s, stop) in {',', ')'} and
+    before = edgeBefore(s, i)
+    if before == ' ':
+      before = prevEnd
+    if before in {'(', ','} and edgeAfter(s, stop) in {',', ')'} and
         name.toLowerAscii() in known and name notin R:
       R.add(name)
     i = stop
@@ -1262,6 +1268,12 @@ proc passedNames*(lines: seq[string], known: HashSet[string]): seq[string]
   ##
   ## Only names of real routines count, so an ordinary variable passed
   ## the same way is never mistaken for one.
+  var
+    s: string = ""
+    prevEnd: char = ' '
   result = @[]
   for raw in lines:
-    addPassedNames(stripComment(raw), known, result)
+    s = stripComment(raw)
+    addPassedNames(s, known, prevEnd, result)
+    if s.strip().len > 0:
+      prevEnd = s.strip()[^1]

@@ -3,7 +3,7 @@
 # | -> Validate merged analysis and sample-runner flows      |
 # ============================================================
 
-import std/[json, os, strutils, tables, unittest]
+import std/[json, os, sets, strutils, tables, unittest]
 
 import otter_repo_evaluation
 
@@ -316,3 +316,11 @@ proc start*(): string =
     check "toRow" notin dead
     check "decodeAs" notin dead
     check "$" notin dead
+
+  # {.testKind: tkRegression, pins: "a routine passed on a continuation line of a call was reported as dead".}
+  test "a routine passed by name on a continuation line is used":
+    var
+      known: HashSet[string] = ["checkbuilt", "fill"].toHashSet()
+      got: seq[string] = passedNames(@["  result = fill(A, \"cipher\",",
+        "    checkBuilt)"], known)
+    check "checkBuilt" in got
