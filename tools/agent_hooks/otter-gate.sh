@@ -114,15 +114,7 @@ report=$(REPO="$root" CHANGED="$changed" THRESH="$THRESHOLD" FORCED="$force" jq 
       ["ENDINGS — \(.aborts|length) routine(s) can stop the program because of something well below them.",
        "  Rule: a raise three levels down can be caught here; a quit or a doAssert three levels down cannot be caught anywhere."]
       + ([.aborts[]?
-          | "  \(.path):\(.line)  \(.routine)  \(.how) via \(.via|join(" -> "))"] |  + (if nz([.files[]? | select(.health == "poor" or .health == "critical")] | length) then
-      ["OVERSIZED FILES — split these; the routines are long even without comments:"]
-      + ([.files[]? | select(.health == "poor" or .health == "critical")
-          | "  \(.path)  \(.codeLines) code lines (+\(.commentLines) comment), \(.functions) routines, avg \(.avgCodeLines | floor) code lines, deepest \(.deepest)"] | top(6))
-     else [] end)
-  + (if nz([.files[]? | select((.health == "ok" or .health == "alright") and (.healthWithComments == "poor" or .healthWithComments == "critical"))] | length) then
-      ["HINT (not a fault) — big only because of the docs; the code itself reads fine:"]
-      + ([.files[]? | select((.health == "ok" or .health == "alright") and (.healthWithComments == "poor" or .healthWithComments == "critical"))
-          | "  \(.path)  \(.lines) lines, \(.commentLines) of them comments"] | top(6))
+          | "  \(.path):\(.line)  \(.routine)  \(.how) via \(.via|join(" -> "))"] | top(6))
      else [] end)
   + (if nz([.state.proven[]?] | length) then
       ["STATE — \(.state.proven|length) entry(s) where one write lands on another and is lost.",
