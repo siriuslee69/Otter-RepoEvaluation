@@ -85,6 +85,35 @@ proc lengthOf*(f: FunctionInfo): int {.role: parser, tag: "stats".} =
     result = 1
 
 
+proc isCodeLine(s: string): bool {.role: parser, tag: "stats", inline.} =
+  ## s: one source line. Code is anything that is not blank and does not
+  ## start with `#` (which covers `##` doc comments too).
+  var
+    t: string = s.strip()
+  result = t.len > 0 and t[0] != '#'
+
+proc codeLengthOf*(L: seq[string], f: FunctionInfo): int {.role: parser,
+    tag: "stats".} =
+  ## L: the lines of the file f sits in. f: one routine.
+  ## Its length without comment and blank lines; never below 1.
+  var
+    i: int = max(f.lineStart, 1)
+    last: int = min(f.lineEnd, L.len)
+  result = 0
+  while i <= last:
+    if isCodeLine(L[i - 1]):
+      result = result + 1
+    i = i + 1
+  result = max(result, 1)
+
+proc codeLinesOf*(L: seq[string]): int {.role: parser, tag: "stats".} =
+  ## L: the lines of one file. How many of them are code.
+  result = 0
+  for row in L:
+    if isCodeLine(row):
+      result = result + 1
+
+
 proc templateNames*(A: seq[FunctionInfo]): HashSet[string]
     {.role: truthBuilder, tag: "stats".} =
   ## A: every routine in the tree. The names declared as templates,
@@ -198,15 +227,20 @@ proc fileRow*(rootDir, path: string, A: seq[FunctionInfo],
   ## test has ever run.
   var
     total: int = 0
+    totalCode: int = 0
     sites: seq[NestSite] = @[]
+    L: seq[string] = readLinesSafe(path)
   result = FileStat(path: toModulePath(rootDir, path) & ".nim",
-    name: path.split('/')[^1].split('\\')[^1], lines: readLinesSafe(path).len,
-    functions: 0, templates: 0, macros: 0, avgLines: 0.0, maxLines: 0,
-    health: hbOk, size: sbSmall, share: 0.0, inputs: 0, templateCalls: 0,
+    name: path.split('/')[^1].split('\\')[^1], lines: L.len,
+    functions: 0, templates: 0, macros: 0, avgLines: 0.0, avgCodeLines: 0.0,
+    codeLines: codeLinesOf(L), commentLines: 0, maxLines: 0,
+    healthWithComments: hbOk, health: hbOk, size: sbSmall, share: 0.0,
+    inputs: 0, templateCalls: 0,
     nested: 0, deepest: 1, untested: 0, isTest: isTestPath(path))
   for row in A:
     result.functions = result.functions + 1
     total = total + lengthOf(row)
+    totalCode = totalCode + codeLengthOf(L, row)
     result.maxLines = max(result.maxLines, lengthOf(row))
     result.templateCalls = result.templateCalls + templateCallsOf(row, marks)
     sites = nestSites(row)
@@ -220,7 +254,10 @@ proc fileRow*(rootDir, path: string, A: seq[FunctionInfo],
       result.inputs = result.inputs + 1
   if result.functions > 0:
     result.avgLines = total.float / result.functions.float
-  result.health = healthOf(result.avgLines)
+    result.avgCodeLines = totalCode.float / result.functions.float
+  result.commentLines = L.len - result.codeLines
+  result.healthWithComments = healthOf(result.avgLines)
+  result.health = healthOf(result.avgCodeLines)
   result.untested = untestedIn(A, w)
 
 

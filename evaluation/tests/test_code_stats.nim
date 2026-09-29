@@ -151,6 +151,24 @@ suite "otter code statistics":
     check healthOf(30.0) == hbPoor
     check healthOf(90.0) == hbCritical
 
+  # {.testKind: tkUnit.}
+  test "comment and blank lines are left out of the code length":
+    var
+      L: seq[string] = @["proc a() =", "  ## the docs", "", "  # aside",
+        "  discard 1", "  discard 2"]
+      f: FunctionInfo = FunctionInfo(lineStart: 1, lineEnd: 6)
+    check lengthOf(f) == 6
+    check codeLengthOf(L, f) == 3
+    check codeLinesOf(L) == 3
+
+  # {.testKind: tkEdgeCase.}
+  test "a file of docs around short code is healthy without its comments":
+    var
+      s: ProjectStats = analyzeProject(sampleTree())
+    for f in s.files:
+      check f.avgCodeLines <= f.avgLines
+      check f.codeLines + f.commentLines == f.lines
+
   # {.testKind: tkEdgeCase.}
   test "the inner-line buckets hold at their two ends":
     check bucketOf(0) == 0

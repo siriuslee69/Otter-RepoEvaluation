@@ -124,7 +124,14 @@ type
   FileStat* {.role: truthState, tag: "stats".} = object
     ## One source file, measured.
     ##
-    ##   avgLines   the average length of the routines declared here
+    ##   avgLines   the average length of the routines declared here,
+    ##              comments and blank lines counted
+    ##   avgCodeLines  the same average with comments and blank lines
+    ##              left out. `health` is read from THIS one: a routine
+    ##              that is mostly explanation is not a hard routine.
+    ##   healthWithComments  the band the old average would have given,
+    ##              so a file that is big only because of its docs
+    ##              can be shown as a hint, not a fault
     ##   share      this file's length against the longest file, 0..1
     ##   inputs     routines that take user, network, or file input
     ##   templates  routines declared as `template`
@@ -137,8 +144,12 @@ type
     templates*: int
     macros*: int
     avgLines*: float
+    avgCodeLines*: float
+    codeLines*: int
+    commentLines*: int
     maxLines*: int
     health*: HealthBand
+    healthWithComments*: HealthBand
     size*: SizeBand
     share*: float
     inputs*: int
