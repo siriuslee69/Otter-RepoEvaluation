@@ -7,12 +7,33 @@ import std/[json, os, strutils]
 
 import runePragmas
 import ../../otter_repo_evaluation
+import ../../protocols/trace_run
+
+proc runTraceCmd(A: seq[string]) {.role: orchestrator, tag: "tracing".} =
+  ## otter trace <repoRoot> <testFile> [--keep] [--timeout:SEC]
+  var
+    P: seq[string] = @[]
+    keep: bool = false
+    secs: int = 600
+    o: (string, int) = ("", 0)
+  for a in A:
+    if a == "--keep": keep = true
+    elif a.startsWith("--timeout:"): secs = parseInt(a[10 .. ^1])
+    else: P.add(a)
+  if P.len < 2:
+    echo "Usage: otter_repo_graph trace <repoRoot> <testFile> [--keep] [--timeout:SEC]"
+    quit(2)
+  o = runTrace(P[0], P[1], currentSourcePath().parentDir.parentDir.parentDir, secs, keep)
+  stdout.write(o[0])
+  quit(o[1])
 
 proc printUsage() {.role: helper, tag: "graph|execution".} =
   echo "Usage:"
   echo "  otter_repo_graph snapshot [repoRoot] [--include-tests]"
   echo "  otter_repo_graph artifacts [repoRoot] [outputDir] [--include-tests]"
   echo "  otter_repo_graph run [repoRoot] [functionId] [--include-tests]"
+  echo "  otter_repo_graph trace <repoRoot> <testFile> [--keep] [--timeout:SEC]"
+  echo "      every routine under src/ traced (arguments, results, var outputs)"
   echo "  otter_repo_graph stats [repoRoot] [--json]"
   echo "  otter_repo_graph blast [repoRoot] <name> [--callers:n] [--feeders:m] [--json]"
   echo "  otter_repo_graph ui [repoRoot] [--json]"
@@ -347,6 +368,8 @@ proc runCli*() {.role: orchestrator, tag: "graph|execution".} =
     runDiff(rest)
   of "checks":
     runChecksCmd(rest)
+  of "trace":
+    runTraceCmd(rest)
   else:
     printUsage()
     quit(1)

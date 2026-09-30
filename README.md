@@ -592,6 +592,51 @@ Going up is worth more, so `n = 2, m = 1` is the default. Two mistakes
 this is meant to stop: cleaning a value a caller already cleaned, and
 guessing the range of a parameter that only ever receives 0, 1 and 2.
 
+### When a test fails: where do the values go wrong
+
+```sh
+otter-repo-graph trace <dir> <testFile> [--keep] [--timeout:SEC]
+```
+
+Runs one test with **every routine under `src/` traced**: each call with
+its arguments, its result, and its `var` parameters as they leave (a
+routine's outputs), indented by depth. Nothing in the project is changed:
+
+```
+  <parent>/<repo>/                  the project, untouched
+  <parent>/<repo>__otter_trace/     a copy beside it (so ../Sibling paths work):
+     src/ evaluation/ tests/ configs/ and every top-level file: copied,
+     every src module wrapped in otterTraceFile(...)
+     other folders (submodules, data): linked, only read
+     .otter-trace-copy                 marker - the only kind of folder trace deletes
+```
+
+Example 1: the Kyber cached-multiply bug (a missing final reduction):
+
+```
+[trace] > polyvecBaseMulAccMontgomery            the working twin
+[trace]   > polyReduce  r=(coeffs: [575, -1657, 1140, 1778, ...
+[trace]   < polyReduce  r=(coeffs: [575, -1657, 1140, -1551, ...   <- reduced here
+[trace] < polyvecBaseMulAccMontgomery
+[trace] > polyvecBaseMulAccMontgomeryCached      the broken one
+[trace] < polyvecBaseMulAccMontgomeryCached      <- no polyReduce inside
+```
+
+What is traced and what is not, and why:
+
+```
+  traced                      left alone
+  --------------------------  -----------------------------------------------
+  proc func method converter  template macro iterator (no body to wrap once)
+  generic routines            routines run at compile time (when nimvm)
+  {.raises: [].} routines     compileTime / importc / exportc routines
+  (try/finally, no except)    parameters named "_"
+```
+
+The first 8 calls of each routine are shown, then only counted; the last
+line lists how often each routine ran. Built with `-d:otterTrace`;
+without it `otterTraceFile` returns the code unchanged.
+
 ### Before writing a call: how can it end
 
 ```sh
