@@ -8,6 +8,7 @@ import std/[sets, strutils]
 import ./io_utils
 import ./sample_values
 import ./types
+import ../fylgia_threads
 import runePragmas
 
 const
@@ -1119,6 +1120,21 @@ proc parseNimFile*(rootDir, filePath: string): seq[FunctionInfo] {.role: parser,
           i = parsed.iNext
         continue
     i = i + 1
+
+proc parseFileAt(R: tuple[rootDir: string, files: seq[string]], i: int):
+    seq[FunctionInfo] {.role: parser, tag: "graph|parsing".} =
+  ## R: the tree and its files   i: one file. One file is one job.
+  result = parseNimFile(R.rootDir, R.files[i])
+
+proc parseNimFiles*(rootDir: string, files: seq[string]): seq[FunctionInfo]
+    {.role: orchestrator, tag: "graph|parsing".} =
+  ## rootDir: the tree   files: the Nim files in it.
+  ## Every file parsed at once; the routines come back file by file, in
+  ## the order the files were given, exactly as one loop would give them.
+  result = @[]
+  for part in parallelRange(files.len, (rootDir: rootDir, files: files),
+      parseFileAt):
+    result.add(part)
 
 proc pragmaNamesIn*(lines: seq[string]): seq[string] {.role: parser,
     tag: "graph|parsing".} =

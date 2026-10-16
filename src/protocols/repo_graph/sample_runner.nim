@@ -8,6 +8,7 @@ import std/[json, os, osproc, strutils]
 import ./analysis_pipeline
 import ./sample_values
 import ./types
+import ../fylgia_threads
 import runePragmas
 
 const
@@ -293,9 +294,9 @@ proc parseMarkerPayload(r: var RunSampleResult, output: string) {.role: helper, 
   var
     idx: int = -1
     payload: string = ""
-    parsed: JsonNode
-    generated: JsonNode
-    mutated: JsonNode
+    parsed: JsonNode = nil
+    generated: JsonNode = nil
+    mutated: JsonNode = nil
   idx = output.rfind(OtterRunMarker)
   if idx < 0:
     r.stdout = output
@@ -338,13 +339,13 @@ proc toRunSampleJson*(r: RunSampleResult): string {.role: helper, tag: "graph|ex
 proc runFunctionSample*(rootDir: string, functionId: string,
     bIncludeTests: bool = true): RunSampleResult {.role: actor, tag: "graph|execution".} =
   var
-    g: RepoGraph
-    f: FunctionInfo
+    g: RepoGraph = RepoGraph()
+    f: FunctionInfo = FunctionInfo()
     mode: string = ""
     wrapperPath: string = ""
     wrapperSource: string = ""
     args: seq[string] = @[]
-    execResult: tuple[output: string, exitCode: int]
+    execResult: tuple[output: string, exitCode: int] = (output: "", exitCode: 0)
     wrapperDir: string = ""
     fileName: string = ""
   result = default(RunSampleResult)
@@ -385,8 +386,8 @@ proc runFunctionSample*(rootDir: string, functionId: string,
     wrapperPath
   ]
   result.command = formatCommand(args)
-  execResult = execCmdEx(result.command, options = {poUsePath, poStdErrToStdOut},
-    workingDir = rootDir)
+  execResult = execCmdShared(result.command,
+    options = {poUsePath, poStdErrToStdOut}, workingDir = rootDir)
   parseMarkerPayload(result, execResult.output)
   if execResult.exitCode != 0 and result.error.len == 0:
     result.error = execResult.output

@@ -486,7 +486,7 @@ proc listAllSourceFiles*(rootDir: string): seq[string] {.role: dataFetcher,
   result = @[]
   if not dirExists(rootDir): return
   try:
-    for path in walkDirRec(rootDir, yieldFilter = {pcFile}):
+    for path in ownFiles(rootDir):
       var rel = path[rootDir.len .. ^1]
       rel = rel.replace('\\', '/')
       if rel.startsWith("/"): rel = rel[1 .. ^1]
@@ -532,7 +532,7 @@ proc gatherGitignoreStats*(rootDir: string): GitignoreStat {.role: truthBuilder,
   result = GitignoreStat(ignoredFiles: 0, ignoredLines: 0)
   if patterns.len == 0 or not dirExists(rootDir): return
   try:
-    for path in walkDirRec(rootDir, yieldFilter = {pcFile}):
+    for path in ownFiles(rootDir):
       var rel = path[rootDir.len .. ^1].replace('\\', '/')
       if rel.startsWith("/"): rel = rel[1 .. ^1]
       if isIgnoredPath(rel, bIncludeTests = true): continue

@@ -18,13 +18,9 @@ proc analyzeRepo*(rootDir: string, bIncludeTests: bool = false): RepoGraph {.rol
   var
     files: seq[string] = @[]
     fs: seq[FunctionInfo] = @[]
-    parsed: seq[FunctionInfo] = @[]
     graph: tuple[edges: seq[CallEdge], unresolved: seq[string]]
   files = listNimFiles(rootDir, bIncludeTests)
-  for f in files:
-    parsed = parseNimFile(rootDir, f)
-    for node in parsed:
-      fs.add(node)
+  fs = parseNimFiles(rootDir, files)
   graph = buildCallGraph(fs)
   result = default(RepoGraph)
   result.rootDir = normalizeSlashes(rootDir)

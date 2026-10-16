@@ -65,6 +65,7 @@ import ../repo_graph/analysis_pipeline
 import ./types
 import ./project
 import ./blast
+import ../fylgia_threads
 import runePragmas
 
 const
@@ -139,7 +140,7 @@ proc runGit(rootDir: string, args: string): tuple[output: string,
     exitCode: int] {.role: dataFetcher, tag: "stats".} =
   ## rootDir: the repository   args: the rest of the command line.
   ## What git said, and whether it was happy.
-  result = execCmdEx("git -C " & quoteShell(rootDir) & " " & args)
+  result = execCmdShared("git -C " & quoteShell(rootDir) & " " & args)
 
 proc relTo(root, path: string): string {.role: sanitizer,
     tag: "stats".} =

@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: Gate log: a "HINT (not a fault)" row is logged as a hint, not under the heading above it
+Commit Message: Every core, safely: parse, secrets and timeline in parallel; vendored folders never walked; git one at a time
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.
@@ -16,7 +16,15 @@ Features (Done):
     shape            duplicate pairs scored one row per core; the clumps
                      (Fylgia cloudNodes) no longer re-measure n x n per round
     checks           the hand-made threads and globals are gone
-  Tyr-Crypto, fresh clone: 7.5 s -> 1.3 s, identical report.
+    parsing          every Nim file at once (`parseNimFiles`)
+    secrets          one file per job; the folder and the history at once
+    timeline         every picked commit read at once
+    file walks       `ownFiles` never steps into a vendored folder (Tyr:
+                     113 000 files under submodules/ and build/ skipped)
+    outside programs `execCmdShared`: std/osproc is not safe across
+                     threads (a test hung on a pipe its own process held)
+  Tyr-Crypto, working tree: 14.5 s -> 2.4 s; fresh clone 7.5 s -> 1.1 s;
+  report identical on Tyr, Fylgia and Bifrost.
   OTTER_THREADS=n (or FYLGIA_THREADS) caps it; `checks` without --parallel
   holds it at one.
 - False findings fixed, all seen on Bifrost-ExchangeProtocols:

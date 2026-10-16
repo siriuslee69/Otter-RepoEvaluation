@@ -23,6 +23,7 @@
 ## ==================================================================
 
 import std/[os, osproc, strutils]
+import ./fylgia_threads
 import runePragmas
 
 const
@@ -101,6 +102,6 @@ proc runTrace*(repo, test, otterSrc: string, timeoutSec = 600, keep = false):
       " --path:" & quoteShell(otterSrc) & " --nimcache:" &
       quoteShell(copy / "build" / "otter_trace_cache") & " -o:" &
       quoteShell(copy / "build" / "otter_trace_test") & " " & quoteShell(copy / test)
-  result = execCmdEx(cmd, workingDir = copy)
+  result = execCmdShared(cmd, workingDir = copy)
   if not keep:
     removeTraceCopy(copy)

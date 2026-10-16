@@ -76,6 +76,34 @@ proc isIgnoredPath*(relPath: string, bIncludeTests: bool): bool {.role: parser,
     return true
   result = false
 
+proc folderStep(rootDir, d: string, stack: var seq[string],
+    files: var seq[string]) {.role: dataFetcher, tag: "graph".} =
+  ## rootDir: the tree   d: one folder below it, "" for the top.
+  ## Its files go onto `files`; its own sub-folders onto `stack`, except
+  ## a vendored one (`vendoredDirs`), which is never stepped into.
+  for k, p in walkDir(rootDir / d, relative = true):
+    if k == pcDir and not isIgnoredPath(d / p, bIncludeTests = true):
+      stack.add(d / p)
+    if k == pcFile:
+      files.add(rootDir / (d / p))
+
+proc ownFiles*(rootDir: string): seq[string] {.role: dataFetcher,
+    tag: "graph".} =
+  ## rootDir: the tree. Every file `walkDirRec(rootDir)` yields, in the
+  ## same order, minus everything inside a vendored folder - which every
+  ## caller dropped anyway, one file at a time:
+  ##
+  ##   Tyr-Crypto   113 000 files under submodules/ and build/
+  ##                walkDirRec  looks at all of them, keeps ~1 200
+  ##                ownFiles    never opens those two folders
+  ##
+  ## A folder linked in by a symlink is not followed, as in walkDirRec.
+  var
+    stack: seq[string] = @[""]
+  result = @[]
+  while stack.len > 0:
+    folderStep(rootDir, stack.pop(), stack, result)
+
 proc isScannablePath*(relPath: string): bool {.role: parser,
     tag: "graph".} =
   ## relPath: one path below the repository root.
@@ -96,7 +124,7 @@ proc listNimFiles*(rootDir: string, bIncludeTests: bool = false): seq[string] =
   if not dirExists(rootDir):
     return
   rootNormalized = normalizeSlashes(normalizedPath(rootDir)).toLowerAscii()
-  for p in walkDirRec(rootDir):
+  for p in ownFiles(rootDir):
     s = normalizeSlashes(p)
     if not s.endsWith(".nim"):
       continue

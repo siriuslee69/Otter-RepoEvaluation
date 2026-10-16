@@ -72,11 +72,7 @@ proc dropForwardDeclarations(A: seq[FunctionInfo]): seq[FunctionInfo] {.
 proc parseTree*(rootDir: string, files: seq[string]): seq[FunctionInfo]
     {.role: parser, tag: "stats".} =
   ## rootDir: the tree. files: every Nim file in it, tests included.
-  result = @[]
-  for path in files:
-    for row in parseNimFile(rootDir, path):
-      result.add(row)
-  result = dropForwardDeclarations(result)
+  result = dropForwardDeclarations(parseNimFiles(rootDir, files))
 
 
 proc splitTests*(A: seq[FunctionInfo]): tuple[src: seq[FunctionInfo],
@@ -96,7 +92,7 @@ proc gatherTests*(files: seq[string], A: seq[FunctionInfo]): seq[TestInfo]
   ## Both shapes of test are gathered: the `test "..."` block and the
   ## routine carrying a testKind pragma.
   var
-    row: TestInfo
+    row: TestInfo = TestInfo()
   result = @[]
   for path in files:
     if not isTestPath(path):
@@ -253,21 +249,25 @@ proc analyzeProject*(rootDir: string): ProjectStats {.role: orchestrator,
     files: seq[string] = @[]
     allSourceFiles: seq[string] = @[]
     all: seq[FunctionInfo] = @[]
-    parts: tuple[src: seq[FunctionInfo], tests: seq[FunctionInfo]]
-    graph: tuple[edges: seq[CallEdge], unresolved: seq[string]]
+    parts: tuple[src: seq[FunctionInfo], tests: seq[FunctionInfo]] = (
+      src: @[], tests: @[])
+    graph: tuple[edges: seq[CallEdge], unresolved: seq[string]] = (
+      edges: @[], unresolved: @[])
     wholeGraph: RepoGraph = RepoGraph()
     tests: seq[TestInfo] = @[]
-    walk: CoverWalk
-    marks: HashSet[string]
-    keys: HashSet[string]
+    walk: CoverWalk = CoverWalk()
+    marks: HashSet[string] = initHashSet[string]()
+    keys: HashSet[string] = initHashSet[string]()
     calledNames: HashSet[string] = initHashSet[string]()
     inputScan: tuple[inputs: seq[InputFuncInfo], inputCount: int,
-      sanitizerCount: int]
+      sanitizerCount: int] = (inputs: @[], inputCount: 0, sanitizerCount: 0)
     whenAndPlat: tuple[sites: seq[WhenSite], platforms: seq[NameCount],
-      simd: seq[SimdSite]]
-    importDepth: tuple[depth: int, cycles: seq[CircularImportInfo]]
+      simd: seq[SimdSite]] = (sites: @[], platforms: @[], simd: @[])
+    importDepth: tuple[depth: int, cycles: seq[CircularImportInfo]] = (
+      depth: 0, cycles: @[])
     scopes: tuple[src: ProjectScopeStats, all: ProjectScopeStats,
-      test: ProjectScopeStats]
+      test: ProjectScopeStats] = (src: ProjectScopeStats(),
+      all: ProjectScopeStats(), test: ProjectScopeStats())
   result = ProjectStats(rootDir: normDir, isGitRepo: false, files: @[],
     totalLines: 0, functions: 0, templates: 0, macros: 0, avgLines: 0.0,
     inputFunctions: 0, truthFunctions: 0, mathFunctions: 0,

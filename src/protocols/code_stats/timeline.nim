@@ -31,6 +31,7 @@
 import std/[algorithm, os, osproc, sequtils, strutils, times]
 
 import ../repo_graph/io_utils
+import ../fylgia_threads
 import runePragmas
 
 const
@@ -91,7 +92,7 @@ proc gitOut*(dir: string, args: openArray[string]):
   for row in args:
     parts.add(row)
   try:
-    got = execCmdEx("git " & parts.mapIt(quoteShell(it)).join(" "))
+    got = execCmdShared("git " & parts.mapIt(quoteShell(it)).join(" "))
   except OSError, IOError:
     return
   result = (text: got.output, ok: got.exitCode == 0)
@@ -205,12 +206,30 @@ proc byUnix(a, b: TimelinePoint): int {.role: helper,
   ## a, b <- two moments, oldest first, so a chart reads left to right.
   result = cmp(a.unix, b.unix)
 
+proc pointFrom(R: tuple[dir: string, picks: seq[string]], i: int):
+    TimelinePoint {.role: dataFetcher, tag: "stats".} =
+  ## R <- the repository and the picked `git log` rows   i <- one row.
+  ## One moment: `git ls-tree` on that commit. A row git wrote oddly
+  ## comes back with `unix` 0, and is dropped by the caller.
+  var
+    fields: seq[string] = R.picks[i].split('\x1f')
+  result = TimelinePoint()
+  if fields.len < 3:
+    return
+  result = treeCounts(R.dir, fields[0])
+  result.subject = fields[2]
+  try:
+    result.unix = parseBiggestInt(fields[1])
+  except ValueError:
+    result.unix = 0
+
 proc timelineOf*(dir: string, want: int = timelinePoints): TimelineStats
     {.role: orchestrator, input: thirdParty, risk: rkLow, speed: spLong,
     tag: "stats".} =
   ## dir <- the repository   want <- how many moments to read
   ##
   ##   git log ─► pick a spread ─► git ls-tree per pick ─► points
+  ##                               (every pick at once)
   ##
   ## Only the first parent of each merge is followed, so a busy branch
   ## that was merged once does not appear as a hundred separate moments
@@ -218,10 +237,8 @@ proc timelineOf*(dir: string, want: int = timelinePoints): TimelineStats
   var
     got: tuple[text: string, ok: bool]
     rows: seq[string] = @[]
-    fields: seq[string] = @[]
-    point: TimelinePoint
+    picks: seq[string] = @[]
     at: int = 0
-    n: int = 0
   result = TimelineStats(points: @[], commits: 0, firstUnix: 0,
     lastUnix: 0, error: "")
   if dir.len == 0 or not dirExists(dir):
@@ -242,24 +259,13 @@ proc timelineOf*(dir: string, want: int = timelinePoints): TimelineStats
   if rows.len == 0:
     result.error = "this repository has no commits yet"
     return
-  n = rows.len
-  while at < n:
-    if not sampleAt(n, want, at):
-      at = at + 1
-      continue
-    fields = rows[at].split('\x1f')
-    if fields.len < 3:
-      at = at + 1
-      continue
-    point = treeCounts(dir, fields[0])
-    point.subject = fields[2]
-    try:
-      point.unix = parseBiggestInt(fields[1])
-    except ValueError:
-      point.unix = 0
+  while at < rows.len:
+    if sampleAt(rows.len, want, at):
+      picks.add(rows[at])
+    at = at + 1
+  for point in parallelRange(picks.len, (dir: dir, picks: picks), pointFrom):
     if point.unix > 0:
       result.points.add(point)
-    at = at + 1
   result.points.add(workingPoint(dir))
   result.points.sort(byUnix)
   if result.points.len > 0:

@@ -41,6 +41,7 @@
 
 import std/[algorithm, math, os, osproc, sets, strutils, tables]
 
+import ../fylgia_threads
 import runePragmas
 
 import ../repo_graph/io_utils
@@ -504,34 +505,42 @@ proc byScore(a, b: SecretFind): int {.role: helper,
   if result == 0:
     result = cmp(a.path, b.path)
 
+proc fileFinds(R: tuple[dir: string, files: seq[string]], i: int):
+    seq[SecretFind] {.role: truthBuilder, input: thirdParty,
+    tag: "stats".} =
+  ## R <- the repository and every source file in it   i <- one file.
+  ## What that one file holds. One file is one job for the threader.
+  var
+    path: string = R.files[i]
+    rel: string = path.replace('\\', '/')
+    n: int = 0
+    text: string = ""
+    bVectors: bool = false
+  result = @[]
+  if R.dir.len > 0 and rel.startsWith(R.dir.replace('\\', '/')):
+    rel = rel[R.dir.len .. ^1]
+  if rel.startsWith("/"):
+    rel = rel[1 .. ^1]
+  try:
+    text = readFile(path)
+  except OSError, IOError:
+    return
+  # The whole file is read before any line is weighed, so the marker
+  # may sit anywhere in it. Putting it at the top is the habit worth
+  # keeping, because that is where a reader looks for it.
+  bVectors = vectorsMarker in text
+  for line in text.splitLines():
+    n = n + 1
+    scanLine(line, rel, "", n, result, bVectors)
+
 proc scanWorking*(dir: string, files: seq[string],
     S: var seq[SecretFind]) {.role: orchestrator, input: thirdParty,
     tag: "stats".} =
   ## dir <- the repository   files <- every source file in it
-  ## S <- the list being grown
-  var
-    rel: string = ""
-    n: int = 0
-    text: string = ""
-    bVectors: bool = false
-  for path in files:
-    rel = path.replace('\\', '/')
-    if dir.len > 0 and rel.startsWith(dir.replace('\\', '/')):
-      rel = rel[dir.len .. ^1]
-    if rel.startsWith("/"):
-      rel = rel[1 .. ^1]
-    try:
-      text = readFile(path)
-    except OSError, IOError:
-      continue
-    # The whole file is read before any line is weighed, so the marker
-    # may sit anywhere in it. Putting it at the top is the habit worth
-    # keeping, because that is where a reader looks for it.
-    bVectors = vectorsMarker in text
-    n = 0
-    for line in text.splitLines():
-      n = n + 1
-      scanLine(line, rel, "", n, S, bVectors)
+  ## S <- the list being grown, file after file in the order given
+  ## (every file is read at once, and the answers put back in order).
+  for part in parallelRange(files.len, (dir: dir, files: files), fileFinds):
+    S.add(part)
 
 proc markedPaths*(dir: string, files: seq[string]): HashSet[string]
     {.role: dataFetcher, tag: "stats".} =
@@ -592,7 +601,7 @@ proc scanHistory*(dir: string, S: var seq[SecretFind],
     bScan: bool = false
   result = 0
   try:
-    got = execCmdEx("git -C " & quoteShell(dir) &
+    got = execCmdShared("git -C " & quoteShell(dir) &
       " log --first-parent -p -U0 --no-color --no-renames" &
       " --max-count=" & $historyCommits &
       " --format=%x01%H --diff-filter=AM -- .")
@@ -657,21 +666,45 @@ proc dedupe*(A: seq[SecretFind]): seq[SecretFind] {.role: sanitizer,
     seen[tag] = 1
     result.add(row)
 
+proc workingFinds(dir: string, files: seq[string]): seq[SecretFind]
+    {.role: orchestrator, input: thirdParty, tag: "stats".} =
+  ## dir <- the repository   files <- every source file in it
+  ## What the folder holds today.
+  result = @[]
+  scanWorking(dir, files, result)
+
+proc historyFinds(dir: string, files: seq[string], withHistory: bool):
+    tuple[commits: int, finds: seq[SecretFind]] {.role: orchestrator,
+    input: thirdParty, tag: "stats".} =
+  ## dir <- the repository   files <- every source file in it
+  ## withHistory <- false, or no git -> nothing read.
+  ## What the commits added, and how many commits were read.
+  result = (commits: 0, finds: @[])
+  if withHistory and (dirExists(dir / ".git") or fileExists(dir / ".git")):
+    result.commits = scanHistory(dir, result.finds, markedPaths(dir, files))
+
 proc secretsOf*(dir: string, files: seq[string],
     withHistory: bool = true): SecretReport {.role: metaOrchestrator,
     input: thirdParty, risk: rkLow, speed: spLong, tag: "stats".} =
   ## dir <- the repository   files <- every source file in it
   ## withHistory <- whether to read the commits as well as the folder
+  ##
+  ## The folder and the history are read at the same time. The folder's
+  ## finds go first, so `dedupe` keeps the copy still to be dealt with.
   var
     found: seq[SecretFind] = @[]
+    past: tuple[commits: int, finds: seq[SecretFind]] = (commits: 0,
+      finds: @[])
   result = SecretReport(items: @[], total: 0, keyCount: 0,
     userDataCount: 0, historyCount: 0, commitsRead: 0, error: "")
   if dir.len == 0 or not dirExists(dir):
     result.error = "no such folder: " & dir
     return
-  scanWorking(dir, files, found)
-  if withHistory and (dirExists(dir / ".git") or fileExists(dir / ".git")):
-    result.commitsRead = scanHistory(dir, found, markedPaths(dir, files))
+  together:
+    found = workingFinds(dir, files)
+    past = historyFinds(dir, files, withHistory)
+  result.commitsRead = past.commits
+  found.add(past.finds)
   found = dedupe(found)
   found.sort(byScore)
   result.total = found.len

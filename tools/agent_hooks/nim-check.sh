@@ -40,6 +40,22 @@ for f in "$@"; do
   out=$(MAXN="$MAX_PER_FILE" awk '
   function flag(line, msg) { if (n < max) { n++; printf "%s:%d  %s\n", FILENAME, line, msg } }
   BEGIN { max = ENVIRON["MAXN"] + 0; if (max <= 0) max = 24 }
+  FNR == 1 { inBlock = 0; open = 0 }
+
+  # How many brackets a line leaves open; strings and comments do not count.
+  #   "parts: tuple[a: int, b: int] = ("   -> 1   the value goes on below
+  function openOf(s,   t, o, c) {
+    t = s; gsub(/"[^"]*"/, "", t); sub(/#.*/, "", t)
+    o = gsub(/[([{]/, "", t); c = gsub(/[])}]/, "", t); return o - c
+  }
+  # One whole declaration, joined over its lines, is judged once:
+  #   scopes: tuple[src: Stats,          <- no "=" yet, brackets still open
+  #     all: Stats] = (src: Stats(),     <- a continuation, not a new var
+  #     all: Stats())                    <- closed: judged, has a value
+  function judgeDecl() {
+    open = 0
+    if (declText !~ /=/) flag(declLine, "`var` without a default value — initialize it")
+  }
 
   # --- placeholder bodies must carry the ph_ prefix ---
   /^[[:space:]]*(proc|func|method|iterator|template|macro)[[:space:]]+/ {
@@ -48,7 +64,9 @@ for f in "$@"; do
     curName = d; curLine = NR; phDone = 0
   }
   { low = tolower($0) }
-  (low ~ /placeholder|not implemented|unimplemented|[^a-z]stub[^a-z]|for now/) && curName != "" && !phDone {
+  # "placeholder" as a word, not the field `S.placeholders` or a name
+  # like `placeholderWords` that merely contains it.
+  (low ~ /(^|[^a-z_.])placeholder([^a-z_]|$)|not implemented|unimplemented|[^a-z]stub[^a-z]|for now/) && curName != "" && !phDone {
     if (curName !~ /^ph_/) {
       flag(curLine, "placeholder body in `" curName "` — rename to `ph_" curName "` or finish it")
       phDone = 1
@@ -73,11 +91,18 @@ for f in "$@"; do
   inBlock {
     if ($0 ~ /^[[:space:]]*$/) next
     match($0, /^[[:space:]]*/)
-    if (RLENGTH <= blockIndent) { inBlock = 0 }
+    if (RLENGTH <= blockIndent) { inBlock = 0; open = 0 }
     else {
+      if (open > 0) {
+        declText = declText " " $0; open += openOf($0)
+        if (open <= 0) judgeDecl()
+        next
+      }
       if (blockKw == "let") flag(NR, "`let` in a block — use `var` or `const` unless this is a many-branch init")
-      if ((blockKw == "var") && $0 ~ /^[[:space:]]*[A-Za-z_][A-Za-z0-9_,[:space:]]*:[[:space:]]*[^=]+$/)
-        flag(NR, "`var` without a default value — initialize it")
+      if ((blockKw == "var") && $0 ~ /^[[:space:]]*[A-Za-z_][A-Za-z0-9_,[:space:]]*:/) {
+        declText = $0; declLine = NR; open = openOf($0)
+        if (open <= 0) judgeDecl()
+      }
       next
     }
   }

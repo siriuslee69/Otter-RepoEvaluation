@@ -623,9 +623,11 @@ proc shapeReport*(A: seq[FunctionInfo], root: string): ShapeReport
   ## The whole of what this file has to say about one repository.
   var
     shapes: seq[FunctionShape] = @[]
-    space: VectorSpace
-    dupes: tuple[pairs: seq[DuplicatePair], total: int]
-    cloud: tuple[points: seq[CloudPoint], groups: seq[CloudGroup]]
+    space: VectorSpace = VectorSpace()
+    dupes: tuple[pairs: seq[DuplicatePair], total: int] = (pairs: @[],
+      total: 0)
+    cloud: tuple[points: seq[CloudPoint], groups: seq[CloudGroup]] = (
+      points: @[], groups: @[])
     roles: Table[string, string] = initTable[string, string]()
   result = ShapeReport(dims: @[], shapes: @[], duplicates: @[],
     duplicateCount: 0, points: @[], groups: @[])
