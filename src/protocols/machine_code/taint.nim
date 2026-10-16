@@ -20,7 +20,7 @@
 # through the instructions, marking every place a marked one flows into.
 #
 # Def. 1  A "place" is a register (rax), the flags, a stack slot
-#         ("stack:rsp+0x10"), the values pushed ("pushed"), or all other
+#         ("stack@rsp+0x10"), the values pushed ("pushed"), or all other
 #         memory taken together ("memory").
 # Def. 2  A mark ("taint") is a set of two bits:
 #           tbSecret   the value itself is secret
@@ -131,7 +131,7 @@ type
     ## One memory operand, "BYTE PTR [rdi+rax*1+0x10]".
     isMem: bool
     regs: seq[string]                ## address registers, rip and rsp left out
-    stackKey: string                 ## "stack:rsp+0x10", or ""
+    stackKey: string                 ## "stack@rsp+0x10", or ""
 
 const
   noWhy: int = int.low
@@ -147,7 +147,7 @@ proc memRef(op: string): MemRef {.role: parser, tag: "machineCode".} =
   ## stack slot it names:
   ##
   ##   "BYTE PTR [rdi+rax*1]"     regs rdi, rax
-  ##   "QWORD PTR [rsp+0x10]"     stack:rsp+0x10
+  ##   "QWORD PTR [rsp+0x10]"     stack@rsp+0x10
   ##   "[rip+0x1615]"             no registers (a fixed address)
   var
     a: int = op.find('[')
@@ -164,7 +164,7 @@ proc memRef(op: string): MemRef {.role: parser, tag: "machineCode".} =
       result.regs.add(reg)
   if inner.startsWith("rsp") or (inner.startsWith("rbp") and result.regs == @["rbp"]):
     if inner.find('*') < 0 and result.regs.len <= 1:
-      result.stackKey = "stack:" & inner
+      result.stackKey = "stack@" & inner
 
 proc cellOf(S: State, k: string): Cell {.inline, role: helper,
     tag: "machineCode".} =

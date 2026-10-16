@@ -8,6 +8,7 @@ import std/[json, os, strutils]
 import runePragmas
 import ../../otter_repo_evaluation
 import ../../protocols/trace_run
+import ../../protocols/machine_code
 
 proc runTraceCmd(A: seq[string]) {.role: orchestrator, tag: "tracing".} =
   ## otter trace <repoRoot> <testFile> [--keep] [--timeout:SEC]
@@ -27,6 +28,31 @@ proc runTraceCmd(A: seq[string]) {.role: orchestrator, tag: "tracing".} =
   stdout.write(o[0])
   quit(o[1])
 
+proc runCtCmd(A: seq[string]) {.role: orchestrator, tag: "machineCode".} =
+  ## otter ct <binary|file.nim> [--routine:name:args]... [--json]
+  ## Exit 0 clean, 1 findings, 2 nothing could be checked.
+  var
+    T: seq[string] = @[]
+    S: seq[RoutineSpec] = @[]
+    got: tuple[ok: bool, spec: RoutineSpec, error: string] = (false, RoutineSpec(), "")
+    r: CtReport = CtReport()
+  for a in A:
+    if a.startsWith("--routine:"): got = parseRoutineFlag(a[10 .. ^1])
+    elif not a.startsWith("--"): T.add(a)
+    if a.startsWith("--routine:") and not got.ok:
+      echo got.error
+      quit(2)
+    if a.startsWith("--routine:"): S.add(got.spec)
+  if T.len != 1:
+    echo "Usage: otter_repo_graph ct <binary|file.nim> [--routine:name:args] [--json]"
+    quit(2)
+  r = ctCheck(T[0], S)
+  if "--json" in A: echo pretty(ctJson(r))
+  else:
+    for line in ctLines(r): echo line
+  if r.error.len > 0: quit(2)
+  if findingCount(r) > 0: quit(1)
+
 proc printUsage() {.role: helper, tag: "graph|execution".} =
   echo "Usage:"
   echo "  otter_repo_graph snapshot [repoRoot] [--include-tests]"
@@ -42,6 +68,9 @@ proc printUsage() {.role: helper, tag: "graph|execution".} =
   echo "  otter_repo_graph diff [repoRoot] [rev] [--json] [--out:FILE]"
   echo "  otter_repo_graph checks [repoRoot] <check> [check...] [--parallel]"
   echo "      checks: stats  state[:Type]  yields:name  blast:name  ui"
+  echo "  otter_repo_graph ct <binary|file.nim> [--routine:name:args] [--json]"
+  echo "      secret-dependent branches, addresses and divisions in machine code"
+  echo "      args per parameter: s p | s[] p[] (openArray) | s@ p@ (seq) | s* p* | sf pf"
 
 
 proc flagPresent(args: seq[string], flag: string): bool {.role: helper, tag: "graph|execution".} =
@@ -370,6 +399,8 @@ proc runCli*() {.role: orchestrator, tag: "graph|execution".} =
     runChecksCmd(rest)
   of "trace":
     runTraceCmd(rest)
+  of "ct":
+    runCtCmd(rest)
   else:
     printUsage()
     quit(1)
