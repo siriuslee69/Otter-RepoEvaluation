@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: Every core, safely: parse, secrets and timeline in parallel; vendored folders never walked; git one at a time
+Commit Message: ct: static constant-time check of x86-64 machine code (secret branches, addresses, divisions), shipped build by default, branch census per line
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.
@@ -11,6 +11,27 @@ Features (Planned):
 - Parent-repo adoption of the pragma-driven test UI after Otter example validation.
 
 Features (Done):
+- Constant-time check, `otter_repo_graph ct` (`src/protocols/machine_code*`):
+    objdump.nim       objdump -d -M intel -l -> routines, instructions,
+                      jump targets, source lines; _ZN names decoded
+    instructions.nim  what each mnemonic reads/writes, sub-registers as
+                      the full one, hidden registers (mul, div, push,
+                      pop, call), cautious default counted in the report
+    taint.nim         control-flow graph per routine, System V starting
+                      marks (openArray = pointer marked, length public),
+                      registers / flags / stack slots until nothing grows;
+                      BRANCH, ADDRESS, DIVIDE, each with a trail back;
+                      per-callee flow summaries (which args reach rax)
+    census.nim        jumps vs Nim branch words per source line
+    machine_code.nim  secret: pragmas from source, --routine:mod.name:args,
+                      shipped build by default, --noinline opt-in,
+                      "inlined from" / "inlined into"
+  `secret: "a|b"` pragma added to Rune-Pragmas (aa16f89, pushed).
+  Tyr, shipped build: constantTimeEqual, aes_core.init, expandKey128
+  clean; encryptBlock one BRANCH on ctx.initialized (s* marks the whole
+  object - see Issue Playbook); subByteFast (public-only path by design)
+  flagged with --noinline; sboxCt clean with --noinline, inlined into
+  expandKey128 / subBytes / encryptBlock in the shipped build.
 - Every core used (Fylgia auto threader, `src/protocols/fylgia_threads.nim`):
     analyzeProject   three stages; every report inside one stage runs at once
     shape            duplicate pairs scored one row per core; the clumps
@@ -158,101 +179,14 @@ Features (In Progress):
 - Keep extending parent-repo test metadata and runtime flag coverage as new suites are adopted.
 
 Notes:
-- Last change/problem: both things left open last time are closed. The
-  parser now ends a body where Nim ends it, which moved every number
-  drawn from a body and uncovered 440 routines in Tyr that had never
-  been found at all; and a macro used as a pragma now counts as used,
-  which took reading each file as one piece rather than a line at a
-  time, since a pragma written across two lines never meets its own
-  closing brace otherwise.
-- Fix attempts: the diff review was rebuilt around the diff instead of
-  a second copy of the tree - `git archive | tar` is gone, along with
-  the scratch folder and the `.git` it had to be given. It now measures
-  once and lets the hunk ranges say which findings are the reader's,
-  and catches the one far-reaching case a single measurement misses by
-  reading the names on the lines the change removed. One thing stands
-  open: building the whole measurement of Tyr takes 32 seconds by
-  itself, which is most of any run, and nothing has been done about it.
-- Last change: `src/protocols/invariants.nim`, its test, and its example
-  left this repository for Var-Invariants. Nothing here used the pragmas
-  - the two apparent call sites in `code_stats/project.nim` and
-  `repo_graph/nim_parser.nim` turned out to be comments explaining why a
-  pragma-applied macro must count as used - so removing the umbrella's
-  `export invariants` broke nothing. 209 tests still pass.
-- Fix made alongside: an explicit `stage: stDone` now clears the guessed
-  placeholder signals in `code_stats/placeholders.nim`. Before, it only
-  skipped the "a pragma says this is unfinished" shortcut, so a routine
-  whose whole job is to raise - `contractFailed` was the one that
-  surfaced it - scored 0.7 for "the body only refuses to work" no matter
-  what it said about itself. A declared stage is a person's statement
-  and now outranks every guess.
-- Where LAYOUT came from, and how it was calibrated. It was written
-  after splitting two files in Bifrost by hand -- a 1796-line
-  `session.nim` and an 1835-line `handshake.nim` -- and the question
-  was whether Otter could have found both without being told.
-
-  It can. Measured against the commit BEFORE those splits, the four
-  worst findings in the whole repository are:
-
-    1. session.nim:706   SEAM, waist 12 of 36        <- the file split
-    2. file_ops.nim:354  SEAM, waist 11 of 21
-    3. handshake.nim:223 APART, the three            <- the exact thing
-                         AmeAuthentication              found by hand
-                         constructors, 86 strangers
-    4. handshake.nim:345 APART, one orchestrator's   <- the other file
-                         ten scattered steps            split
-
-  Both hand-found problems are in the top four, and neither was known
-  to the check. After the splits: scattered 72 -> 55.
-
-  Four calibration traps, each found by running it and reading the
-  output rather than by reasoning:
-
-    a shared return type is far too weak on its own. Four routines
-      returning `ByteSeq` are not alternatives, they are four
-      encoders: a byte buffer is a MEDIUM, not an identity. The fix
-      is that the names must also share a prefix or a suffix, which
-      is the author saying "these are a set".
-    a file's CURRENCY type says nothing. Where more than a quarter of
-      a file's exported routines return the same type, that type
-      cannot tell anybody apart. With a floor: below eight exported
-      routines the share is a rounding error, not a ratio, and three
-      out of three is 100%.
-    four orchestrators calling the same five helpers is ONE thing out
-      of place. Reported four times it buried everything else, so
-      findings are merged by their member list -- and that several
-      callers agreed is said out loud, because it is stronger
-      evidence rather than weaker.
-    balancing a cut by ROUTINE count alone is wrong. Fourteen small
-      helpers at the top of a file are half its routines and a
-      fourteenth of its lines. Both halves must carry 30% of the
-      lines too.
-    an ABSOLUTE waist cap alone is wrong for the same reason in the
-      other direction. `nim_parser.nim` needed twelve of the fourteen
-      routines above its best cut -- six of every seven -- and twelve
-      was under the cap. The waist has to be a small SHARE of the
-      routines above it as well. That one rule took the false
-      positives on Bifrost's pre-split tree from two cuts to one: the
-      one file that really was two.
-- The waist is measured in the direction people do not expect. Nim
-  declares before use, so "nothing above calls below" is true at
-  almost every line in almost every file and is worth nothing as a
-  signal. What discriminates is the other direction: how many of the
-  routines ABOVE the cut the half BELOW it still needs. Twelve out of
-  thirty-six is a seam; thirty out of thirty-six is one file.
-- Findings are sorted worst-first with cuts ahead of scatters. That is
-  not cosmetic: the gate prints the first five and nothing else, and
-  before the sort existed it printed whatever the hash table happened
-  to yield.
-- `test_layout.nim` builds `FunctionInfo` records by hand rather than
-  shaping an example repository, unlike `test_families.nim` next door.
-  The check is a set of thresholds and a threshold is tested by
-  standing on both sides of it, which is fiddly to arrange in real
-  source and trivial in a record. Three of the sixteen tests are
-  regressions pinning calibration traps above.
-- Running it on Bifrost AFTER the two hand splits still reports a seam
-  in each of the files that were split -- `handshake.nim:322` at the
-  client/server boundary and `framing.nim:624` at the epoch-exchange
-  boundary. Both are true: the splits were topical, and these are
-  thinner seams the dominant one had been hiding. Files keep having
-  seams until they are one thing.
+- Last change/problem: `ct` first reported four leaks in Tyr's sboxCt that
+  were not there. gcc keeps a loop counter in rdx across a call to a
+  routine it knows leaves rdx alone; reading every call as "all scratch
+  registers become secret" marked the counter. Then the allocator on an
+  error path looked like it handed back a secret pointer.
+- Fix attempts: per-callee summaries - the registers a routine really
+  writes, and which arguments reach rax, found by the same walk one
+  argument at a time (lazy, cached, cautious on call loops). Worked: the
+  false findings are gone, the three samples still answer right. Still
+  open: one shared "other memory" mark (see Issue Playbook), and s* marks
+  public fields of a secret object.

@@ -767,6 +767,114 @@ is a group of routines that are one routine with a knob on it.
 names which, because a comment written on those lines has to be
 written the way *that* language writes one.
 
+### Constant time: does a secret steer the machine code? 🔐
+
+```sh
+./bin/otter-repo-graph ct src/app.nim                       # secret: pragmas
+./bin/otter-repo-graph ct ./myBinary '--routine:eq:s[],s[]' # any binary
+./bin/otter-repo-graph ct src/app.nim --noinline --json
+```
+
+Def. 1 *Constant-time*: a routine takes the same time whatever secret it
+was handed. On x86-64, three things break that:
+
+```
+  ┌──────────────┬───────────────────────────────┬──────────────────────┐
+  │ report word  │ what the machine code does    │ why it leaks         │
+  ├──────────────┼───────────────────────────────┼──────────────────────┤
+  │ BRANCH       │ jumps or not, by a secret     │ one way is longer    │
+  │ ADDRESS      │ reads/writes table[secret]    │ the cache remembers  │
+  │ DIVIDE       │ divides a secret              │ div time varies      │
+  └──────────────┴───────────────────────────────┴──────────────────────┘
+```
+
+We say which parameters are secret with the shared pragma:
+
+```nim
+import runePragmas
+
+proc constantTimeEqual(a, b: openArray[byte]): bool {.secret: "a|b".} =
+  ...
+```
+
+or, without touching the source, one word per parameter:
+
+```
+  s / p    a number, secret / public             --routine:sboxCt:s
+  s[]      an openArray (pointer, then length)   --routine:eq:s[],s[]
+  s@       a seq or string (length, then pointer)
+  s*       var, ptr, array, object (an address)  --routine:aes_core.encryptBlock:s*,s*,p*
+  sf       a float
+```
+
+`aes_core.encryptBlock` names the module too; plain `init` would also
+match Nim's own `system.init`.
+
+**How it works.** A `.nim` file is first built exactly as it ships
+(`-d:release --debugger:native`, inlining on). Then:
+
+```
+  binary ──objdump -d -M intel -l──> routines, instructions, source lines
+                                         │
+  secret parameters ──System V──> marks on rdi, rsi, rdx, rcx, r8, r9
+                                         │
+             walk every block forward, merge marks where paths meet,
+             repeat until no mark grows (Def. 2: "taint")
+                                         │
+  every BRANCH / ADDRESS / DIVIDE on a mark, with the trail back:
+```
+
+```
+LEAKS  earlyExitEqual  [_ZN10ct_samples14earlyExitEqualE...]  22 instructions, 1 finding(s)
+  BRANCH   0xbe90  je  0xbe80  (ct_samples.nim:33)
+             flags  <- 0xbe8d  cmp  BYTE PTR [rdi+rax*1], cl  (ct_samples.nim:33)
+             [rdi]  <- parameter `a`: rdi points at secret bytes
+```
+
+Def. 2 A *mark* has two bits. `tbSecret`: the value is secret.
+`tbPointer`: the value is the address of secret bytes, which itself is
+public. Reading through a `tbPointer` gives `tbSecret`. Only `tbSecret`
+is ever reported, so an openArray's length and the loop that walks it
+stay quiet.
+
+**Inlining.** The default build is the real one. A small `{.inline.}`
+helper then has no symbol of its own; its instructions sit inside its
+callers, and their source lines still point at it:
+
+```
+warning: `sboxCt` has no symbol in the binary: inlined into expandKey128,
+         subBytes, encryptBlock - check those with their secret parameters
+  BRANCH   0xdd80  je  0xe408  (aes_core.nim:71)  inlined from requireInitialized
+```
+
+`--noinline` builds with `-fno-inline` so every helper can be checked on
+its own as well. Both answers matter: the helper alone, and what the
+compiler made of it in place.
+
+**Calls.** A call into the same binary uses what the called routine
+really does: the registers it writes, and which arguments reach `rax`
+(found by the same walk, one argument at a time, kept once worked out).
+A call that leaves the binary counts as "every argument reaches every
+scratch register".
+
+**Branch census.** Under each routine, a count per source line:
+
+```
+  branches: 2 in the Nim lines, 38 jump(s) in the machine code, 1 on 1 line(s) with no branch in the Nim
+    added  material.nim:394  1 jump(s)
+    added  aes_blocks.nim:117  16 jump(s)  - indexing: bounds check
+```
+
+A line with jumps but no `if elif while for case of and or try except`
+in the Nim got them from the compiler. That is usually harmless (bounds
+checks, Nim's error check after a call, an unrolled loop test: 37 of
+`constantTimeEqual`'s 38 jumps sit on its one `while` line). Comparing
+whole-routine totals would therefore always say "more"; per line it
+says *where*. The census points; the walk decides. An added jump the
+walk also flagged is printed `SECRET`.
+
+Exit code: 0 clean, 1 findings, 2 nothing could be checked.
+
 ### Layout: is a routine anywhere near the thing that uses it?
 
 Every other check asks whether the code is right. This one asks
@@ -1019,6 +1127,8 @@ The shared WebUI now uses qlacier-style floating menu shells: repo root search o
   - build `bin/otter-nim`.
 - `nimble buildCli`
   - build `bin/otter-repo-graph`.
+- `./bin/otter-repo-graph ct <binary|file.nim> [--routine:name:args] [--noinline] [--json]`
+  - secret-dependent branches, addresses and divisions in machine code.
 - `nimble buildWebui`
   - build `bin/otter-repo-graph-webui`.
 - `nimble runWebui`
@@ -1043,6 +1153,24 @@ The shared WebUI now uses qlacier-style floating menu shells: repo root search o
   - put setup values inside the routine or call a helper from it so the worker has one unambiguous entry point.
 - Test discovery reads literal pragma strings:
   - use four direct string literals rather than constants or computed expressions.
+
+- `ct` errs toward marking too much; known places (where it is wrong the
+  other way is a bug - please add a sample to test_machine_code):
+  - `s*` makes a whole object secret, public fields included: Tyr's
+    `encryptBlock` reports `if not ctx.initialized` as a BRANCH;
+  - all memory that is neither the stack, nor secret bytes, nor
+    per-thread (`fs:`) data shares ONE mark: once a secret is stored
+    there, any later load from such memory is secret. Seen in
+    `--noinline` builds of Tyr's `expandKey128` (Nim's error flag);
+  - an `object` parameter is taken to arrive as an address; a small one
+    travelling by value needs `--routine` with `s` words instead.
+- `ct` does not look inside called routines for findings: a leak inside
+  a callee is reported only when that callee is checked by name.
+- `ct` reads x86-64, System V (Linux) only; Windows' calling convention
+  puts arguments in other registers.
+- An instruction missing from `machine_code/instructions.nim` is read
+  cautiously and counted under "not in the table"; add it there when
+  one shows up often.
 
 ## License
 Released under [The Unlicense](LICENSE.txt).

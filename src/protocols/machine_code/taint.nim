@@ -483,7 +483,8 @@ proc callEffect(S: var Search, St: var State, i: int) {.role: actor,
     m: Cell = Cell(bits: {}, why: noWhy)
   if S.flows != nil: A = flowOf(S.flows, I.target)
   while k < 6:
-    if k in A and argRegisters[k] in c.reads and cellOf(St, argRegisters[k]).bits != {} and v.c.bits == {}:
+    if k in A and (S.flows != nil or argRegisters[k] in c.reads) and
+        cellOf(St, argRegisters[k]).bits != {} and v.c.bits == {}:
       v = (argRegisters[k], Cell(bits: {tbSecret}, why: cellOf(St, argRegisters[k]).why))
     k = k + 1
   m = Cell(bits: v.c.bits, why: i)
