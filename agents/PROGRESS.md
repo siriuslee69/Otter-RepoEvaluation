@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: Measure on every core: the stats pass runs in three stages of independent reports, checks use Fylgia's threader
+Commit Message: Gate log: a "HINT (not a fault)" row is logged as a hint, not under the heading above it
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.

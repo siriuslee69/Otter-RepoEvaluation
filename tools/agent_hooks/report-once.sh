@@ -57,6 +57,12 @@ fresh="$work/fresh"
 cat > "$input" || exit 2
 : > "$fresh"
 
+# A heading starts with words in capitals, then may carry a remark in
+# brackets:  "LAYOUT — ..."   "OVERSIZED FILES — ..."   "HINT (not a fault) — ..."
+# Without the brackets part a hint inherited the heading above it, and
+# was logged as "[OVERSIZED FILES]", a fault, when it is only a hint.
+headingPattern='^[A-Z][A-Z[:space:]-]*( \([^)]*\))?$'
+
 lineCount=0
 oldCount=0
 category="OTTER"
@@ -74,7 +80,7 @@ isReportRow() {
   fi
   if [[ "$row" == *" — "* ]]; then
     local heading="${row%% — *}"
-    [[ "$heading" =~ ^[A-Z][A-Z[:space:]-]*$ ]] && return 0
+    [[ "$heading" =~ $headingPattern ]] && return 0
   fi
   return 1
 }
@@ -139,7 +145,7 @@ printHeading() {
 while IFS= read -r row || [ -n "$row" ]; do
   if [[ "$row" == *" — "* ]]; then
     lead="${row%% — *}"
-    if [[ "$lead" =~ ^[A-Z][A-Z[:space:]-]*$ ]]; then
+    if [[ "$lead" =~ $headingPattern ]]; then
       category="$lead"
       heading="$row"
       rule=""
