@@ -29,7 +29,7 @@ proc runTraceCmd(A: seq[string]) {.role: orchestrator, tag: "tracing".} =
   quit(o[1])
 
 proc runCtCmd(A: seq[string]) {.role: orchestrator, tag: "machineCode".} =
-  ## otter ct <binary|file.nim> [--routine:name:args]... [--json]
+  ## otter ct <binary|file.nim> [--routine:name:args]... [--noinline] [--json]
   ## Exit 0 clean, 1 findings, 2 nothing could be checked.
   var
     T: seq[string] = @[]
@@ -44,9 +44,9 @@ proc runCtCmd(A: seq[string]) {.role: orchestrator, tag: "machineCode".} =
       quit(2)
     if a.startsWith("--routine:"): S.add(got.spec)
   if T.len != 1:
-    echo "Usage: otter_repo_graph ct <binary|file.nim> [--routine:name:args] [--json]"
+    echo "Usage: otter_repo_graph ct <binary|file.nim> [--routine:name:args] [--noinline] [--json]"
     quit(2)
-  r = ctCheck(T[0], S)
+  r = ctCheck(T[0], S, "--noinline" in A)
   if "--json" in A: echo pretty(ctJson(r))
   else:
     for line in ctLines(r): echo line
@@ -68,7 +68,7 @@ proc printUsage() {.role: helper, tag: "graph|execution".} =
   echo "  otter_repo_graph diff [repoRoot] [rev] [--json] [--out:FILE]"
   echo "  otter_repo_graph checks [repoRoot] <check> [check...] [--parallel]"
   echo "      checks: stats  state[:Type]  yields:name  blast:name  ui"
-  echo "  otter_repo_graph ct <binary|file.nim> [--routine:name:args] [--json]"
+  echo "  otter_repo_graph ct <binary|file.nim> [--routine:name:args] [--noinline] [--json]"
   echo "      secret-dependent branches, addresses and divisions in machine code"
   echo "      args per parameter: s p | s[] p[] (openArray) | s@ p@ (seq) | s* p* | sf pf"
 

@@ -101,7 +101,8 @@ const
     "psraw", "psrad", "pslldq", "psrldq", "pmullw", "pmulld", "pinsrb",
     "pinsrq"]
     ## dst <- dst op src (vector registers, no flags)
-  vectorMoreOps: array[16, string] = ["xorps", "andps", "orps", "andnps",
+  vectorMoreOps: array[22, string] = ["shufps", "shufpd", "unpcklps",
+    "unpckhps", "unpcklpd", "unpckhpd", "xorps", "andps", "orps", "andnps",
     "xorpd", "andpd", "orpd", "pextrb", "pextrw", "pextrd", "pextrq",
     "pinsrw", "pinsrd", "packuswb", "packsswb", "palignr"]
   nopOps: array[11, string] = ["nop", "endbr64", "endbr32", "pause",

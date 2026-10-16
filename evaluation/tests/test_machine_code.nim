@@ -115,3 +115,22 @@ suite "ct on compiled samples":
     check x.findings.len >= 1
     check x.findings[0].kind == fkAddress
     check x.findings[0].trail[^1].contains("parameter `x`")
+
+suite "branch census":
+  # {.testKind: tkUnit.}
+  test "branch words are counted outside strings and comments":
+    check branchWordsIn("while i < n and a[i] != 0:") == 2
+    check branchWordsIn("x = y or z  # if not") == 1
+    check branchWordsIn("echo \"if or and\"") == 0
+    check branchWordsIn("acc = acc xor b") == 0
+
+  # {.testKind: tkIntegration.}
+  test "samples: secret jumps sit on Nim branch lines, none added":
+    var
+      r: CtReport = ctCheck(samples, @[])
+      k: int = 0
+    check r.censuses.len == r.results.len
+    while k < r.results.len:
+      check r.censuses[k].jumps >= r.results[k].findings.len
+      for a in r.censuses[k].added: check not a.secret
+      k = k + 1

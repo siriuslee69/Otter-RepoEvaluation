@@ -101,6 +101,7 @@ type
     file*: string
     line*: int
     trail*: seq[string]      ## where the secret came from, newest first
+    inlinedFrom*: string     ## the source routine the line sits in, when not this one
 
   RoutineResult* {.role: truthState,
       expectedCount: [0, 1000], lifeCycle: lcJob.} = object
@@ -122,6 +123,26 @@ type
     seen: HashSet[string]
     findings: seq[Finding]
     unknown: CountTable[string]
+    calls: CallTable                 ## what each routine of the binary touches
+    flows: Flows                     ## which arguments reach rax; nil: cautious
+    retBits: set[TaintBit]           ## marks seen on rax at a return
+
+  CallSummary* = object
+    ## The registers one routine reads and writes, its calls included.
+    reads*, writes*: HashSet[string]
+    targets: seq[uint64]             ## routines it calls directly
+
+  CallTable* = Table[uint64, CallSummary]  ## start address -> summary
+
+  Flows* = ref object
+    ## For each routine of the binary: which argument registers can reach
+    ## rax by the time it returns. Worked out only when a call needs it,
+    ## then kept. Shared by every check of one binary.
+    routines: seq[Routine]
+    index: Table[uint64, int]        ## start address -> routines index
+    calls*: CallTable
+    memo: Table[uint64, set[0 .. 5]]
+    busy: HashSet[uint64]            ## being worked out: a call back in is cautious
 
   Block = object
     first, last: int                 ## instruction indexes, inclusive
@@ -132,6 +153,7 @@ type
     isMem: bool
     regs: seq[string]                ## address registers, rip and rsp left out
     slot: string                     ## the stack slot it names, or empty
+    perThread: bool                  ## fs: or gs: - the runtime's own per-thread data
 
 const
   noWhy: int = int.low
@@ -155,6 +177,7 @@ proc memRef(op: string): MemRef {.role: parser, tag: "machineCode".} =
     inner: string = ""
     reg: string = ""
   result = MemRef(isMem: a >= 0 or op.contains(" PTR "))
+  result.perThread = op.contains("fs:") or op.contains("gs:")
   if a < 0 or b <= a:
     return
   inner = op[a + 1 ..< b].replace(" ", "")
@@ -267,9 +290,12 @@ proc loadValue(St: State, m: MemRef, i: int): tuple[loc: string, c: Cell] {.
   ##   a stack slot                        -> that slot's mark
   ##   through an address of secret bytes  -> secret
   ##   through a secret address            -> secret (already flagged)
+  ##   fs: or gs: (the runtime's own data) -> public
   ##   anywhere else                       -> the "memory" mark
   var
     c: Cell = Cell(bits: {}, why: noWhy)
+  if m.perThread:
+    return ("", Cell(bits: {}, why: noWhy))
   if m.slot.len > 0:
     return (m.slot, cellOf(St, m.slot))
   for reg in m.regs:
@@ -368,6 +394,104 @@ proc callValue(St: State): tuple[loc: string, c: Cell] {.role: parser,
     if result.c.bits == {} and cellOf(St, reg).bits != {}:
       result = (reg, Cell(bits: {tbSecret}, why: cellOf(St, reg).why))
 
+# ---- what a called routine really touches ------------------------------------
+#
+# The convention says a called routine MAY change rax, rcx, rdx, rsi,
+# rdi, r8-r11. gcc knows better for routines in the same binary, and
+# keeps a loop counter in rdx across a call to a routine that never
+# touches rdx. Reading every call as "all of those become secret" then
+# marks that counter and reports a jump that is not there. So each
+# routine of the binary gets a summary:
+#
+#   ctEq          reads rdi, rsi        writes rax, rsi
+#   nimErrorFlag  reads (nothing)       writes rax
+#
+# and a call changes only what its summary writes, and hands back a
+# secret only when an argument register it reads carried a mark.
+# A call to something outside the binary keeps the cautious rule.
+
+proc regsOf(op: string): seq[string] {.role: parser, tag: "machineCode".} =
+  ## op: an operand. The registers it names, as a value or inside [ ].
+  var
+    m: MemRef = memRef(op)
+  result = m.regs
+  if not m.isMem and fullRegister(op).len > 0:
+    result.add(fullRegister(op))
+
+proc addInstrRegs(c: var CallSummary, I: Instr) {.role: truthBuilder,
+    tag: "machineCode".} =
+  ## c: a summary being built   I: one of its routine's instructions. A
+  ## register counts as read only when it is read before the routine
+  ## first writes it (in the order the instructions are written down);
+  ## after that write it no longer holds what the caller handed in.
+  var
+    e: Effect = effectOf(I.mnemonic, I.operands.len)
+    k: int = 0
+  if e.cls == icCall and I.hasTarget:
+    c.targets.add(I.target)
+    return
+  while k < I.operands.len:
+    for reg in regsOf(I.operands[k]):
+      if (k in e.readsOps or memRef(I.operands[k]).isMem) and reg notin c.writes:
+        c.reads.incl(reg)
+    if k in e.writesOps and not memRef(I.operands[k]).isMem:
+      c.writes.incl(fullRegister(I.operands[k]))
+    k = k + 1
+  for reg in e.hiddenReads:
+    if reg notin c.writes: c.reads.incl(reg)
+  for reg in e.hiddenWrites: c.writes.incl(reg)
+
+proc summarize*(R: seq[Routine]): CallTable {.role: truthBuilder,
+    tag: "machineCode".} =
+  ## R: every routine of the binary. Each one's summary, with what the
+  ## routines it calls touch folded in (a few rounds deep; a call to
+  ## something outside the binary counts as touching everything).
+  var
+    c: CallSummary = CallSummary()
+    n: int = 0
+    grew: bool = true
+  result = initTable[uint64, CallSummary]()
+  for r in R:
+    c = CallSummary()
+    for I in r.instrs: addInstrRegs(c, I)
+    result[r.start] = c
+  while grew and n < 16:
+    grew = false
+    for a, s in result.mpairs:
+      for t in s.targets:
+        if t notin result:
+          s.reads.incl(toHashSet(argRegisters))
+          s.writes.incl(toHashSet(callerSaved))
+          continue
+        if result[t].reads <= s.reads and result[t].writes <= s.writes: continue
+        s.reads.incl(result[t].reads)
+        s.writes.incl(result[t].writes)
+        grew = true
+    n = n + 1
+
+proc flowOf(F: Flows, t: uint64): set[0 .. 5] {.role: parser, tag: "machineCode".}
+
+proc callEffect(S: var Search, St: var State, i: int) {.role: actor,
+    tag: "machineCode".} =
+  ## St: the marks before call i, changed into the marks after it.
+  var
+    I: Instr = S.r.instrs[i]
+    c: CallSummary = S.calls[I.target]
+    A: set[0 .. 5] = {0 .. 5}
+    k: int = 0
+    v: tuple[loc: string, c: Cell] = ("", Cell(bits: {}, why: noWhy))
+    m: Cell = Cell(bits: {}, why: noWhy)
+  if S.flows != nil: A = flowOf(S.flows, I.target)
+  while k < 6:
+    if k in A and argRegisters[k] in c.reads and cellOf(St, argRegisters[k]).bits != {} and v.c.bits == {}:
+      v = (argRegisters[k], Cell(bits: {tbSecret}, why: cellOf(St, argRegisters[k]).why))
+    k = k + 1
+  m = Cell(bits: v.c.bits, why: i)
+  if v.c.bits != {}: S.cause[i] = (v.loc, v.c.why)
+  for reg in c.writes:
+    if reg in callerSaved or reg.startsWith("xmm"): St[reg] = m
+  St["flags"] = m
+
 proc stepSpecial(S: var Search, St: var State, i: int, e: Effect) {.
     role: actor, tag: "machineCode".} =
   ## St: the marks   i: the instruction   e: its effect. The kinds the
@@ -380,9 +504,13 @@ proc stepSpecial(S: var Search, St: var State, i: int, e: Effect) {.
   of icCondJump: flag(S, fkBranch, i, v.loc, v.c)
   of icJump:
     if not I.hasTarget: flag(S, fkBranch, i, v.loc, v.c)
+    if not I.hasTarget or I.target < S.r.start or I.target > S.r.instrs[^1].address:
+      S.retBits = S.retBits + callValue(St).c.bits
+  of icReturn: S.retBits = S.retBits + cellOf(St, "rax").bits
   of icCall:
     if not I.hasTarget: flag(S, fkBranch, i, v.loc, v.c)
-    writeAll(S, St, i, e, callValue(St))
+    if I.hasTarget and I.target in S.calls: callEffect(S, St, i)
+    else: writeAll(S, St, i, e, callValue(St))
   of icDivide:
     flag(S, fkDivide, i, v.loc, v.c)
     writeAll(S, St, i, e, v)
@@ -558,13 +686,14 @@ proc settle(S: var Search, G: seq[Block], E: var seq[State],
         reached[t] = true
         W.add(t)
 
-proc checkRoutine*(r: Routine, spec: RoutineSpec): RoutineResult {.
+proc checkRoutine*(r: Routine, spec: RoutineSpec, F: Flows = nil): RoutineResult {.
     role: orchestrator, tag: "machineCode".} =
   ## r: a routine read from the binary   spec: which parameters are
+  ## secret   F: from `newFlows`, or nil for the cautious call rule.
   ## secret. Builds the graph, settles the marks, then walks every
   ## reached block once more to record what was found.
   var
-    S: Search = Search(r: r, record: false)
+    S: Search = Search(r: r, record: false, flows: F)
     G: seq[Block] = @[]
     E: seq[State] = @[]
     reached: seq[bool] = @[]
@@ -574,6 +703,7 @@ proc checkRoutine*(r: Routine, spec: RoutineSpec): RoutineResult {.
   if r.instrs.len == 0:
     result.notes.add("no instructions")
     return
+  if F != nil: S.calls = F.calls
   G = blocksOf(r)
   E = newSeq[State](G.len)
   reached = newSeq[bool](G.len)
@@ -589,3 +719,53 @@ proc checkRoutine*(r: Routine, spec: RoutineSpec): RoutineResult {.
   for m, n in S.unknown:
     result.unknown = result.unknown + n
     result.unknownNames.add(m)
+
+# ---- what reaches rax: one search per argument ------------------------------
+#
+#   flowOf(nimNewObj)   rdi marked alone -> rax marked at ret?  yes  -> {0}
+#                       rsi marked alone -> ...                 no
+#                       ...
+#
+# A call then hands back a secret only when an argument that reaches
+# rax carried a mark. The same walk as above, with nothing recorded.
+
+proc newFlows*(R: seq[Routine]): Flows {.role: truthBuilder,
+    tag: "machineCode".} =
+  ## R: every routine of the binary.
+  result = Flows(routines: R, calls: summarize(R))
+  for k, r in R: result.index[r.start] = k
+
+proc reachesReturn(F: Flows, r: Routine, G: seq[Block], reg: string): bool {.
+    role: parser, tag: "machineCode".} =
+  ## r: a routine   G: its graph   reg: one argument register. True when
+  ## a mark put on reg alone is on rax at some return.
+  var
+    S: Search = Search(r: r, record: false, calls: F.calls, flows: F,
+      paramNotes: @["argument " & reg])
+    E: seq[State] = newSeq[State](G.len)
+    reached: seq[bool] = newSeq[bool](G.len)
+  E[0] = {reg: Cell(bits: {tbSecret}, why: -1)}.toTable()
+  settle(S, G, E, reached)
+  result = S.retBits != {}
+
+proc flowOf(F: Flows, t: uint64): set[0 .. 5] =
+  ## F: the binary's flows   t: a routine's start. Which of the six
+  ## argument registers can reach rax. Unknown, or already being worked
+  ## out further up (a loop of calls): all six, to be safe.
+  var
+    r: Routine = Routine()
+    G: seq[Block] = @[]
+    k: int = 0
+  if t in F.memo:
+    return F.memo[t]
+  if t notin F.index or t in F.busy:
+    return {0 .. 5}
+  F.busy.incl(t)
+  r = F.routines[F.index[t]]
+  G = blocksOf(r)
+  result = {}
+  while k < 6 and G.len > 0:
+    if reachesReturn(F, r, G, argRegisters[k]): result.incl(k)
+    k = k + 1
+  F.busy.excl(t)
+  F.memo[t] = result

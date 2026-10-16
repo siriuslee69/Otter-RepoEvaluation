@@ -34,33 +34,39 @@
 #
 #   --routine:constantTimeEqual:s[],s[]      both openArrays secret
 #   --routine:sboxCt:s                       the one byte is secret
+#   --routine:aes_core.init:p*,s[]           only aes_core's `init`
 #
 # The `secret: "a|b"` pragma says the same from inside the source; the
 # parameter types are read from the signature. A --routine flag wins
 # over a pragma for the same name.
 
-import std/[json, os, sequtils, strutils]
+import std/[json, os, sequtils, strutils, tables]
 
 import runePragmas
 import ./fylgia_threads
 import ./machine_code/objdump
 import ./machine_code/taint
+import ./machine_code/census
 
 export objdump
 export taint
+export census
 
 type
   CtReport* {.role: truthState, expectedCount: 1, lifeCycle: lcJob.} = object
     target*: string                 ## what was handed in
     binary*: string                 ## the binary that was read
     results*: seq[RoutineResult]
+    censuses*: seq[BranchCensus]    ## one per result, same order
     warnings*: seq[string]
     error*: string
 
 const
-  ctFlags*: string = "-d:release --debugger:native --passC:-fno-inline"
-    ## -fno-inline keeps every routine as its own symbol, so a small
-    ## {.inline.} helper such as sboxCt can still be found and checked
+  ctFlags*: string = "-d:release --debugger:native"
+    ## the shipped build, plus source lines for the report
+  noInlineFlag*: string = "--passC:-fno-inline"
+    ## with --noinline: every routine stays its own symbol, so a small
+    ## {.inline.} helper such as sboxCt can be checked on its own
 
 # ---- naming the secret parameters --------------------------------------------
 
@@ -237,23 +243,115 @@ proc mergeSpecs(A, B: seq[RoutineSpec]): seq[RoutineSpec] {.role: helper,
   for a in A:
     if not B.anyIt(it.name == a.name): result.add(a)
 
+# ---- which source routine a line belongs to ----------------------------------
+#
+# With inlining on, a small routine has no symbol of its own: its
+# instructions sit inside its callers. Their source lines still point
+# at it, so the line is what tells them apart:
+#
+#   encryptBlock  0x6207  and al, BYTE PTR [r8+rdx*1]  (aes_blocks.nim:19)
+#                                                       └─ inside sboxCt
+#
+# LineOwners holds, for each source file read so far, the routine every
+# line sits in: the nearest proc/func/iterator/template header above it.
+
+type
+  LineOwners = Table[string, seq[string]]  ## file -> routine name per line
+
+const
+  headerWords: array[6, string] = ["proc ", "func ", "method ", "iterator ",
+    "template ", "converter "]
+
+proc headerName(s: string): string {.role: parser, tag: "machineCode".} =
+  ## s: one source line. The routine it starts, or "".
+  var
+    t: string = s.strip()
+  result = ""
+  for w in headerWords:
+    if t.startsWith(w):
+      return t[w.len .. ^1].split({'*', '(', '[', ' ', ':', '='})[0].strip(chars = {'`'})
+
+proc ownerOf(O: var LineOwners, file: string, line: int): string {.
+    role: parser, tag: "machineCode".} =
+  ## O: the cache   file, line: a source position. The routine it sits
+  ## in, or "" when the file cannot be read.
+  var
+    L: seq[string] = @[]
+    cur: string = ""
+  if file notin O:
+    if fileExists(file):
+      for s in readFile(file).splitLines():
+        if headerName(s).len > 0: cur = headerName(s)
+        L.add(cur)
+    O[file] = L
+  if line < 1 or line > O[file].len:
+    return ""
+  result = O[file][line - 1]
+
+proc markInlined(O: var LineOwners, x: var RoutineResult) {.role: actor,
+    tag: "machineCode".} =
+  ## x: one checked routine. Each finding learns which source routine its
+  ## line sits in, when that is not the routine itself.
+  var
+    k: int = 0
+    o: string = ""
+  while k < x.findings.len:
+    o = ownerOf(O, x.findings[k].file, x.findings[k].line)
+    if o.len > 0 and o != x.spec.name: x.findings[k].inlinedFrom = o
+    k = k + 1
+
+proc inlinedInto(O: var LineOwners, R: seq[Routine], name: string): seq[string] {.
+    role: parser, tag: "machineCode".} =
+  ## R: every routine of the binary   name: a routine with no symbol.
+  ## The routines that carry its lines, so their callers can be checked.
+  result = @[]
+  for r in R:
+    if r.baseName in result: continue
+    for I in r.instrs:
+      if I.line > 0 and ownerOf(O, I.file, I.line) == name:
+        result.add(r.baseName)
+        break
+
 # ---- building and reading -----------------------------------------------------
 
-proc compileForCt*(file: string): tuple[bin, error: string] {.
-    role: dataWriter, tag: "machineCode".} =
-  ## file: a .nim file. Builds it the way it ships, with source lines kept,
-  ## into the temp folder. Run from the file's own folder so its
-  ## config.nims applies.
+proc compileForCt*(file: string, noInline: bool = false): tuple[bin,
+    error: string] {.role: dataWriter, tag: "machineCode".} =
+  ## file: a .nim file   noInline: keep every routine as its own symbol.
+  ## Builds it the way it ships, with source lines kept, into the temp
+  ## folder. Run from the file's own folder so its config.nims applies.
   var
     dir: string = getTempDir() / "otter-ct" / file.splitFile().name
     o: tuple[output: string, exitCode: int] = ("", 0)
+    flags: string = ctFlags
+  if noInline: flags = flags & " " & noInlineFlag
   createDir(dir)
   result = (bin: dir / file.splitFile().name, error: "")
-  o = execCmdShared("nim c --hints:off " & ctFlags & " --nimcache:" &
+  o = execCmdShared("nim c --hints:off " & flags & " --nimcache:" &
     quoteShell(dir / "nimcache") & " -o:" & quoteShell(result.bin) & " " &
     quoteShell(file.absolutePath()), workingDir = file.absolutePath().parentDir())
   if o.exitCode != 0:
     result.error = "compiling " & file & " failed:\n" & o.output.strip()
+
+proc nameMatches(r: Routine, name: string): bool {.inline, role: parser,
+    tag: "machineCode".} =
+  ## r: a routine of the binary   name: "init", or "aes_core.init" to
+  ## leave out every other module's `init` (system has one too).
+  var
+    P: seq[string] = name.rsplit('.', maxsplit = 1)
+  if P.len == 1:
+    return r.baseName == name
+  result = r.baseName == P[1] and (r.module == P[0] or r.module.endsWith("." & P[0]))
+
+proc missingWarning(O: var LineOwners, R: seq[Routine], s: RoutineSpec): string {.
+    role: parser, tag: "machineCode".} =
+  ## s: a routine with no symbol. Where it went, as one warning line.
+  var
+    A: seq[string] = inlinedInto(O, R, s.name.rsplit('.', maxsplit = 1)[^1])
+  result = "`" & s.name & "` (" & s.origin & ") has no symbol in the binary"
+  if A.len == 0:
+    return result & ": never called, or no source lines to follow"
+  result = result & ": inlined into " & A.join(", ") &
+    " - check those with their secret parameters, or use --noinline"
 
 proc checkSpecs(R: seq[Routine], S: seq[RoutineSpec],
     rep: var CtReport) {.role: orchestrator, tag: "machineCode".} =
@@ -263,20 +361,24 @@ proc checkSpecs(R: seq[Routine], S: seq[RoutineSpec],
   ## the middle and receive no arguments.
   var
     hit: bool = false
+    F: Flows = newFlows(R)
+    O: LineOwners = initTable[string, seq[string]]()
+    SC: SourceCache = initTable[string, seq[string]]()
   for s in S:
     hit = false
     for r in R:
-      if r.baseName != s.name or r.name.contains(".cold"): continue
-      rep.results.add(checkRoutine(r, s))
+      if not nameMatches(r, s.name) or r.name.contains(".cold"): continue
+      rep.results.add(checkRoutine(r, s, F))
+      markInlined(O, rep.results[^1])
+      rep.censuses.add(censusOf(r, rep.results[^1], SC))
       hit = true
-    if not hit:
-      rep.warnings.add("`" & s.name & "` (" & s.origin &
-        ") has no symbol in the binary: inlined into its callers, or never called")
+    if not hit: rep.warnings.add(missingWarning(O, R, s))
 
-proc ctCheck*(target: string, flagSpecs: seq[RoutineSpec]): CtReport {.
-    role: metaOrchestrator, tag: "machineCode".} =
+proc ctCheck*(target: string, flagSpecs: seq[RoutineSpec],
+    noInline: bool = false): CtReport {.role: metaOrchestrator,
+    tag: "machineCode".} =
   ## target: a binary, or a .nim file to compile first   flagSpecs: the
-  ## --routine flags.
+  ## --routine flags   noInline: build with inlining off (a .nim only).
   var
     S: seq[RoutineSpec] = flagSpecs
     c: tuple[bin, error: string] = (target, "")
@@ -287,7 +389,7 @@ proc ctCheck*(target: string, flagSpecs: seq[RoutineSpec]): CtReport {.
     return
   if target.endsWith(".nim"):
     S = mergeSpecs(scanSpecs(target), flagSpecs)
-    c = compileForCt(target)
+    c = compileForCt(target, noInline)
     result.binary = c.bin
   if c.error.len > 0:
     result.error = c.error
@@ -318,6 +420,7 @@ proc resultLines(x: RoutineResult): seq[string] {.role: actor,
   for f in x.findings:
     result.add("  " & kindWords[f.kind] & "  0x" & hexOf(f.address) & "  " &
       f.text & "  (" & extractFilename(f.file) & ":" & $f.line & ")")
+    if f.inlinedFrom.len > 0: result[^1].add("  inlined from " & f.inlinedFrom)
     for t in f.trail: result.add("             " & t)
   if x.unknown > 0:
     result.add("  " & $x.unknown & " instruction(s) not in the table, read cautiously: " &
@@ -330,7 +433,9 @@ proc ctLines*(r: CtReport): seq[string] {.role: actor, tag: "machineCode".} =
   if r.error.len > 0:
     result.add("error: " & r.error)
   for w in r.warnings: result.add("warning: " & w)
-  for x in r.results: result.add(resultLines(x))
+  for k, x in r.results:
+    result.add(resultLines(x))
+    if k < r.censuses.len: result.add(censusLines(r.censuses[k]))
   result.add($r.results.len & " routine(s) checked, " & $findingCount(r) &
     " finding(s)")
 
@@ -338,11 +443,11 @@ proc ctJson*(r: CtReport): JsonNode {.role: actor, tag: "machineCode".} =
   ## r: a report. The same as ctLines, for a program to read.
   result = %*{"target": r.target, "binary": r.binary, "error": r.error,
     "warnings": r.warnings, "findings": findingCount(r), "routines": []}
-  for x in r.results:
-    result["routines"].add(%*{"name": x.spec.name, "symbol": x.symbol,
+  for k, x in r.results:
+    result["routines"].add(%*{"census": (if k < r.censuses.len: %r.censuses[k] else: newJNull()),"name": x.spec.name, "symbol": x.symbol,
       "origin": x.spec.origin, "instructions": x.instrCount,
       "blocks": x.blockCount, "unknown": x.unknown,
       "unknownNames": x.unknownNames, "notes": x.notes,
       "findings": x.findings.mapIt(%*{"kind": $it.kind,
         "address": "0x" & hexOf(it.address), "text": it.text,
-        "file": it.file, "line": it.line, "trail": it.trail})})
+        "file": it.file, "line": it.line, "inlinedFrom": it.inlinedFrom, "trail": it.trail})})
