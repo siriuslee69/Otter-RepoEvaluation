@@ -20,7 +20,7 @@
 # through the instructions, marking every place a marked one flows into.
 #
 # Def. 1  A "place" is a register (rax), the flags, a stack slot
-#         ("stack@rsp+0x10"), the values pushed ("pushed"), or all other
+#         (stack@rsp+0x10), the values pushed ("pushed"), or all other
 #         memory taken together ("memory").
 # Def. 2  A mark ("taint") is a set of two bits:
 #           tbSecret   the value itself is secret
@@ -131,7 +131,7 @@ type
     ## One memory operand, "BYTE PTR [rdi+rax*1+0x10]".
     isMem: bool
     regs: seq[string]                ## address registers, rip and rsp left out
-    stackKey: string                 ## "stack@rsp+0x10", or ""
+    slot: string                     ## the stack slot it names, or empty
 
 const
   noWhy: int = int.low
@@ -164,7 +164,7 @@ proc memRef(op: string): MemRef {.role: parser, tag: "machineCode".} =
       result.regs.add(reg)
   if inner.startsWith("rsp") or (inner.startsWith("rbp") and result.regs == @["rbp"]):
     if inner.find('*') < 0 and result.regs.len <= 1:
-      result.stackKey = "stack@" & inner
+      result.slot = "stack@" & inner
 
 proc cellOf(S: State, k: string): Cell {.inline, role: helper,
     tag: "machineCode".} =
@@ -270,8 +270,8 @@ proc loadValue(St: State, m: MemRef, i: int): tuple[loc: string, c: Cell] {.
   ##   anywhere else                       -> the "memory" mark
   var
     c: Cell = Cell(bits: {}, why: noWhy)
-  if m.stackKey.len > 0:
-    return (m.stackKey, cellOf(St, m.stackKey))
+  if m.slot.len > 0:
+    return (m.slot, cellOf(St, m.slot))
   for reg in m.regs:
     c = cellOf(St, reg)
     if c.bits != {}:
@@ -306,8 +306,8 @@ proc writeOp(St: var State, op: string, c: Cell) {.role: actor,
   if reg.len > 0 and not m.isMem:
     if isPartialRegister(op): t = union(cellOf(St, reg), c)
     St[reg] = t
-  elif m.stackKey.len > 0:
-    St[m.stackKey] = c
+  elif m.slot.len > 0:
+    St[m.slot] = c
   elif m.isMem and not m.regs.anyIt(tbPointer in cellOf(St, it).bits):
     St["memory"] = union(cellOf(St, "memory"), c)
 
