@@ -8,7 +8,8 @@ elif dirExists("../Fylgia-Utils/src"):
 # src/protocols/code_stats/shape.nim). This define only says which of
 # the two places Fylgia is sitting in, and is set only when the pinned
 # copy is actually there and carries the module that is wanted.
-if fileExists("submodules/Fylgia-Utils/src/protocols/math/vector_space.nim"):
+if fileExists(thisDir() & "/submodules/Fylgia-Utils/src/protocols/math/vector_space.nim") and
+    fileExists(thisDir() & "/submodules/Fylgia-Utils/src/protocols/threads/auto_thread.nim"):
   switch("define", "otterFylgiaSubmodule")
 
 ## Pragma module, named for this repository so no other repo on the Nim

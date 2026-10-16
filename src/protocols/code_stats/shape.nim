@@ -36,6 +36,7 @@ import std/[algorithm, sets, strutils, tables]
 
 import ../repo_graph/types as graphTypes
 import runePragmas
+import ../fylgia_threads
 
 # Fylgia holds the room-and-distance maths, and is reached by a path
 # relative to *this file* rather than through the module search path.
@@ -514,6 +515,47 @@ proc byScore(a, b: DuplicatePair): int {.role: helper,
   if result == 0:
     result = cmp(a.aId, b.aId)
 
+proc pairOf(A: seq[FunctionShape], S: VectorSpace, i, j: int,
+    found: var seq[DuplicatePair]) {.role: actor, tag: "stats".} =
+  ## A, S <- every measured routine and its room   i, j <- one pair.
+  ## Scores the pair and keeps it when it scores high enough.
+  var
+    close: float = likeness(S.points[i], S.points[j])
+    shape: float = 0.0
+    names: float = 0.0
+    score: float = 0.0
+    same: bool = false
+  if close < prefilterFloor:
+    return
+  # A one-line routine has no shape worth comparing; two of them
+  # would otherwise score a perfect match against each other.
+  if A[i].skeleton.len < shapeFloorLines or A[j].skeleton.len < shapeFloorLines:
+    return
+  shape = sequenceMatch(A[i].skeleton, A[j].skeleton)
+  names = nameMatch(A[i].name, A[j].name)
+  score = close * 0.5 + shape * 0.34 + names * 0.16
+  if score < duplicateFloor:
+    return
+  same = A[i].paramSig == A[j].paramSig
+  found.add(DuplicatePair(aId: A[i].id, aName: A[i].name,
+    aPath: A[i].path, bId: A[j].id, bName: A[j].name,
+    bPath: A[j].path, hint: hintFor(A[i], A[j], same),
+    aLine: A[i].line, bLine: A[j].line, score: score,
+    closeness: close, shapeMatch: shape, nameMatch: names,
+    sameModule: A[i].module == A[j].module, sameParams: same))
+
+proc pairsFromRow(R: tuple[A: seq[FunctionShape], S: VectorSpace], i: int):
+    seq[DuplicatePair] {.role: truthBuilder, tag: "stats".} =
+  ## R <- every measured routine and the room   i <- one row.
+  ## Row i against every row after it. One row is one job for the
+  ## threader, so the rows are scored on every core at once.
+  var
+    j: int = i + 1
+  result = @[]
+  while j < R.A.len:
+    pairOf(R.A, R.S, i, j, result)
+    j = j + 1
+
 proc duplicatesOf*(A: seq[FunctionShape], S: VectorSpace):
     tuple[pairs: seq[DuplicatePair], total: int] {.role: truthBuilder,
     tag: "stats".} =
@@ -529,45 +571,16 @@ proc duplicatesOf*(A: seq[FunctionShape], S: VectorSpace):
   ##
   ## Names count for little on purpose: a copied routine is usually
   ## renamed, and two routines sharing a word are usually unrelated.
+  ##
+  ## Every pair is a fixed sum, so the rows can be scored in any order
+  ## and the sort below puts the answer back the same every time.
   var
     found: seq[DuplicatePair] = @[]
-    row: DuplicatePair
-    close: float = 0.0
-    shape: float = 0.0
-    names: float = 0.0
-    score: float = 0.0
-    same: bool = false
-    i: int = 0
-    j: int = 0
   result = (pairs: @[], total: 0)
   if A.len != S.points.len:
     return
-  while i < A.len:
-    j = i + 1
-    while j < A.len:
-      close = likeness(S.points[i], S.points[j])
-      if close < prefilterFloor:
-        j = j + 1
-        continue
-      # A one-line routine has no shape worth comparing; two of them
-      # would otherwise score a perfect match against each other.
-      if A[i].skeleton.len < shapeFloorLines or A[j].skeleton.len < shapeFloorLines:
-        j = j + 1
-        continue
-      shape = sequenceMatch(A[i].skeleton, A[j].skeleton)
-      names = nameMatch(A[i].name, A[j].name)
-      score = close * 0.5 + shape * 0.34 + names * 0.16
-      if score >= duplicateFloor:
-        same = A[i].paramSig == A[j].paramSig
-        row = DuplicatePair(aId: A[i].id, aName: A[i].name,
-          aPath: A[i].path, bId: A[j].id, bName: A[j].name,
-          bPath: A[j].path, hint: hintFor(A[i], A[j], same),
-          aLine: A[i].line, bLine: A[j].line, score: score,
-          closeness: close, shapeMatch: shape, nameMatch: names,
-          sameModule: A[i].module == A[j].module, sameParams: same)
-        found.add(row)
-      j = j + 1
-    i = i + 1
+  for row in parallelRange(A.len, (A: A, S: S), pairsFromRow):
+    found.add(row)
   found.sort(byScore)
   result.total = found.len
   if found.len > duplicatesShown:

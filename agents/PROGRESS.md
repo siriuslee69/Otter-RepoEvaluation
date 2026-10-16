@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: Fewer false findings: gitignored files, default values, reads through calls, subscripts and tests, routines passed by name; report rows keep their heading
+Commit Message: Measure on every core: the stats pass runs in three stages of independent reports, checks use Fylgia's threader
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.
@@ -11,6 +11,14 @@ Features (Planned):
 - Parent-repo adoption of the pragma-driven test UI after Otter example validation.
 
 Features (Done):
+- Every core used (Fylgia auto threader, `src/protocols/fylgia_threads.nim`):
+    analyzeProject   three stages; every report inside one stage runs at once
+    shape            duplicate pairs scored one row per core; the clumps
+                     (Fylgia cloudNodes) no longer re-measure n x n per round
+    checks           the hand-made threads and globals are gone
+  Tyr-Crypto, fresh clone: 7.5 s -> 1.3 s, identical report.
+  OTTER_THREADS=n (or FYLGIA_THREADS) caps it; `checks` without --parallel
+  holds it at one.
 - False findings fixed, all seen on Bifrost-ExchangeProtocols:
     secrets / embedded code   files `.gitignore` leaves out are skipped
                               (a vendored Android SDK gave 430 of 473)

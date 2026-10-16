@@ -38,6 +38,7 @@ import ../repo_graph/graph_builder
 import ../repo_graph/io_utils
 import ../repo_graph/nim_parser
 import ../repo_graph/types as graphTypes
+import ../fylgia_threads
 import runePragmas
 
 proc hasBody(f: FunctionInfo): bool {.role: parser, tag: "stats".} =
@@ -186,12 +187,69 @@ proc addPassedCalls(A: var seq[FunctionInfo]) {.role: actor, tag: "stats".} =
         f.calls.add(name)
 
 
+proc calledNamesOf(dir: string, A: seq[FunctionInfo]): HashSet[string]
+    {.role: truthBuilder, tag: "stats".} =
+  ## dir: the repository   A: every routine in it.
+  ## Every name anything in the tree uses, lowered. Four kinds of use
+  ## count, not one; a routine reads as dead only when none names it:
+  ##
+  ##   something calls it        parseWidth(s)
+  ##   a pragma applies it       {.needs: b <= a.}   <- never "called"
+  ##   top-level code calls it   when isMainModule: stream(1)
+  ##   something is handed it    createThread(t, serveThread, args)
+  ##
+  ## The last three used to be invisible, so every macro written to be
+  ## used as a pragma, every routine only ever reached from a module's
+  ## own top level, and every thread body was reported as dead weight.
+  var
+    known: HashSet[string] = initHashSet[string]()
+    perFile: Table[string, seq[FunctionInfo]] = initTable[string,
+      seq[FunctionInfo]]()
+    lines: seq[string] = @[]
+  result = initHashSet[string]()
+  for fn in A:
+    for name in fn.calls:
+      result.incl(name.toLowerAscii())
+    known.incl(fn.name.toLowerAscii())
+    perFile.mgetOrPut(fn.sourcePath, @[]).add(fn)
+  for p in listNimFiles(dir, bIncludeTests = true):
+    lines = readLinesSafe(p)
+    for name in pragmaNamesIn(lines):
+      result.incl(name.toLowerAscii())
+    for name in topLevelCalls(lines, perFile.getOrDefault(p, @[])):
+      result.incl(name.toLowerAscii())
+    for name in passedNames(lines, known):
+      result.incl(name.toLowerAscii())
+
+proc keptSourceFiles(dir: string): seq[string] {.role: dataFetcher,
+    tag: "stats".} =
+  ## dir: the repository. Every hand-written file `.gitignore` keeps.
+  result = gitKept(dir, listAllSourceFiles(dir))
+
 proc analyzeProject*(rootDir: string): ProjectStats {.role: orchestrator,
     input: trusted, risk: rkLow, speed: spLong, tag: "stats".} =
   ## rootDir: the folder to measure. An unreadable folder comes back
   ## with `error` set and everything else empty, so a window can say so
   ## instead of drawing an empty chart that looks like good news.
+  ##
+  ## Three stages. Every line inside one `together` block runs at the
+  ## same time (Fylgia's auto threader); a stage starts only when the
+  ## one before it is done, because it reads what that one wrote:
+  ##
+  ##   1  the folder   ─┬─► Nim files, kept files, .gitignore, timeline
+  ##                    │
+  ##      parse once ───┴─► all ─► call graph ─► test walk   (in order)
+  ##                    │
+  ##   2  all + walk   ─┼─► files, nesting, rings, roles, unused, scans,
+  ##                    │   shape, secrets, state, layout, guards, ...
+  ##                    │
+  ##   3  stage 2      ─┴─► unsafe calls, placeholders, families, scopes
+  ##
+  ## Everything is worked out from `all`, the one parse of the tree, so
+  ## nothing reads a file twice and no two reports can disagree about
+  ## what the source says.
   var
+    normDir: string = normalizeSlashes(rootDir)
     files: seq[string] = @[]
     allSourceFiles: seq[string] = @[]
     all: seq[FunctionInfo] = @[]
@@ -201,7 +259,15 @@ proc analyzeProject*(rootDir: string): ProjectStats {.role: orchestrator,
     tests: seq[TestInfo] = @[]
     walk: CoverWalk
     marks: HashSet[string]
-  let normDir = normalizeSlashes(rootDir)
+    keys: HashSet[string]
+    calledNames: HashSet[string] = initHashSet[string]()
+    inputScan: tuple[inputs: seq[InputFuncInfo], inputCount: int,
+      sanitizerCount: int]
+    whenAndPlat: tuple[sites: seq[WhenSite], platforms: seq[NameCount],
+      simd: seq[SimdSite]]
+    importDepth: tuple[depth: int, cycles: seq[CircularImportInfo]]
+    scopes: tuple[src: ProjectScopeStats, all: ProjectScopeStats,
+      test: ProjectScopeStats]
   result = ProjectStats(rootDir: normDir, isGitRepo: false, files: @[],
     totalLines: 0, functions: 0, templates: 0, macros: 0, avgLines: 0.0,
     inputFunctions: 0, truthFunctions: 0, mathFunctions: 0,
@@ -216,134 +282,85 @@ proc analyzeProject*(rootDir: string): ProjectStats {.role: orchestrator,
   if not dirExists(normDir / ".git") and not fileExists(normDir / ".git"):
     result.error = "Not a git initialized workspace: .git folder missing"
     return
-
   result.isGitRepo = true
-  files = listNimFiles(rootDir, true)
+
+  # ---- stage 1: the folder, four walks at once -------------------------
+  together:
+    files = listNimFiles(rootDir, true)
+    allSourceFiles = keptSourceFiles(rootDir)
+    result.gitignore = gatherGitignoreStats(rootDir)
+    result.timeline = timelineOf(normDir)
   if files.len == 0:
     result.error = "no Nim files under " & rootDir
     return
-
-  allSourceFiles = gitKept(rootDir, listAllSourceFiles(rootDir))
-  result.langStats = gatherLangStats(allSourceFiles)
-  result.gitignore = gatherGitignoreStats(rootDir)
 
   all = parseTree(rootDir, files)
   addPassedCalls(all)
   parts = splitTests(all)
   graph = buildCallGraph(all)
   marks = templateNames(all)
+  keys = pragmaKeys(all)
   tests = gatherTests(files, parts.tests)
   ## `all`, not only the library: a test that calls a helper in its own
   ## file (`waitFor runRelayChecks()`) reaches the library THROUGH it.
   walk = walkTests(all, tests, graph.edges)
-  result.files = collectFiles(rootDir, all, files, marks, walk)
-  result.nest = nestOf(parts.src, marks)
-  result.tests = coverageOf(parts.src, tests, walk)
-  result.roles = rolesOf(parts.src)
-  result.unused = unusedOf(parts.src, graph.edges, walk, pragmaKeys(all))
+  wholeGraph = RepoGraph(rootDir: normDir, functions: parts.src,
+    edges: graph.edges)
+
+  # ---- stage 2: every report that reads only the parse ------------------
+  #
+  # The last two read the call graph rather than the files: how deep a
+  # chain of calls can get, and whether every door has a guard. Their
+  # test-reach sets come from the one walk above, so the coverage rings
+  # and the guard report can never disagree.
+  together:
+    result.langStats = gatherLangStats(allSourceFiles)
+    result.files = collectFiles(rootDir, all, files, marks, walk)
+    result.nest = nestOf(parts.src, marks)
+    result.tests = coverageOf(parts.src, tests, walk)
+    result.roles = rolesOf(parts.src)
+    result.unused = unusedOf(parts.src, graph.edges, walk, keys)
+    inputScan = scanInputDetailsAndSanitizers(rootDir, allSourceFiles, parts.src)
+    result.unusedImports = scanUnusedImports(rootDir, allSourceFiles)
+    whenAndPlat = scanWhenSitesAndPlatformCoverage(rootDir, allSourceFiles)
+    importDepth = buildImportGraphAndDepth(rootDir, allSourceFiles)
+    calledNames = calledNamesOf(normDir, all)
+    result.shape = shapeReport(parts.src, normDir)
+    result.config = configReportOf(normDir, files, all)
+    result.secrets = secretsOf(normDir, allSourceFiles)
+    result.embedded = embeddedOf(normDir, allSourceFiles)
+    result.layout = layoutOf(parts.src, normDir)
+    result.state = stateWritesOf(wholeGraph, outside = parts.tests)
+    result.aborts = abortReachOf(wholeGraph, escapingOf(wholeGraph))
+    result.callDepth = callDepthOf(parts.src, graph.edges, normDir)
+    result.coupling = couplingOf(parts.src, graph.edges, normDir,
+      walk.hits, walk.edge, walk.regress, walk.bug)
+
+  # ---- stage 3: what needs stage 2 -------------------------------------
+  together:
+    result.unsafeDetails = scanUnsafeDetails(rootDir, allSourceFiles,
+      parts.src, inputScan.inputs, graph.edges)
+    result.placeholders = placeholdersOf(all, calledNames, normDir)
+    result.unusedFuncs = unusedReportOf(parts.src, calledNames, normDir)
+    result.families = familiesOf(result.shape.shapes, parts.src)
+    scopes = calculateScopeStats(result.files)
+
   result.unusedCount = result.unused.len
   if result.unused.len > unusedShown:
     result.unused.setLen(unusedShown)
   totalsOf(result, parts.src)
-
-  let inputScan = scanInputDetailsAndSanitizers(rootDir, allSourceFiles, parts.src)
   result.inputDetails = inputScan.inputs
   result.inputFunctions = max(result.inputFunctions, inputScan.inputCount)
-
-  result.unsafeDetails = scanUnsafeDetails(rootDir, allSourceFiles, parts.src, inputScan.inputs, graph.edges)
-  result.unusedImports = scanUnusedImports(rootDir, allSourceFiles)
-
-  let whenAndPlat = scanWhenSitesAndPlatformCoverage(rootDir, allSourceFiles)
   result.whenSites = whenAndPlat.sites
   result.platformCoverage = whenAndPlat.platforms
   result.simdSites = whenAndPlat.simd
-
-  let graphDepthAndCycles = buildImportGraphAndDepth(rootDir, allSourceFiles)
-  result.importGraphDepth = graphDepthAndCycles.depth
-  result.circularImports = graphDepthAndCycles.cycles
-
-  let scopeBreakdowns = calculateScopeStats(result.files)
-  result.srcStats = scopeBreakdowns.src
-  result.allStats = scopeBreakdowns.all
-  result.testStats = scopeBreakdowns.test
-
+  result.importGraphDepth = importDepth.depth
+  result.circularImports = importDepth.cycles
+  result.srcStats = scopes.src
+  result.allStats = scopes.all
+  result.testStats = scopes.test
   for row in result.files:
     result.totalLines = result.totalLines + row.lines
-
-  # ---- the six reports beside this file ------------------------------
-  #
-  # All six are worked out from `all`, the one parse of the tree made
-  # near the top of this routine, so nothing here reads a file twice
-  # and no two reports can disagree about what the source says.
-  #
-  #   all ─┬─► shape        alike routines, and the point cloud
-  #        ├─► placeholders routines that do nothing yet
-  #        ├─► unused       routines nothing calls, and their size
-  #        └─► config       which settings anything reads
-  #
-  #   the folder ─┬─► secrets   keys, in the tree and in its history
-  #               └─► timeline  the tree at a spread of past moments
-  #
-  # `calledNames` is every name anything in the tree calls, lowered.
-  # Two of the reports need it and neither should build it again.
-  #
-  # Four kinds of use count, not one. A routine reads as dead only
-  # when none of them names it:
-  #
-  #   something calls it        parseWidth(s)
-  #   a pragma applies it       {.needs: b <= a.}   <- never "called"
-  #   top-level code calls it   when isMainModule: stream(1)
-  #   something is handed it    createThread(t, serveThread, args)
-  #
-  # The last three used to be invisible, so every macro written to be
-  # used as a pragma, every routine only ever reached from a module's
-  # own top level, and every thread body was reported as dead weight.
-  var
-    calledNames: HashSet[string] = initHashSet[string]()
-    known: HashSet[string] = initHashSet[string]()
-    perFile: Table[string, seq[FunctionInfo]] = initTable[string,
-      seq[FunctionInfo]]()
-    lines: seq[string] = @[]
-  for fn in all:
-    for name in fn.calls:
-      calledNames.incl(name.toLowerAscii())
-    known.incl(fn.name.toLowerAscii())
-    if not perFile.hasKey(fn.sourcePath):
-      perFile[fn.sourcePath] = @[]
-    perFile[fn.sourcePath].add(fn)
-  for p in listNimFiles(normDir, bIncludeTests = true):
-    lines = readLinesSafe(p)
-    for name in pragmaNamesIn(lines):
-      calledNames.incl(name.toLowerAscii())
-    for name in topLevelCalls(lines, perFile.getOrDefault(p, @[])):
-      calledNames.incl(name.toLowerAscii())
-    for name in passedNames(lines, known):
-      calledNames.incl(name.toLowerAscii())
-  result.shape = shapeReport(parts.src, normDir)
-  result.placeholders = placeholdersOf(all, calledNames, normDir)
-  result.unusedFuncs = unusedReportOf(parts.src, calledNames, normDir)
-  result.config = configReportOf(normDir, files, all)
-  result.secrets = secretsOf(normDir, allSourceFiles)
-  result.embedded = embeddedOf(normDir, allSourceFiles)
-  result.families = familiesOf(result.shape.shapes, parts.src)
-  result.layout = layoutOf(parts.src, normDir)
-  wholeGraph = RepoGraph(rootDir: normDir, functions: parts.src,
-    edges: graph.edges)
-  result.state = stateWritesOf(wholeGraph, outside = parts.tests)
-  result.aborts = abortReachOf(wholeGraph, escapingOf(wholeGraph))
-  result.timeline = timelineOf(normDir)
-
-  # Two more, both reading the call graph rather than the files:
-  #
-  #   how deep a chain of calls can get, and who sits at each depth
-  #   whether every door has a guard, and whether the guards are tested
-  #
-  # The test-reach sets come from the one walk of the tests made
-  # further up, so what the coverage rings say and what the guard
-  # report says can never disagree.
-  result.callDepth = callDepthOf(parts.src, graph.edges, normDir)
-  result.coupling = couplingOf(parts.src, graph.edges, normDir,
-    walk.hits, walk.edge, walk.regress, walk.bug)
 
 
 proc summaryLines*(S: ProjectStats): seq[string] {.role: helper,
