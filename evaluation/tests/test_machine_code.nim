@@ -9,7 +9,7 @@
 #
 # The second half needs `nim` and `objdump` on the PATH.
 
-import std/[os, strutils, unittest]
+import std/[os, sequtils, strutils, unittest]
 
 import runePragmas
 import ../../src/protocols/machine_code
@@ -131,6 +131,6 @@ suite "branch census":
       k: int = 0
     check r.censuses.len == r.results.len
     while k < r.results.len:
-      check r.censuses[k].jumps >= r.results[k].findings.len
+      check r.censuses[k].jumps >= r.results[k].findings.countIt(it.kind == fkBranch)
       for a in r.censuses[k].added: check not a.secret
       k = k + 1
