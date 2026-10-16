@@ -155,7 +155,7 @@ proc headerAt(text: string, at: int): tuple[ok: bool, start: int] {.
     i: int = at
     P: array[3, string] = ["proc ", "func ", "method "]
   result = (ok: false, start: 0)
-  while i > 0 and not (text[i] == '=' and i + 1 < text.len and text[i + 1] == '\n'):
+  while i >= 0 and not (text[i] == '=' and i + 1 < text.len and text[i + 1] == '\n'):
     for p in P:
       if text.continuesWith(p, i) and (i == 0 or text[i - 1] in {'\n', ' '}):
         return (ok: true, start: i)
