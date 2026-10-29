@@ -1,18 +1,18 @@
-# ============================================================
-# | Otter Code Statistics Test Scan                          |
-# | -> What each test is for, and what it touches            |
-# ============================================================
-#
-# A test is either a `test "..."` block or a routine carrying a
-# testKind pragma. Both are read the same way afterwards: a name, a
-# kind, and the routines its body calls.
-#
-#   test "empty input is refused":        <- kind read from the words
-#   proc wideRange() {.testKind: tkEdgeCase.}   <- kind declared
-#
-# A declared kind always wins. When there is none the wording decides,
-# and the window is told how many kinds were declared rather than
-# guessed, so nobody mistakes a guess for a promise.
+## ============================================================
+## | Otter Code Statistics Test Scan                          |
+## | -> What each test is for, and what it touches            |
+## ============================================================
+##
+## A test is either a `test "..."` block or a routine carrying a
+## testKind pragma. Both are read the same way afterwards: a name, a
+## kind, and the routines its body calls.
+##
+##   test "empty input is refused":        <- kind read from the words
+##   proc wideRange() {.testKind: tkEdgeCase.}   <- kind declared
+##
+## A declared kind always wins. When there is none the wording decides,
+## and the window is told how many kinds were declared rather than
+## guessed, so nobody mistakes a guess for a promise.
 
 import std/[sets, strutils]
 

@@ -1,25 +1,27 @@
-# ============================================================
-# | GF(2) Linear Algebra                                    |
-# | -> Packed rank and nullity for invariant certificates   |
-# ============================================================
+## ============================================================
+## | GF(2) Linear Algebra                                    |
+## | -> Packed rank and nullity for invariant certificates   |
+## ============================================================
+
+import runePragmas
 
 import std/bitops
 
-proc gf2WordCount*(columns: int): int =
+proc gf2WordCount*(columns: int): int {.role: math.} =
   ## columns: matrix width in bits.
   if columns > 0:
     result = (columns + 63) div 64
 
-proc gf2SetBit*(R: var seq[uint64], column: int) =
+proc gf2SetBit*(R: var seq[uint64], column: int) {.role: actor.} =
   ## R: packed row. column: bit position to set.
   if column < 0 or column >= R.len * 64:
     raise newException(ValueError, "GF(2) column is outside the packed row")
   R[column div 64] = R[column div 64] or (1'u64 shl (column mod 64))
 
-proc gf2Bit(R: seq[uint64], column: int): bool {.inline.} =
+proc gf2Bit(R: seq[uint64], column: int): bool {.inline, role: math.} =
   result = ((R[column div 64] shr (column mod 64)) and 1'u64) != 0'u64
 
-proc xorRows(A: var seq[uint64], B: seq[uint64]) {.inline.} =
+proc xorRows(A: var seq[uint64], B: seq[uint64]) {.inline, role: actor.} =
   var
     i: int = 0
   i = 0
@@ -27,7 +29,7 @@ proc xorRows(A: var seq[uint64], B: seq[uint64]) {.inline.} =
     A[i] = A[i] xor B[i]
     i = i + 1
 
-proc findPivot(Rows: seq[seq[uint64]], start, column: int): int =
+proc findPivot(Rows: seq[seq[uint64]], start, column: int): int {.role: math.} =
   var
     i: int = start
   result = -1
@@ -37,7 +39,7 @@ proc findPivot(Rows: seq[seq[uint64]], start, column: int): int =
     i = i + 1
 
 proc eliminateColumn(Rows: var seq[seq[uint64]], pivot,
-    column: int) =
+    column: int) {.role: actor.} =
   var
     i: int = 0
   i = 0
@@ -46,7 +48,7 @@ proc eliminateColumn(Rows: var seq[seq[uint64]], pivot,
       xorRows(Rows[i], Rows[pivot])
     i = i + 1
 
-proc validateRows(Rows: seq[seq[uint64]], columns: int) =
+proc validateRows(Rows: seq[seq[uint64]], columns: int) {.role: math.} =
   var
     i, words: int = 0
   words = gf2WordCount(columns)
@@ -56,7 +58,7 @@ proc validateRows(Rows: seq[seq[uint64]], columns: int) =
       raise newException(ValueError, "GF(2) rows have inconsistent widths")
     i = i + 1
 
-proc gf2Rank*(Rows: var seq[seq[uint64]], columns: int): int =
+proc gf2Rank*(Rows: var seq[seq[uint64]], columns: int): int {.role: math.} =
   ## Rows: packed matrix reduced in place. columns: meaningful bit width.
   var
     column, pivot, found: int = 0
@@ -74,11 +76,11 @@ proc gf2Rank*(Rows: var seq[seq[uint64]], columns: int): int =
     column = column + 1
   result = pivot
 
-proc gf2Nullity*(Rows: var seq[seq[uint64]], columns: int): int =
+proc gf2Nullity*(Rows: var seq[seq[uint64]], columns: int): int {.role: math.} =
   ## Rows/columns: packed matrix whose right-nullspace dimension is returned.
   result = columns - gf2Rank(Rows, columns)
 
-proc gf2Parity*(A, B: openArray[uint64]): uint8 =
+proc gf2Parity*(A, B: openArray[uint64]): uint8 {.role: math.} =
   ## A/B: equal-width packed vectors whose GF(2) dot product is returned.
   var
     i: int = 0

@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Repo Graph Sample Runner                           |
-# | -> Best-effort compile/run harness for selected funcs    |
-# ============================================================
+## ============================================================
+## | Otter Repo Graph Sample Runner                           |
+## | -> Best-effort compile/run harness for selected funcs    |
+## ============================================================
 
 import std/[json, os, osproc, strutils]
 

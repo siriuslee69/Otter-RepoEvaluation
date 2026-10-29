@@ -31,12 +31,17 @@ target=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --force) force=1; shift ;;
-    --threshold) THRESHOLD="${2:-$THRESHOLD}"; shift 2 ;;
+    --threshold)
+      [ $# -ge 2 ] || { echo "otter: --threshold needs a line count" >&2; exit 2; }
+      THRESHOLD="$2"; shift 2 ;;
     --threshold=*) THRESHOLD="${1#*=}"; shift ;;
     -h|--help) sed -n '2,18p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) target="$1"; shift ;;
   esac
 done
+case "$THRESHOLD" in
+  ''|*[!0-9]*) echo "otter: threshold must be a nonnegative integer" >&2; exit 2 ;;
+esac
 [ -n "$target" ] || target="$PWD"
 [ -d "$target" ] || target=$(dirname "$target")
 [ -d "$target" ] || exit 2
@@ -68,10 +73,15 @@ if [ "$force" = 0 ]; then
   [ "$changed" -ge "$THRESHOLD" ] 2>/dev/null || exit 0
 fi
 
-bin=$("$here/otter-build.sh" 2>/dev/null) || exit 2
+bin=$("$here/otter-build.sh") || exit 2
+command -v jq >/dev/null 2>&1 || { echo "otter: jq is required to read the report" >&2; exit 2; }
 json="$CACHE/last-stats-$key.json"
-timeout "${OTTER_TIMEOUT:-240}" "$bin" stats "$root" --json > "$json" 2>/dev/null || exit 2
-jq -e . "$json" >/dev/null 2>&1 || exit 2
+timeout "${OTTER_TIMEOUT:-240}" "$bin" stats "$root" --json > "$json" || {
+  echo "otter: statistics failed or timed out" >&2; exit 2;
+}
+jq -e . "$json" >/dev/null 2>&1 || {
+  echo "otter: invalid statistics JSON, see $json" >&2; exit 2;
+}
 
 # Anchor forward so the next window starts here, whatever the findings are.
 anchor_here
@@ -147,7 +157,7 @@ report=$(REPO="$root" CHANGED="$changed" THRESH="$THRESHOLD" FORCED="$force" jq 
      else [] end)
   + (if nz([.roles[]? | select(.name == "undeclared") | .count] | first) then
       ["ROLES — \([.roles[]? | select(.name == "undeclared") | .count] | first) routine(s) declare no role pragma.",
-       "  Rule: functions need custom pragmas (role/metaTags). Otter drops undeclared code from every chart."]
+       "  Rule: functions need a role pragma. Otter counts missing roles as undeclared."]
      else [] end)
   + (if nz(.config.deadCount + .config.unsetCount) then
       ["CONFIG — \(.config.deadCount) dead and \(.config.unsetCount) never-set field(s) on configurator types."]

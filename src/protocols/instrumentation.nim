@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Instrumentation                                   |
-# | -> Compile-time wrapping for parent-repo routines       |
-# ============================================================
+## ============================================================
+## | Otter Instrumentation                                   |
+## | -> Compile-time wrapping for parent-repo routines       |
+## ============================================================
 
 import std/macros
 
@@ -61,7 +61,7 @@ template otterSpan*(n: string, p: string, l: int, c: int,
 
 proc otterRoutineName(n: NimNode): string {.compileTime, role: helper, tag: "instrumentation".} =
   var
-    t: NimNode
+    t: NimNode = default(NimNode)
     s: string = ""
   t = n[0]
   if t.kind == nnkPostfix and t.len > 1:
@@ -75,14 +75,14 @@ proc otterInstrumentNode(n: NimNode, sourcePath: string = "", lineOffset: int = 
 
 proc otterInstrumentRoutine(n: NimNode, sourcePath: string = "", lineOffset: int = 0): NimNode {.compileTime, role: helper, tag: "instrumentation".} =
   var
-    info: LineInfo
-    r: NimNode
-    b: NimNode
-    c: NimNode
+    info: LineInfo = default(LineInfo)
+    r: NimNode = default(NimNode)
+    b: NimNode = default(NimNode)
+    c: NimNode = default(NimNode)
     i: int = 0
-    p: NimNode
-    s: NimNode
-    l: NimNode
+    p: NimNode = default(NimNode)
+    s: NimNode = default(NimNode)
+    l: NimNode = default(NimNode)
   r = copyNimTree(n)
   info = lineInfoObj(n)
   if sourcePath.len > 0:
@@ -106,7 +106,7 @@ proc otterInstrumentRoutine(n: NimNode, sourcePath: string = "", lineOffset: int
 proc otterInstrumentNode(n: NimNode, sourcePath: string = "",
     lineOffset: int = 0): NimNode {.compileTime, role: helper, tag: "instrumentation".} =
   var
-    t: NimNode
+    t: NimNode = default(NimNode)
   if n.kind in OtterRoutineKinds:
     result = otterInstrumentRoutine(n, sourcePath, lineOffset)
     return
@@ -136,7 +136,7 @@ proc otterUiRoutineName(n: NimNode): NimNode {.compileTime, role: helper,
     tag: "instrumentation|ui".} =
   ## n: annotated routine whose callable symbol is returned.
   var
-    t: NimNode
+    t: NimNode = default(NimNode)
   t = n[0]
   if t.kind == nnkPostfix and t.len > 1:
     t = t[1]
@@ -160,10 +160,10 @@ macro otterUiTest*(metadata: untyped, body: untyped): untyped
   ## metadata: test name, menu point, comma-separated filters, and version label.
   ## body: zero-argument routine compiled and called by the isolated UI worker.
   var
-    routineName: NimNode
-    params: NimNode
-    threadName: NimNode
-    threadProc: NimNode
+    routineName: NimNode = default(NimNode)
+    params: NimNode = default(NimNode)
+    threadName: NimNode = default(NimNode)
+    threadProc: NimNode = default(NimNode)
   validateOtterUiMetadata(metadata)
   if body.kind notin OtterRoutineKinds:
     error("otterUiTest can only annotate a proc, func, method, or converter", body)

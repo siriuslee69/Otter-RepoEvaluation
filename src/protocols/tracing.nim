@@ -174,14 +174,14 @@ proc traceRoutine(n: NimNode, loc: string): NimNode {.compileTime, role: truthBu
   var
     name: NimNode = newLit(n.name.repr)
     body: NimNode = n.body
-    shown: NimNode = genSym(nskLet, "otterShown")
+    shown: NimNode = genSym(nskVar, "otterShown")
     res: NimNode = if returnsValue(n): newCall(bindSym"otterShow", ident"result") else: newLit("")
     args: NimNode = paramPairs(n.params)
     outs: NimNode = varPairs(n.params)
     L: NimNode = newLit(loc)
   result = copyNimTree(n)
   result.body = quote do:
-    let `shown` = block:
+    var `shown` = block:
       when nimvm:
         false                      # at compile time (const tables): not traced
       else:

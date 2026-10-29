@@ -1,44 +1,44 @@
-# ============================================================
-# | Otter Machine Code Root -> the `ct` check                |
-# | -> are our constant-time routines really constant-time?  |
-# ============================================================
-#
-#   import otter_repo_evaluation/protocols/machine_code
-#   var r: CtReport = ctCheck("src/tyr.nim", @[])
-#   for line in ctLines(r):
-#     echo line
-#
-# The steps, from a .nim file to the findings:
-#
-#   file.nim ──nim c -d:release --debugger:native──> binary
-#      │                                               │
-#      │ secret: "a|b" pragmas                         │ objdump.nim
-#      ▼                                               ▼
-#   RoutineSpec  (name, which parameters)          Routine (instructions)
-#      └───────────────────┬───────────────────────────┘
-#                          ▼  matched by Nim name
-#                       taint.nim  ──>  findings, each with a trail
-#
-# A routine is named on the command line as `--routine:name:args`, one
-# word per parameter, in order:
-#
-#   ┌──────┬──────────────────────────────────────┬──────────────┐
-#   │ word │ the parameter is                     │ registers    │
-#   ├──────┼──────────────────────────────────────┼──────────────┤
-#   │ s  p │ a number (secret / public)           │ 1            │
-#   │ s[]  │ an openArray                         │ ptr, then len│
-#   │ s@   │ a seq or string                      │ len, then ptr│
-#   │ s*   │ var, ptr, array, object              │ 1 (address)  │
-#   │ sf   │ a float                              │ 1 xmm        │
-#   └──────┴──────────────────────────────────────┴──────────────┘
-#
-#   --routine:constantTimeEqual:s[],s[]      both openArrays secret
-#   --routine:sboxCt:s                       the one byte is secret
-#   --routine:aes_core.init:p*,s[]           only aes_core's `init`
-#
-# The `secret: "a|b"` pragma says the same from inside the source; the
-# parameter types are read from the signature. A --routine flag wins
-# over a pragma for the same name.
+## ============================================================
+## | Otter Machine Code Root -> the `ct` check                |
+## | -> are our constant-time routines really constant-time?  |
+## ============================================================
+##
+##   import otter_repo_evaluation/protocols/machine_code
+##   var r: CtReport = ctCheck("src/tyr.nim", @[])
+##   for line in ctLines(r):
+##     echo line
+##
+## The steps, from a .nim file to the findings:
+##
+##   file.nim ──nim c -d:release --debugger:native──> binary
+##      │                                               │
+##      │ secret: "a|b" pragmas                         │ objdump.nim
+##      ▼                                               ▼
+##   RoutineSpec  (name, which parameters)          Routine (instructions)
+##      └───────────────────┬───────────────────────────┘
+##                          ▼  matched by Nim name
+##                       taint.nim  ──>  findings, each with a trail
+##
+## A routine is named on the command line as `--routine:name:args`, one
+## word per parameter, in order:
+##
+##   ┌──────┬──────────────────────────────────────┬──────────────┐
+##   │ word │ the parameter is                     │ registers    │
+##   ├──────┼──────────────────────────────────────┼──────────────┤
+##   │ s  p │ a number (secret / public)           │ 1            │
+##   │ s[]  │ an openArray                         │ ptr, then len│
+##   │ s@   │ a seq or string                      │ len, then ptr│
+##   │ s*   │ var, ptr, array, object              │ 1 (address)  │
+##   │ sf   │ a float                              │ 1 xmm        │
+##   └──────┴──────────────────────────────────────┴──────────────┘
+##
+##   --routine:constantTimeEqual:s[],s[]      both openArrays secret
+##   --routine:sboxCt:s                       the one byte is secret
+##   --routine:aes_core.init:p*,s[]           only aes_core's `init`
+##
+## The `secret: "a|b"` pragma says the same from inside the source; the
+## parameter types are read from the signature. A --routine flag wins
+## over a pragma for the same name.
 
 import std/[json, os, sequtils, strutils, tables]
 

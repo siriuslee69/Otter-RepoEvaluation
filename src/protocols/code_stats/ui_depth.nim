@@ -50,7 +50,7 @@
 ## says, which is enough to see a priority inversion and not enough to
 ## promise there is not one it missed.
 
-import std/[algorithm, os, sets, strutils, tables]
+import std/[algorithm, sets, strutils, tables]
 
 import runePragmas
 import ../repo_graph/io_utils

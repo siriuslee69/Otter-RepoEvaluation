@@ -1,10 +1,10 @@
-# ============================================================
-# | Otter Blast Radius Tests                                 |
-# | -> What one change to a routine or a type can reach      |
-# ============================================================
-#
-# `examples/blast/` is a tree shaped so that every answer this gives
-# has a right answer somebody can check by reading nine routines.
+## ============================================================
+## | Otter Blast Radius Tests                                 |
+## | -> What one change to a routine or a type can reach      |
+## ============================================================
+##
+## `examples/blast/` is a tree shaped so that every answer this gives
+## has a right answer somebody can check by reading nine routines.
 
 import std/[os, strutils, unittest]
 

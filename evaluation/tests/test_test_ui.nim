@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Test UI Tests                                      |
-# | -> Verify discovery, configuration, grouping, and worker |
-# ============================================================
+## ============================================================
+## | Otter Test UI Tests                                      |
+## | -> Verify discovery, configuration, grouping, and worker |
+## ============================================================
 
 import std/[json, monotimes, os, osproc, strutils, times, unittest]
 
@@ -21,7 +21,7 @@ proc processIsRunning(pid: int): bool {.role: dataFetcher,
     tag: "execution|testing|ui".} =
   ## pid: operating-system process identity checked without owning its handle.
   var
-    probe: tuple[output: string, exitCode: int]
+    probe: tuple[output: string, exitCode: int] = default(tuple[output: string, exitCode: int])
   when defined(windows):
     probe = execCmdEx("tasklist /FI \"PID eq " & $pid & "\" /NH",
       options = {poEvalCommand, poStdErrToStdOut})
@@ -32,6 +32,7 @@ proc processIsRunning(pid: int): bool {.role: dataFetcher,
     result = probe.exitCode == 0
 
 suite "Otter test UI":
+  # {.testKind: tkIntegration.}
   test "discovers grouped versions and standalone panels":
     var
       C: OtterUiCatalog = discoverOtterUiTests(getCurrentDir())
@@ -59,6 +60,7 @@ suite "Otter test UI":
     check "gcArc" notin C.defaultFlags
     check "gcOrc" notin C.defaultFlags
 
+  # {.testKind: tkIntegration.}
   test "loads project theme and output configuration":
     var
       C: OtterUiCatalog = discoverOtterUiTests(getCurrentDir())
@@ -73,6 +75,7 @@ suite "Otter test UI":
     check not C.config.customCss.contains("rgba(")
     check not C.config.customCss.contains("gradient(")
 
+  # {.testKind: tkIntegration.}
   test "dashboard keeps direct panel references for binary group keys":
     var
       script: string = readFile("src/clients/test_ui/web/js/app.js")
@@ -144,6 +147,7 @@ suite "Otter test UI":
     check script.contains("window.setInterval(() =>")
     check script.contains("}, 500)")
 
+  # {.testKind: tkIntegration.}
   test "launcher uses isolated browser fallback and bounded startup failure":
     var
       launcher: string = readFile("src/clients/test_ui/app.nim")
@@ -158,6 +162,7 @@ suite "Otter test UI":
     check launcher.contains("HeartbeatTimeoutMs.int64")
     check launcher.contains("Otter orchestrator exited; closing the Test UI and active tests.")
 
+  # {.testKind: tkIntegration.}
   test "heartbeat leases expire after two seconds":
     var
       runtimeDir: string = joinPath(getTempDir(), "otter-ui-heartbeat-unit-" &
@@ -174,6 +179,7 @@ suite "Otter test UI":
     check heartbeatExpired(runtimeDir, "webui", 30)
     removeDir(runtimeDir)
 
+  # {.testKind: tkIntegration.}
   test "first load creates editable configuration without overwriting it":
     var
       root: string = joinPath(getTempDir(), "otter-ui-defaults-" & $getCurrentProcessId())
@@ -181,7 +187,7 @@ suite "Otter test UI":
       settingsDir: string = joinPath(testsDir, ".otter")
       configPath: string = joinPath(settingsDir, "config.toml")
       cssPath: string = joinPath(settingsDir, "config.css")
-      c: OtterUiConfig
+      c: OtterUiConfig = default(OtterUiConfig)
     if dirExists(root):
       removeDir(root)
     createDir(root)
@@ -207,13 +213,14 @@ suite "Otter test UI":
     check c.customCss == ":root { --otter-color-primary: #123456; }\n"
     removeDir(root)
 
+  # {.testKind: tkIntegration.}
   test "isolated worker compiles and runs only the selected routine":
     var
       C: OtterUiCatalog = discoverOtterUiTests(getCurrentDir())
       e: OtterUiTestEntry = catalogEntry(C, "arithmeticPath")
       runtimeDir: string = joinPath(getTempDir(), "otter-ui-worker-" & $getCurrentProcessId())
       outputDir: string = joinPath(runtimeDir, "chosen-results")
-      state: JsonNode
+      state: JsonNode = default(JsonNode)
       log: string = ""
     if dirExists(runtimeDir):
       removeDir(runtimeDir)
@@ -233,13 +240,14 @@ suite "Otter test UI":
     check not log.contains("text path version 1 passed")
     removeDir(runtimeDir)
 
+  # {.testKind: tkIntegration.}
   test "annotated routine executes on its own worker thread":
     var
       C: OtterUiCatalog = discoverOtterUiTests(getCurrentDir())
       e: OtterUiTestEntry = catalogEntry(C, "threadedPath")
       runtimeDir: string = joinPath(getTempDir(), "otter-ui-thread-" &
         $getCurrentProcessId())
-      state: JsonNode
+      state: JsonNode = default(JsonNode)
       log: string = ""
     if dirExists(runtimeDir):
       removeDir(runtimeDir)
@@ -251,13 +259,14 @@ suite "Otter test UI":
     check log.contains("dedicated test thread passed")
     removeDir(runtimeDir)
 
+  # {.testKind: tkIntegration.}
   test "selected optional flag reaches worker compilation":
     var
       C: OtterUiCatalog = discoverOtterUiTests(getCurrentDir())
       e: OtterUiTestEntry = catalogEntry(C, "optionalFlagPath")
       runtimeDir: string = joinPath(getTempDir(), "otter-ui-flag-" &
         $getCurrentProcessId())
-      state: JsonNode
+      state: JsonNode = default(JsonNode)
       log: string = ""
     if dirExists(runtimeDir):
       removeDir(runtimeDir)
@@ -270,12 +279,13 @@ suite "Otter test UI":
     check log.contains("optional Otter flag passed")
     removeDir(runtimeDir)
 
+  # {.testKind: tkIntegration.}
   test "failed worker reports message location and source context":
     var
       C: OtterUiCatalog = discoverOtterUiTests(getCurrentDir())
       e: OtterUiTestEntry = catalogEntry(C, "intentionalFailure")
       runtimeDir: string = joinPath(getTempDir(), "otter-ui-failure-" & $getCurrentProcessId())
-      state: JsonNode
+      state: JsonNode = default(JsonNode)
     if dirExists(runtimeDir):
       removeDir(runtimeDir)
     ensureRuntimeDirectories(runtimeDir)
@@ -289,6 +299,7 @@ suite "Otter test UI":
     check state["failureCode"].getStr().contains("check 2 + 2 == 5")
     removeDir(runtimeDir)
 
+  # {.testKind: tkIntegration.}
   test "relay and test backends isolate worker crashes":
     var
       C: OtterUiCatalog = discoverOtterUiTests(getCurrentDir())
@@ -298,12 +309,12 @@ suite "Otter test UI":
       outputDir: string = joinPath(runtimeDir, "picked-results")
       appPath: string = absolutePath(joinPath("build", "otter-test-ui-contract" & ExeExt))
       command: string = ""
-      buildResult: tuple[output: string, exitCode: int]
-      orchestrator: Process
-      testBackend: Process
-      directResponse: JsonNode
-      response: JsonNode
-      state: JsonNode
+      buildResult: tuple[output: string, exitCode: int] = default(tuple[output: string, exitCode: int])
+      orchestrator: Process = default(Process)
+      testBackend: Process = default(Process)
+      directResponse: JsonNode = default(JsonNode)
+      response: JsonNode = default(JsonNode)
+      state: JsonNode = default(JsonNode)
       i: int = 0
     if dirExists(runtimeDir):
       removeDir(runtimeDir)
@@ -400,6 +411,7 @@ suite "Otter test UI":
       if dirExists(runtimeDir):
         removeDir(runtimeDir)
 
+  # {.testKind: tkIntegration.}
   test "missing WebUI pings abort an active test process tree":
     var
       C: OtterUiCatalog = discoverOtterUiTests(getCurrentDir())
@@ -409,16 +421,16 @@ suite "Otter test UI":
       outputDir: string = joinPath(runtimeDir, "results")
       appPath: string = absolutePath(joinPath("build", "otter-test-ui-contract" & ExeExt))
       command: string = ""
-      buildResult: tuple[output: string, exitCode: int]
-      orchestrator: Process
-      testBackend: Process
-      response: JsonNode
-      state: JsonNode
+      buildResult: tuple[output: string, exitCode: int] = default(tuple[output: string, exitCode: int])
+      orchestrator: Process = default(Process)
+      testBackend: Process = default(Process)
+      response: JsonNode = default(JsonNode)
+      state: JsonNode = default(JsonNode)
       logPath: string = ""
       workerPid: int = 0
       commandPid: int = 0
       i: int = 0
-      leaseStart: MonoTime
+      leaseStart: MonoTime = default(MonoTime)
       shutdownMs: int64 = 0
     if dirExists(runtimeDir):
       removeDir(runtimeDir)
@@ -486,6 +498,7 @@ suite "Otter test UI":
       if dirExists(runtimeDir):
         removeDir(runtimeDir)
 
+  # {.testKind: tkIntegration.}
   test "missing orchestrator pings abort an active test process tree":
     var
       C: OtterUiCatalog = discoverOtterUiTests(getCurrentDir())
@@ -495,15 +508,15 @@ suite "Otter test UI":
       outputDir: string = joinPath(runtimeDir, "results")
       appPath: string = absolutePath(joinPath("build", "otter-test-ui-contract" & ExeExt))
       command: string = ""
-      buildResult: tuple[output: string, exitCode: int]
-      testBackend: Process
-      response: JsonNode
-      state: JsonNode
+      buildResult: tuple[output: string, exitCode: int] = default(tuple[output: string, exitCode: int])
+      testBackend: Process = default(Process)
+      response: JsonNode = default(JsonNode)
+      state: JsonNode = default(JsonNode)
       logPath: string = ""
       workerPid: int = 0
       commandPid: int = 0
       i: int = 0
-      leaseStart: MonoTime
+      leaseStart: MonoTime = default(MonoTime)
       shutdownMs: int64 = 0
     if dirExists(runtimeDir):
       removeDir(runtimeDir)

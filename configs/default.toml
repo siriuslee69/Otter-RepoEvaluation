@@ -1,0 +1,25 @@
+# Project metadata and build switches. Command-line switches win over this file.
+# Test UI runtime settings live in evaluation/tests/.otter/config.toml.
+[project]
+name = "otter_repo_evaluation"
+version = "0.1.0"
+author = "siriuslee69"
+description = "Timing, statistical evaluation, and source analysis for Nim repositories."
+license = "Unlicense"
+
+[nim]
+# Leave the compiler's memory manager and optimisation defaults in place.
+
+[define]
+otterTiming = false
+otterDebug = false
+otterTrace = false
+otterVis = ""
+otterVisEvery = 0
+OtterUiTarget = ""
+# otterFylgiaSubmodule is selected by config.nims from dependency availability.
+
+[passC]
+flags = []
+[passL]
+flags = []

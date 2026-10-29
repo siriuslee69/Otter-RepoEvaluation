@@ -12,13 +12,15 @@
 ##
 ## Otter should call this family `term`.
 
+import runePragmas
+
 type
   Individual* = object
     pos*: seq[float]
     pbest*: seq[float]
 
 proc stepSwarm*(x: Individual, gbest, prev: seq[float],
-    cInertia, cPersonal, cGlobal: float): seq[float] =
+    cInertia, cPersonal, cGlobal: float): seq[float] {.role: math.} =
   var t: seq[float] = newSeq[float](x.pos.len)
   for i in 0 ..< x.pos.len:
     t[i] = x.pos[i]
@@ -28,7 +30,7 @@ proc stepSwarm*(x: Individual, gbest, prev: seq[float],
   result = t
 
 proc stepGenetic*(x: Individual, partner, prev: seq[float],
-    cInertia, cCross, cNoise: float): seq[float] =
+    cInertia, cCross, cNoise: float): seq[float] {.role: math.} =
   var t: seq[float] = newSeq[float](x.pos.len)
   for i in 0 ..< x.pos.len:
     t[i] = x.pos[i]
@@ -38,7 +40,7 @@ proc stepGenetic*(x: Individual, partner, prev: seq[float],
   result = t
 
 proc stepRepel*(x: Individual, worst, prev: seq[float],
-    cInertia, cRepel: float): seq[float] =
+    cInertia, cRepel: float): seq[float] {.role: math.} =
   var t: seq[float] = newSeq[float](x.pos.len)
   for i in 0 ..< x.pos.len:
     t[i] = x.pos[i]

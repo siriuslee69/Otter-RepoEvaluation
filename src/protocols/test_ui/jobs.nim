@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Test UI Jobs                                       |
-# | -> Relay, persistent test backend, and isolated workers |
-# ============================================================
+## ============================================================
+## | Otter Test UI Jobs                                       |
+## | -> Relay, persistent test backend, and isolated workers |
+## ============================================================
 
 import std/[json, monotimes, os, osproc, strutils, tables, times]
 
@@ -309,7 +309,7 @@ proc failureLocation(L: openArray[string], repoRoot, sourcePath: string,
   ## L/repoRoot/sourcePath/defaultLine: log and fallback declaration location.
   var
     i: int = L.len - 1
-    candidate: tuple[path: string, line: int]
+    candidate: tuple[path: string, line: int] = default(tuple[path: string, line: int])
   while i >= 0:
     candidate = locationFromLine(L[i], repoRoot)
     if candidate.path.len > 0:
@@ -342,7 +342,7 @@ proc attachFailureDetails(S: var JsonNode, e: OtterUiTestEntry, repoRoot,
   ## S/e/repoRoot/logPath/exitCode: failed state and its persisted process log.
   var
     L: seq[string] = @[]
-    location: tuple[path: string, line: int]
+    location: tuple[path: string, line: int] = default(tuple[path: string, line: int])
   if fileExists(logPath):
     L = readFile(logPath).splitLines()
   location = failureLocation(L, repoRoot, e.sourcePath, e.line)
@@ -402,7 +402,7 @@ proc runCancellable(command: string, A: openArray[string], repoRoot, logPath,
   ## command/A/repoRoot/logPath/stopPath/pidPath: cancellable command contract.
   var
     shellCommand: string = redirectedCommand(command, A, logPath)
-    process: Process
+    process: Process = default(Process)
     options: set[ProcessOption] = {poUsePath}
   when defined(linux):
     process = startProcess("setsid", workingDir = repoRoot,
@@ -492,7 +492,7 @@ proc runWorker*(repoRoot, runtimeDir, id: string, resultsPath: string = "",
     e: OtterUiTestEntry = entryWithId(C, id)
     S: JsonNode = initialState(e, flags)
     startTime: MonoTime = getMonoTime()
-    phaseTime: MonoTime
+    phaseTime: MonoTime = default(MonoTime)
     stamp: string = now().format("yyyyMMdd-HHmmss")
     outputPath: string = resultsPath.strip()
     logPath: string = ""
@@ -606,7 +606,7 @@ proc processRequest(request: JsonNode, jobs: var Table[string, ManagedJob],
     id: string = request{"id"}.getStr("")
     resultsPath: string = request{"resultsPath"}.getStr(C.config.outputPath)
     flags: seq[string] = @[]
-    job: ManagedJob
+    job: ManagedJob = default(ManagedJob)
   case action
   of "bootstrap":
     result = bootstrapState(C)
@@ -640,7 +640,7 @@ proc cleanupJobs(jobs: var Table[string, ManagedJob], runtimeDir: string) {.role
   var
     completed: seq[string] = @[]
     statePath: string = ""
-    S: JsonNode
+    S: JsonNode = default(JsonNode)
     exitCode: int = 0
   for id, managed in jobs.mpairs:
     if not managed.process.running():
@@ -679,7 +679,7 @@ proc markJobStopped(runtimeDir, id: string) {.role: truthBuilder,
   ## runtimeDir/id: interrupted job state finalized after owner lease expiry.
   var
     path: string = jobStatePath(runtimeDir, id)
-    S: JsonNode
+    S: JsonNode = default(JsonNode)
   if not fileExists(path):
     return
   try:
@@ -696,9 +696,9 @@ proc runTestBackend*(appPath, repoRoot, runtimeDir: string)
   ## appPath/repoRoot/runtimeDir: persistent backend that owns every test worker.
   var
     C: OtterUiCatalog = discoverOtterUiTests(repoRoot)
-    jobs: Table[string, ManagedJob]
-    request: JsonNode
-    response: JsonNode
+    jobs: Table[string, ManagedJob] = default(Table[string, ManagedJob])
+    request: JsonNode = default(JsonNode)
+    response: JsonNode = default(JsonNode)
     responsePath: string = ""
     requestName: string = ""
     shuttingDown: bool = false
@@ -735,8 +735,8 @@ proc runOrchestrator*(runtimeDir: string) {.role: orchestrator,
     tag: "execution|testing|ui".} =
   ## runtimeDir: IPC root whose WebUI requests are relayed without test work.
   var
-    request: JsonNode
-    response: JsonNode
+    request: JsonNode = default(JsonNode)
+    response: JsonNode = default(JsonNode)
     responsePath: string = ""
     requestName: string = ""
     shuttingDown: bool = false

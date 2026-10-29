@@ -1,11 +1,11 @@
-# ============================================================
-# | Otter Multi-Check Tests                                  |
-# | -> Several questions, one reading, same answers          |
-# ============================================================
-#
-# The one thing that must never differ is the answer. Running the
-# checks together, or one after another, is a choice about heat and
-# cores, and it may not change a single line of what comes back.
+## ============================================================
+## | Otter Multi-Check Tests                                  |
+## | -> Several questions, one reading, same answers          |
+## ============================================================
+##
+## The one thing that must never differ is the answer. Running the
+## checks together, or one after another, is a choice about heat and
+## cores, and it may not change a single line of what comes back.
 
 import std/[os, strutils, unittest]
 

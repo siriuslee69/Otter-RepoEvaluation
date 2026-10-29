@@ -144,7 +144,7 @@ when visAnyOn:
       "| ", what, "   ", where
 
 
-proc visGroupOn*(g: int): bool {.compileTime.} =
+proc visGroupOn*(g: int): bool {.compileTime, role: parser.} =
   ## g: a group number.
   ##
   ## Whether this group was asked for. Answered while the program is
@@ -164,7 +164,7 @@ proc visGroupOn*(g: int): bool {.compileTime.} =
     except ValueError:
       discard
 
-proc whereOf(n: NimNode): string {.compileTime.} =
+proc whereOf(n: NimNode): string {.compileTime, role: parser.} =
   ## n: any part of a routine. The file and line it was written on,
   ## short enough to sit at the end of a message.
   var
@@ -175,7 +175,7 @@ proc whereOf(n: NimNode): string {.compileTime.} =
     result = result[at + 1 .. ^1]
   result = result & ":" & $info.line
 
-proc nameOf(def: NimNode): string {.compileTime.} =
+proc nameOf(def: NimNode): string {.compileTime, role: parser.} =
   ## def: a routine as the compiler sees it. Its name as written.
   result = "a routine"
   if def.len > 0 and def[0].kind == nnkPostfix and def[0].len > 1:
@@ -184,7 +184,7 @@ proc nameOf(def: NimNode): string {.compileTime.} =
     result = def[0].strVal
 
 proc loopSay(g, k, nest: int, what, where: string): NimNode
-    {.compileTime.} =
+    {.compileTime, role: orchestrator.} =
   ## g: the group   k: which loop of this routine   nest: how many
   ## loops it sits inside   what: the words   where: file and line.
   ##
@@ -195,7 +195,7 @@ proc loopSay(g, k, nest: int, what, where: string): NimNode
     newLit(repeat("  ", nest) & "loop " & $k & " " & what), newLit(where))
 
 proc everyTurn(g, k, nest: int, counter: NimNode, where: string): NimNode
-    {.compileTime.} =
+    {.compileTime, role: orchestrator.} =
   ## g: the group   k: which loop   counter: the turn count
   ## where: file and line.
   ##
@@ -212,7 +212,7 @@ proc everyTurn(g, k, nest: int, counter: NimNode, where: string): NimNode
         newCall(ident("$"), counter)), newLit(where)))))
 
 proc instrumentLoops(n: NimNode, g: int, k: var int, nest: int): NimNode
-    {.compileTime.} =
+    {.compileTime, role: orchestrator.} =
   ## n: part of a routine's body   g: the group
   ## k: how many loops have been numbered so far, carried along.
   ##
@@ -259,7 +259,7 @@ proc instrumentLoops(n: NimNode, g: int, k: var int, nest: int): NimNode
         newLit(" turn(s)")),
       newLit(where)))
 
-macro visGroup*(g: untyped, def: untyped): untyped =
+macro visGroup*(g: untyped, def: untyped): untyped {.role: orchestrator.} =
   ## g: which group this routine belongs to   def: the routine.
   ##
   ## With the group switched off, the routine is handed back exactly

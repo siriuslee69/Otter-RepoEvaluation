@@ -1,7 +1,9 @@
-# ============================================================
-# | Benchmark Helpers                                        |
-# | -> Compare algorithm runtimes over repeated loops        |
-# ============================================================
+## ============================================================
+## | Benchmark Helpers                                        |
+## | -> Compare algorithm runtimes over repeated loops        |
+## ============================================================
+
+import runePragmas
 
 import std/[algorithm, monotimes, strutils, times]
 
@@ -29,21 +31,21 @@ type
     mibPerSecond*: float64
 
 
-proc monotonicTick*(): int64 =
+proc monotonicTick*(): int64 {.role: dataFetcher.} =
   ## Return the current monotonic clock tick.
   result = getMonoTime().ticks
 
 
-proc isoTimestamp*(): string =
+proc isoTimestamp*(): string {.role: dataFetcher.} =
   ## Return a UTC timestamp suitable for report headers.
   var
-    dt: DateTime
+    dt: DateTime = default(DateTime)
   dt = now().utc
   result = dt.format("yyyy-MM-dd'T'HH:mm:ss'Z'")
 
 
 proc compareAlgorithms*(algos: openArray[BenchAlgo], loops: int = 10000,
-    warmup: int = 100): seq[BenchResult] =
+    warmup: int = 100): seq[BenchResult] {.role: orchestrator.} =
   ## Compare algorithms by running each one `loops` times.
   ## Uses a small warmup to reduce first-run effects.
   var
@@ -74,7 +76,7 @@ proc compareAlgorithms*(algos: openArray[BenchAlgo], loops: int = 10000,
   result = results
 
 
-proc formatBenchResults*(results: openArray[BenchResult]): string =
+proc formatBenchResults*(results: openArray[BenchResult]): string {.role: dataWriter.} =
   ## Format benchmark results for printing.
   var
     lines: seq[string] = @[]
@@ -84,7 +86,7 @@ proc formatBenchResults*(results: openArray[BenchResult]): string =
   result = lines.join("\n")
 
 
-proc warmAlgorithm(a: BenchAlgo, warmup: int) =
+proc warmAlgorithm(a: BenchAlgo, warmup: int) {.role: actor.} =
   ## a: algorithm callback. warmup: untimed operation count.
   var
     i: int = 0
@@ -93,7 +95,7 @@ proc warmAlgorithm(a: BenchAlgo, warmup: int) =
     i = i + 1
 
 
-proc measureAlgorithm(a: BenchAlgo, loops: int): int64 =
+proc measureAlgorithm(a: BenchAlgo, loops: int): int64 {.role: actor.} =
   ## a: algorithm callback. loops: operations in one timing sample.
   var
     i: int = 0
@@ -105,7 +107,7 @@ proc measureAlgorithm(a: BenchAlgo, loops: int): int64 =
   result = monotonicTick() - started
 
 
-proc stableBenchResult(a: BenchAlgo, loops, samples: int): StableBenchResult =
+proc stableBenchResult(a: BenchAlgo, loops, samples: int): StableBenchResult {.role: truthBuilder.} =
   ## a: algorithm callback. loops/samples: completed timing dimensions.
   var
     Ns: seq[int64] = @[]
@@ -134,7 +136,7 @@ proc stableBenchResult(a: BenchAlgo, loops, samples: int): StableBenchResult =
 
 
 proc compareAlgorithmsStable*(algos: openArray[BenchAlgo], loops: int = 10000,
-    warmup: int = 100, samples: int = 9): seq[StableBenchResult] =
+    warmup: int = 100, samples: int = 9): seq[StableBenchResult] {.role: orchestrator.} =
   ## algos: callbacks with optional bytes-per-operation metadata.
   ## loops/warmup/samples: repeated-sampling benchmark dimensions.
   var
@@ -148,7 +150,7 @@ proc compareAlgorithmsStable*(algos: openArray[BenchAlgo], loops: int = 10000,
     i = i + 1
 
 
-proc formatStableBenchResults*(R: openArray[StableBenchResult]): string =
+proc formatStableBenchResults*(R: openArray[StableBenchResult]): string {.role: dataWriter.} =
   ## R: stable benchmark results to format as one line per algorithm.
   var
     L: seq[string] = @[]

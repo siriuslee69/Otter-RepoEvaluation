@@ -1,6 +1,46 @@
 # Otter-RepoEvaluation
 
+## Installation
+
+NixOS: enter a shell with the compiler and checking tools, then build the CLI.
+
+```sh
+nix-shell -p nim git jq gcc binutils
+git clone --recurse-submodules https://github.com/siriuslee69/Otter-RepoEvaluation.git
+cd Otter-RepoEvaluation
+nimble install --depsOnly --yes
+nimble buildCli
+./bin/otter-repo-graph stats .
+```
+
+Windows 11: install Nim 2 or later with its C compiler and Git, then run:
+
+```powershell
+git clone --recurse-submodules https://github.com/siriuslee69/Otter-RepoEvaluation.git
+cd Otter-RepoEvaluation
+nimble install --depsOnly --yes
+nimble buildCli
+.\bin\otter-repo-graph.exe stats .
+```
+
+Existing checkouts need `git submodule update --init --recursive`.
+The shell hooks need Bash, Git, jq, awk, and GNU core utilities. The machine-code
+`ct` check currently needs Linux/x86-64 and `objdump`; ordinary source statistics
+use the Nim CLI on either platform.
+
+Project metadata and build switches live in [configs/default.toml](configs/default.toml).
+Leave its timing and tracing switches off for ordinary builds. Enable them from
+the compiler command line when needed, for example `nim c -d:otterTiming app.nim`.
+Test UI settings are separate: Otter creates `evaluation/tests/.otter/config.toml`
+and `config.css` on first discovery. Those files control the test window and jobs.
+
+## What Otter does
+
 Compile-time timing instrumentation, debug tracing, and interactive Nim repo graph analysis.
+
+Otter reads a repository, connects routines to their callers, and reports what
+the source shows. A finding is a candidate to inspect. The review of Otter itself,
+including confirmed problems and remaining work, is in [docs/self-review.md](docs/self-review.md).
 
 ## Purpose
 - Let a parent repo enable function timing with `-d:otterTiming`.
@@ -142,8 +182,8 @@ there is none, and `declaredKinds` says how many were declared so a
 guess is never mistaken for a promise.
 
 The pragmas themselves come from
-`Rune-Pragmas/meta/runePragmas.nim`, one shared file that every repository
-copies. Otter reads those names out of whatever tree it is pointed at,
+`Rune-Pragmas/meta/runePragmas.nim`, one shared file that repositories
+import. Otter reads those names out of whatever tree it is pointed at,
 so a repository that renames them drops out of every chart.
 
 ### 5. Open the interactive UI
@@ -167,8 +207,9 @@ Minimal parent layout:
 ```text
 my-project/
 |-- src/
-|-- tests/
-|   `-- test_otter_catalog.nim
+|-- evaluation/
+|   `-- tests/
+|       `-- test_otter_catalog.nim
 |-- submodules/
 |   `-- Otter-RepoEvaluation/
 |-- config.nims
@@ -180,7 +221,7 @@ Add Otter's source directory to `config.nims`:
 ```nim
 import std/os
 
-let
+var
   repoRoot = thisDir()
   otterSrc = joinPath(repoRoot, "submodules", "Otter-RepoEvaluation", "src")
 
@@ -332,7 +373,7 @@ commit either file and let Otter generate the other one locally.
 Optional project settings live beside the test files:
 
 ```text
-tests/
+evaluation/tests/
 |-- .otter/
 |   |-- config.toml
 |   `-- config.css
@@ -1116,9 +1157,15 @@ The shared WebUI now uses qlacier-style floating menu shells: repo root search o
 
 ## Commands
 - `nimble test`
-  - run instrumentation smoke tests plus repo-graph tests.
+  - run all 20 selected test programs and, on POSIX, the shell-hook regressions.
+    Deliberate crash/failure examples are launched only by the isolation tests.
+- `nimble runTests`
+  - run the same selected suite as `nimble test`.
 - `nimble buildtests`
-  - compile the smoke and repo-graph tests in release mode.
+  - compile the same 20 programs in release mode.
+- `nimble runStatistics`
+  - check Otter's own file conventions and write full findings to
+    `evaluation/statistics/conventions.json`.
 - `nimble testUi`
   - discover `.otterUiTest` routines, build the host, and open the isolated test dashboard.
 - `nimble buildTestUi`
@@ -1139,6 +1186,13 @@ The shared WebUI now uses qlacier-style floating menu shells: repo root search o
   - switch submodule URLs to local sibling clones when available.
 
 ## Issue Playbook
+- Source reports are best-effort readings, not compiler proofs. Unused-import
+  candidates may use unqualified exports. Grouped bracket imports are currently
+  skipped by import binding analysis. Dependency depth counts local modules;
+  cycles are reported separately.
+- The checking hook builds a current CLI from content hashes, including config
+  and dependency sources. A failed rebuild returns exit 2 and names `build.log`;
+  it never hands out the previous binary as a successful check.
 - Non-exported function sample runs can fail:
   - exported functions use import mode;
   - private functions fall back to include mode only when the source file has no `when isMainModule`.
@@ -1176,6 +1230,16 @@ The shared WebUI now uses qlacier-style floating menu shells: repo root search o
 Released under [The Unlicense](LICENSE.txt).
 
 ## Development Conventions (Short)
+- Import shared pragmas from Rune-Pragmas and give every routine a role.
+- Start each Nim file with a `##` description. Explain parameter meanings below
+  the declaration; use short names, capitals for collections, and `S` for state.
+- Group declarations, give variables starting values, and keep them above loops.
+- Split repeated calculations into helpers and tables. Keep loops and decisions
+  shallow enough to read one step at a time.
+- Use Var-Invariants for useful bounds and state promises; use `Run` forms for
+  checks that must also run with runtime inputs.
+- Keep tests in `evaluation/tests/`, benchmarks in `evaluation/benchmarks/`,
+  and statistics in `evaluation/statistics/`. Declare each test's `testKind`.
 - Keep timing capture monotonic, process-local, and source-location aware.
 - Keep graph parsing deterministic and comment-preserving.
 - Prefer one shared graph model for CLI, WebUI, and VS Code instead of parallel feature copies.

@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Repo Graph Grouping                                |
-# | -> Collect helper clusters under orchestrator nodes      |
-# ============================================================
+## ============================================================
+## | Otter Repo Graph Grouping                                |
+## | -> Collect helper clusters under orchestrator nodes      |
+## ============================================================
 
 import std/[sets, tables]
 
@@ -10,7 +10,7 @@ import runePragmas
 
 proc collectOutMap(g: RepoGraph): Table[string, seq[string]] {.role: helper, tag: "graph".} =
   var
-    outMap: Table[string, seq[string]]
+    outMap: Table[string, seq[string]] = default(Table[string, seq[string]])
   outMap = initTable[string, seq[string]]()
   for f in g.functions:
     outMap[f.id] = @[]
@@ -22,7 +22,7 @@ proc collectOutMap(g: RepoGraph): Table[string, seq[string]] {.role: helper, tag
 
 proc functionMapById*(g: RepoGraph): Table[string, FunctionInfo] {.role: helper, tag: "graph".} =
   var
-    m: Table[string, FunctionInfo]
+    m: Table[string, FunctionInfo] = default(Table[string, FunctionInfo])
   m = initTable[string, FunctionInfo]()
   for f in g.functions:
     m[f.id] = f
@@ -31,18 +31,18 @@ proc functionMapById*(g: RepoGraph): Table[string, FunctionInfo] {.role: helper,
 
 proc collectOrchestratorGroups*(g: RepoGraph): seq[OrchestratorGroup] {.role: truthBuilder, tag: "graph".} =
   var
-    byId: Table[string, FunctionInfo]
-    outMap: Table[string, seq[string]]
-    group: OrchestratorGroup
-    memberSet: HashSet[string]
-    visitSet: HashSet[string]
+    byId: Table[string, FunctionInfo] = default(Table[string, FunctionInfo])
+    outMap: Table[string, seq[string]] = default(Table[string, seq[string]])
+    group: OrchestratorGroup = default(OrchestratorGroup)
+    memberSet: HashSet[string] = default(HashSet[string])
+    visitSet: HashSet[string] = default(HashSet[string])
   byId = functionMapById(g)
   outMap = collectOutMap(g)
   result = @[]
 
   proc walkGroup(rootId: string, currentId: string) =
     var
-      current: FunctionInfo
+      current: FunctionInfo = default(FunctionInfo)
     if currentId in visitSet:
       return
     visitSet.incl(currentId)

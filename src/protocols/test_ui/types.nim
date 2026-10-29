@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Test UI Types                                      |
-# | -> Discovered tests, display groups, and user settings   |
-# ============================================================
+## ============================================================
+## | Otter Test UI Types                                      |
+## | -> Discovered tests, display groups, and user settings   |
+## ============================================================
 
 import runePragmas
 

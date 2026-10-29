@@ -1,13 +1,13 @@
-# ============================================================
-# | Otter Routine Family Tests                               |
-# | -> Many routines that are one routine with a knob        |
-# ============================================================
-#
-# The two example repositories under `examples/families/` are shaped
-# after two real refactors, and this file is what keeps Otter able to
-# see them. They are read as plain source rather than as git
-# repositories, because the statistics CLI wants a `.git` folder and
-# nesting repositories inside this one buys nothing.
+## ============================================================
+## | Otter Routine Family Tests                               |
+## | -> Many routines that are one routine with a knob        |
+## ============================================================
+##
+## The two example repositories under `examples/families/` are shaped
+## after two real refactors, and this file is what keeps Otter able to
+## see them. They are read as plain source rather than as git
+## repositories, because the statistics CLI wants a `.git` folder and
+## nesting repositories inside this one buys nothing.
 
 import std/[os, strutils, unittest]
 

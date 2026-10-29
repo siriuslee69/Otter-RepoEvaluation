@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: ct: static constant-time check of x86-64 machine code (secret branches, addresses, divisions), shipped build by default, branch census per line
+Commit Message: review Otter with itself; fix checker reliability and split source scans
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.
@@ -11,6 +11,20 @@ Features (Planned):
 - Parent-repo adoption of the pragma-driven test UI after Otter example validation.
 
 Features (Done):
+- Self-review documented in docs/self-review.md, including unresolved naming,
+  nesting/layout work and confirmed false reports. Full gate still reports findings.
+- Build-hook content fingerprints, atomic cache replacement, and failure propagation;
+  shell regression cases cover stale timestamps, dependency/config changes, failed
+  builds, malformed thresholds, CRLF, strings, and declaration boundaries.
+- Source scans split from the statistics pipeline; corrected path-scoped input labels,
+  deterministic local import depth, Git ignore negations, and source/test totals.
+- Longest-run calculation uses shared helpers and probability tables, guards invalid
+  block sizes, and checks block bounds with Var-Invariants.
+- Routine roles, file descriptions, explicit variable defaults, and test-purpose
+  markers brought up to date. Shared parsed-string insertion replaces three helpers.
+- configs/default.toml owns metadata/build switches. Rune-Pragmas is directly pinned;
+  Nimble-Tasks updated to include the shared preset reader. The selected debug and
+  release test lists now match and include tracing and source-scan regressions.
 - Constant-time check, `otter_repo_graph ct` (`src/protocols/machine_code*`):
     objdump.nim       objdump -d -M intel -l -> routines, instructions,
                       jump targets, source lines; _ZN names decoded
@@ -174,11 +188,24 @@ Features (Done):
 - Added wildcard safe defaults, separate compile/run timing, horizontally scrollable version tabs, and repeated-click card deselection.
 
 Features (In Progress):
+- Convention follow-up: 141 naming candidates and 321 nesting sites at depth 3+;
+  state-write module split and other large-module refactors remain.
 - Broader parent-repo integration patterns beyond single-file auto-wrapping.
 - Deeper sample-object generation for harder Nim types and more private-function cases.
 - Keep extending parent-repo test metadata and runtime flag coverage as new suites are adopted.
 
 Notes:
+- Latest review: Otter's own heuristics produced false positives, and the build hook
+  could report success using a stale binary. Both reliability problems were fixed
+  with regression coverage. See docs/self-review.md for candidate-by-candidate
+  interpretation, remaining work, and reproduction commands.
+- Validation: 20 test programs / 263 unittest cases plus shell-hook regressions;
+  matching release builds and CLI/WebUI builds. An isolated copy built and ran
+  evaluation/statistics with pinned direct dependencies and no sibling repositories.
+- The full convention gate is not clean: nesting, layout, naming, and known detector
+  limitations are retained explicitly. Windows runtime and browser interactions
+  were not exercised in this Linux session.
+
 - Last change/problem: `ct` first reported four leaks in Tyr's sboxCt that
   were not there. gcc keeps a loop counter in rdx across a call to a
   routine it knows leaves rdx alone; reading every call as "all scratch

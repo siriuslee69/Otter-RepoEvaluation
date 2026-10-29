@@ -1,7 +1,9 @@
-# ============================================================
-# | NIST Eval Spectral Test                                 |
-# | -> FFT-based spectral test implementation               |
-# ============================================================
+## ============================================================
+## | NIST Eval Spectral Test                                 |
+## | -> FFT-based spectral test implementation               |
+## ============================================================
+
+import runePragmas
 
 import std/complex, std/math
 
@@ -10,7 +12,7 @@ import ./constants
 import ./types
 
 
-proc fftRadix2*(Xs: seq[Complex64]): seq[Complex64] =
+proc fftRadix2*(Xs: seq[Complex64]): seq[Complex64] {.role: math.} =
   ## Xs: input complex samples (length must be power of two).
   var
     rs: seq[Complex64] = @[]
@@ -21,10 +23,10 @@ proc fftRadix2*(Xs: seq[Complex64]): seq[Complex64] =
     l: int = 0
     half: int = 0
     ang: float64 = 0.0
-    wlen: Complex64
-    w: Complex64
-    u: Complex64
-    v: Complex64
+    wlen: Complex64 = default(Complex64)
+    w: Complex64 = default(Complex64)
+    u: Complex64 = default(Complex64)
+    v: Complex64 = default(Complex64)
     t: int = 0
   rs = Xs
   if n <= 1:
@@ -64,7 +66,7 @@ proc fftRadix2*(Xs: seq[Complex64]): seq[Complex64] =
 
 
 proc spectralTest*(Bs: openArray[uint8], n: int,
-    a: float64 = defaultAlpha): NistResult =
+    a: float64 = defaultAlpha): NistResult {.role: math.} =
   ## Bs: input bit sequence (0/1).
   ## n: maximum number of bits to use (0 for full length).
   ## a: alpha threshold.

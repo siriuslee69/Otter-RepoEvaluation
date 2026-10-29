@@ -1,11 +1,11 @@
-# ============================================================
-# | Otter State Writes Tests                                 |
-# | -> Who may change an entry, and when a write is lost     |
-# ============================================================
-#
-# `examples/state_writes/` is one file of eight routines, written so
-# that every answer here can be checked by reading it. Its doc box
-# names the expected verdict for each of the five entries.
+## ============================================================
+## | Otter State Writes Tests                                 |
+## | -> Who may change an entry, and when a write is lost     |
+## ============================================================
+##
+## `examples/state_writes/` is one file of eight routines, written so
+## that every answer here can be checked by reading it. Its doc box
+## names the expected verdict for each of the five entries.
 
 import std/[os, sets, strutils, unittest]
 

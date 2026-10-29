@@ -8,6 +8,8 @@
 ##
 ## Otter should call this family `value` and say so.
 
+import runePragmas
+
 type
   LinkParams* = object
     maxFrame*: int
@@ -15,7 +17,7 @@ type
     backoffMs*: int
     repairShards*: int
 
-proc cleanLanDefaults*(): LinkParams =
+proc cleanLanDefaults*(): LinkParams {.role: truthBuilder.} =
   var t: LinkParams = LinkParams()
   t.maxFrame = 1400
   t.retries = 2
@@ -23,7 +25,7 @@ proc cleanLanDefaults*(): LinkParams =
   t.repairShards = 0
   result = t
 
-proc mobileDefaults*(): LinkParams =
+proc mobileDefaults*(): LinkParams {.role: truthBuilder.} =
   var t: LinkParams = LinkParams()
   t.maxFrame = 1200
   t.retries = 4
@@ -31,7 +33,7 @@ proc mobileDefaults*(): LinkParams =
   t.repairShards = 2
   result = t
 
-proc meteredDefaults*(): LinkParams =
+proc meteredDefaults*(): LinkParams {.role: truthBuilder.} =
   var t: LinkParams = LinkParams()
   t.maxFrame = 900
   t.retries = 3
@@ -39,7 +41,7 @@ proc meteredDefaults*(): LinkParams =
   t.repairShards = 1
   result = t
 
-proc badSignalDefaults*(): LinkParams =
+proc badSignalDefaults*(): LinkParams {.role: truthBuilder.} =
   var t: LinkParams = LinkParams()
   t.maxFrame = 600
   t.retries = 8
@@ -47,7 +49,7 @@ proc badSignalDefaults*(): LinkParams =
   t.repairShards = 4
   result = t
 
-proc batterySaverDefaults*(): LinkParams =
+proc batterySaverDefaults*(): LinkParams {.role: truthBuilder.} =
   var t: LinkParams = LinkParams()
   t.maxFrame = 800
   t.retries = 1

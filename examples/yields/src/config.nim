@@ -13,6 +13,8 @@
 ## |   demand     stops the program rather than raising             |
 ## ================================================================
 
+import runePragmas
+
 import std/[strutils]
 
 type
@@ -21,22 +23,22 @@ type
     width*: int
     error*: string
 
-proc readRaw*(p: string): string =
+proc readRaw*(p: string): string {.role: dataFetcher.} =
   ## p: a file path. Whatever is in the file.
   result = readFile(p)
 
-proc parseWidth*(s: string): int =
+proc parseWidth*(s: string): int {.role: parser.} =
   ## s: the text of a number.
   result = parseInt(s)
 
-proc loadWidth*(p: string): int =
+proc loadWidth*(p: string): int {.role: orchestrator.} =
   ## p: a file path. The width written in it.
   ## Adds a raise of its own on top of the two it inherits.
   result = parseWidth(readRaw(p).strip())
   if result <= 0:
     raise newException(RangeDefect, "width must be positive")
 
-proc pickWidth*(p: string): int =
+proc pickWidth*(p: string): int {.role: orchestrator.} =
   ## p: a file path. Catches one of the three ways loadWidth can end,
   ## and lets the other two through.
   result = 80
@@ -45,7 +47,7 @@ proc pickWidth*(p: string): int =
   except ValueError:
     result = 80
 
-proc safeWidth*(p: string): int =
+proc safeWidth*(p: string): int {.role: orchestrator.} =
   ## p: a file path. Catches everything, so nothing escapes it.
   result = 80
   try:
@@ -53,7 +55,7 @@ proc safeWidth*(p: string): int =
   except CatchableError:
     result = 80
 
-proc loadAll*(p: string): Loaded =
+proc loadAll*(p: string): Loaded {.role: orchestrator.} =
   ## p: a file path. Failure comes back in the `error` field, so a
   ## caller that never looks at it will not be told anything went
   ## wrong.
@@ -63,7 +65,7 @@ proc loadAll*(p: string): Loaded =
   except CatchableError:
     result.error = "could not read " & p
 
-proc demand*(p: string): int =
+proc demand*(p: string): int {.role: sanitizer.} =
   ## p: a file path. Stops the program rather than raising, so no
   ## caller can catch this one.
   result = loadWidth(p)

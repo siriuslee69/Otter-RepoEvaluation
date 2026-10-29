@@ -12,11 +12,12 @@
 ##
 ## Why these live in Otter and not in the tools that ask
 ## ----------------------------------------------------
-## Three programs want the same answers: the `nim-check.sh` hook, the
-## `otter-gate.sh` gate, and Guldur's window. When each kept its own
-## copy the copies drifted, and a repository could pass one and fail
-## another for no reason a person could see. There is one copy now,
-## and the callers differ only in how they print it.
+## This module provides the library's file and layout checks. The
+## `runStatistics` task and other library callers use these rules.
+## `nim-check.sh` separately checks declarations and file placement with
+## awk, so a small edit does not need a CLI build. The shell and library
+## regression tests both cover strings, comments, and declaration boundaries.
+## `otter-gate.sh` asks the parsed graph about structure and roles.
 ##
 ## What is deliberately NOT here
 ## -----------------------------
@@ -56,6 +57,11 @@ type
     detail*: string
     hint*: string
 
+  TextState = object
+    ## Only multiline strings and block comments carry over to the next line.
+    triple: bool
+    commentDepth: int
+
 const
   ironDir: string = "." & "iron"
     ## The folder `agents/` replaced. Assembled rather than written out,
@@ -64,7 +70,8 @@ const
   skipColon: seq[string] = @[
     "of", "else", "elif", "except", "finally", "type", "var", "const",
     "let", "when", "if", "for", "while", "case", "block", "try", "using",
-    "asm", "macro", "template", "proc", "func", "method", "defer", "cast"
+    "asm", "macro", "template", "proc", "func", "method", "defer", "cast",
+    "setup", "teardown", "together", "otterInstrument"
   ]
     ## Words that legitimately end a line with a colon, so the colon-call
     ## rule must not mistake them for `name:` call syntax.
@@ -78,6 +85,11 @@ const
   ]
     ## Places a repository used to keep its own pragma copy, before the
     ## shared Rune-Pragmas repository replaced all of them.
+  forbiddenNeedle: string = "aud" & "it"
+    ## Assembled so the vocabulary check does not report its own definition.
+  placeholderWords: seq[string] = @["place" & "holder", "not " & "implemented",
+    "un" & "implemented", "for " & "now"]
+    ## Marker text is data, not a routine returning a fixed answer.
 
 proc conventionRules*(): seq[ConventionRule] {.role: truthBuilder,
     input: trusted, risk: rkLow, speed: spFast, tag: "check".} =
@@ -147,35 +159,58 @@ proc indentOf(s: string): int {.inline, role: helper, tag: "check".} =
     inc result
     inc i
 
-proc codePart(s: string): string {.inline, role: helper, tag: "check".} =
-  ## s: one raw line. The same line with any trailing comment removed,
-  ## leaving a `#` that sits inside a string where it is.
+proc quotedEnd(s: string, i: int): int {.role: parser.} =
+  ## s: line; i: opening double quote. Stop after the matching quote.
+  ## A name before the quote makes a Nim raw/generalized string literal.
   var
-    i: int = 0
-    q: bool = false
-  result = s
-  while i < s.len:
-    if s[i] == '"':
-      q = not q
-    elif s[i] == '#' and not q:
-      result = s[0 ..< i]
-      return
-    inc i
+    n: int = i + 1
+    raw: bool = i > 0 and s[i - 1] in {'a'..'z', 'A'..'Z', '_'}
+  while n < s.len:
+    if not raw and s[n] == '\\':
+      n += 2
+      continue
+    if s[n] == '"':
+      return n + 1
+    inc n
+  result = s.len
 
-proc commentPart(s: string): string {.inline, role: helper, tag: "check".} =
-  ## s: one raw line. Only the trailing comment, or an empty string when
-  ## the line carries none. The inverse of `codePart`, and it counts the
-  ## same quotes, so a `#` inside a string is not mistaken for one.
+proc lineParts(S: var TextState, s: string): tuple[code, comment: string]
+    {.role: parser.} =
+  ## S: multiline state; s: one line. Mask literals before judging its code.
+  ## Example programs in strings must not become findings about this module.
   var
     i: int = 0
-    q: bool = false
-  result = ""
+  result = ("", "")
   while i < s.len:
-    if s[i] == '"':
-      q = not q
-    elif s[i] == '#' and not q:
-      result = s[i .. ^1]
+    if S.commentDepth > 0:
+      if s.continuesWith("#[", i): inc S.commentDepth
+      if s.continuesWith("]#", i): dec S.commentDepth
+      i += (if s.continuesWith("#[", i) or s.continuesWith("]#", i): 2 else: 1)
+      continue
+    if s.continuesWith("\"\"\"", i):
+      S.triple = not S.triple
+      result.code.add("\"\"")
+      i += 3
+      continue
+    if S.triple:
+      inc i
+      continue
+    if s.continuesWith("#[", i):
+      S.commentDepth = 1
+      i += 2
+      continue
+    if s[i] == '#':
+      result.comment = s[i .. ^1]
       return
+    if s[i] == '"':
+      result.code.add("\"\"")
+      i = quotedEnd(s, i)
+      continue
+    if s[i] == '\'' and i + 2 < s.len and s[i + 2] == '\'':
+      result.code.add("''")
+      i += 3
+      continue
+    result.code.add(s[i])
     inc i
 
 proc isFnLine(s: string): bool {.inline, role: helper, tag: "check".} =
@@ -198,16 +233,6 @@ proc routineName(s: string): string {.inline, role: parser, tag: "check".} =
     inc cut
   result = rest[0 ..< cut]
 
-proc forbiddenNeedle(): string {.inline, role: helper, tag: "check".} =
-  ## The word the guidelines avoid, assembled so this file does not
-  ## contain it and report itself.
-  result = "aud" & "it"
-
-proc placeholderWords(): seq[string] {.inline, role: helper, tag: "check".} =
-  ## Words in a routine body that say the routine is not finished.
-  result = @["place" & "holder", "not " & "implemented",
-    "un" & "implemented", "for " & "now"]
-
 proc checkHeader(R: var seq[ConventionFinding], path, text: string)
     {.inline, role: actor, tag: "check".} =
   ## The first line that is not blank must open a `##` description box.
@@ -229,10 +254,9 @@ proc checkForbidden(R: var seq[ConventionFinding], path, text: string)
   ## The one word the guidelines avoid, anywhere in the file.
   var
     n: int = 0
-    needle: string = forbiddenNeedle()
   for raw in text.splitLines:
     inc n
-    if needle in raw.toLowerAscii():
+    if forbiddenNeedle in raw.toLowerAscii():
       addFinding(R, "forbiddenWordCheck", path, n, sevFail,
         "guideline-blocked word is present")
 
@@ -269,13 +293,15 @@ proc checkColon(R: var seq[ConventionFinding], path: string, n: int,
   if "{." in stripped:
     return
   cut = stripped.find(':')
-  if cut <= 0:
+  if cut <= 0 or cut != stripped.high:
     return
   name = stripped[0 ..< cut].strip()
   if " " in name or name in skipColon:
     return
   if name.len == 0:
     return
+  if not name.allCharsInSet({'a'..'z', 'A'..'Z', '0'..'9', '_', '.'}):
+    return # A continued condition or parameter list is not a bare name: call.
   addFinding(R, "colonCallCheck", path, n, sevInfo,
     "avoid colon call syntax; use name(args)")
 
@@ -337,7 +363,7 @@ proc checkBlockDecl(R: var seq[ConventionFinding], path: string, n: int,
     "repeat of `" & kind & "` at the same indent; use one block")
 
 proc checkPlaceholder(R: var seq[ConventionFinding], path, fn: string,
-    n: int, raw: string, done: var string) {.inline, role: actor,
+    n: int, comment: string, done: var string) {.inline, role: actor,
     tag: "check".} =
   ## A body that says it is not finished, in a routine whose name does
   ## not admit it.
@@ -349,13 +375,12 @@ proc checkPlaceholder(R: var seq[ConventionFinding], path, fn: string,
   ## routine already reported, so a routine saying it three times is
   ## still one finding.
   var
-    low: string = commentPart(raw).toLowerAscii()
+    low: string = comment.toLowerAscii()
     i: int = 0
-    W: seq[string] = placeholderWords()
   if fn.len == 0 or fn.startsWith("ph_") or fn == done or low.len == 0:
     return
-  while i < W.len:
-    if W[i] in low:
+  while i < placeholderWords.len:
+    if placeholderWords[i] in low:
       addFinding(R, "placeholderCheck", path, n, sevWarn,
         "placeholder body in `" & fn & "` - rename to `ph_" & fn &
         "` or finish it")
@@ -391,12 +416,15 @@ proc scanConventions*(path, text: string): seq[ConventionFinding]
     fn: string = ""
     phDone: string = ""
     n: int = 0
+    textState: TextState = TextState()
+    parts: tuple[code, comment: string] = ("", "")
   result = @[]
   checkHeader(result, path, text)
   checkForbidden(result, path, text)
   while n < lines.len:
     raw = lines[n]
-    stripped = codePart(raw).strip()
+    parts = lineParts(textState, raw)
+    stripped = parts.code.strip()
     ind = indentOf(raw)
     inc n
     if stripped.len == 0:
@@ -409,9 +437,7 @@ proc scanConventions*(path, text: string): seq[ConventionFinding]
     checkShim(result, path, n, stripped)
     checkColon(result, path, n, stripped)
     checkNaming(result, path, n, stripped)
-    checkPlaceholder(result, path, fn, n, raw, phDone)
-    if kind.len == 0:
-      continue
+    checkPlaceholder(result, path, fn, n, parts.comment, phDone)
     prevKind = kind
     prevInd = ind
 

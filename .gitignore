@@ -22,6 +22,7 @@ bin/
 # was committed, because nobody remembers to add a line here.
 evaluation/tests/test_*
 !evaluation/tests/test_*.nim
+!evaluation/tests/test_*.sh
 evaluation/tests/.otter/results/
 evaluation/tests/samples/*_otter_wrapped
 evaluation/tests/build/

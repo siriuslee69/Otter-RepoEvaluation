@@ -1,7 +1,9 @@
-# ============================================================
-# | NIST Eval Types                                         |
-# | -> Shared result types and parameter bundles            |
-# ============================================================
+## ============================================================
+## | NIST Eval Types                                         |
+## | -> Shared result types and parameter bundles            |
+## ============================================================
+
+import runePragmas
 
 type
   NistResult* = object
@@ -51,13 +53,13 @@ type
     passed*: bool
 
 
-proc makeResult*(n: string, s: float64, p: float64, a: float64): NistResult =
+proc makeResult*(n: string, s: float64, p: float64, a: float64): NistResult {.role: truthBuilder.} =
   ## n: test name.
   ## s: test statistic.
   ## p: p-value.
   ## a: alpha threshold.
   var
-    t: NistResult
+    t: NistResult = default(NistResult)
   t.name = n
   t.statistic = s
   t.pValue = p

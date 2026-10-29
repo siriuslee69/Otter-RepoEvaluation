@@ -1,46 +1,46 @@
-# ============================================================
-# | Otter Embedded Code                                      |
-# | -> Another language living inside a string literal       |
-# ============================================================
-#
-# A string is usually text. Sometimes it is a whole program:
-#
-#   proc buildHtml(): string =
-#     result = """<!doctype html>
-#     <script>
-#       const state = { sortKey: "avg_ns_per_op" };
-#     </script>"""
-#
-# Three lines of that are JavaScript, and Nim knows nothing about it.
-# Neither did Otter, and that cost something real: a `# otter:allow`
-# comment written onto the `sortKey` line put a `#` into the generated
-# page, where `#` is not a comment and the script stops working. The
-# right marker there is `//`. Knowing which language a block is written
-# in is what tells a person - or a tool - which one to use.
-#
-# What is found, and how
-# ----------------------
-# Only string literals that can hold more than one line are looked at,
-# because a one-line string is almost never a program:
-#
-#   host      opens        closes
-#   --------  -----------  -----------
-#   nim       """          """
-#   python    """ or '''   the same
-#   js / ts   `            `
-#   html      <script>     </script>
-#             <style>      </style>
-#
-# Each block is then read for declarations only one language writes.
-# `#include` is C and nothing else. `__kernel` is OpenCL. `<!doctype`
-# is HTML. A block that matches nothing recognisable is still reported,
-# as `other`, because the fact that it IS code is the useful part; which
-# language it is written in comes second.
-#
-# This is not a parser and must not grow into one. It reads for a
-# handful of give-away words and counts them.
+## ============================================================
+## | Otter Embedded Code                                      |
+## | -> Another language living inside a string literal       |
+## ============================================================
+##
+## A string is usually text. Sometimes it is a whole program:
+##
+##   proc buildHtml(): string =
+##     result = """<!doctype html>
+##     <script>
+##       const state = { sortKey: "avg_ns_per_op" };
+##     </script>"""
+##
+## Three lines of that are JavaScript, and Nim knows nothing about it.
+## Neither did Otter, and that cost something real: a `# otter:allow`
+## comment written onto the `sortKey` line put a `#` into the generated
+## page, where `#` is not a comment and the script stops working. The
+## right marker there is `//`. Knowing which language a block is written
+## in is what tells a person - or a tool - which one to use.
+##
+## What is found, and how
+## ----------------------
+## Only string literals that can hold more than one line are looked at,
+## because a one-line string is almost never a program:
+##
+##   host      opens        closes
+##   --------  -----------  -----------
+##   nim       """          """
+##   python    """ or '''   the same
+##   js / ts   `            `
+##   html      <script>     </script>
+##             <style>      </style>
+##
+## Each block is then read for declarations only one language writes.
+## `#include` is C and nothing else. `__kernel` is OpenCL. `<!doctype`
+## is HTML. A block that matches nothing recognisable is still reported,
+## as `other`, because the fact that it IS code is the useful part; which
+## language it is written in comes second.
+##
+## This is not a parser and must not grow into one. It reads for a
+## handful of give-away words and counts them.
 
-import std/[algorithm, os, strutils, tables]
+import std/[algorithm, strutils, tables]
 
 import runePragmas
 import ../repo_graph/io_utils

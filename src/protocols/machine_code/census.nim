@@ -1,28 +1,28 @@
-# ============================================================
-# | Otter Machine Code -> branch census                      |
-# | -> jumps in the machine code vs branches in the Nim      |
-# ============================================================
-#
-# A quick count beside the forward search, line by line:
-#
-#   source line                          Nim branches   jumps
-#   ───────────────────────────────────  ────────────   ─────
-#   aes_blocks.nim:17  while i < 256:          1           1    as written
-#   aes_blocks.nim:19  acc = acc or ...        0           2    ADDED
-#
-# A line with jumps but no branch word in the Nim means the compiler put
-# them there. Most such jumps are harmless:
-#
-#   a[i]          bounds check (is i inside a?)        - i is usually public
-#   f(x)          Nim's error check after a call       - public
-#   a loop        copies of the loop test when the loop is unrolled
-#
-# So the count is a pointer to where to look, not a verdict: the
-# forward search (taint.nim) decides whether a jump depends on a secret.
-# An added jump the search also flagged is marked SECRET.
-#
-# Nim "branch words": if elif while for case of and or try except.
-# `else` is not counted: it adds no test of its own.
+## ============================================================
+## | Otter Machine Code -> branch census                      |
+## | -> jumps in the machine code vs branches in the Nim      |
+## ============================================================
+##
+## A quick count beside the forward search, line by line:
+##
+##   source line                          Nim branches   jumps
+##   ───────────────────────────────────  ────────────   ─────
+##   aes_blocks.nim:17  while i < 256:          1           1    as written
+##   aes_blocks.nim:19  acc = acc or ...        0           2    ADDED
+##
+## A line with jumps but no branch word in the Nim means the compiler put
+## them there. Most such jumps are harmless:
+##
+##   a[i]          bounds check (is i inside a?)        - i is usually public
+##   f(x)          Nim's error check after a call       - public
+##   a loop        copies of the loop test when the loop is unrolled
+##
+## So the count is a pointer to where to look, not a verdict: the
+## forward search (taint.nim) decides whether a jump depends on a secret.
+## An added jump the search also flagged is marked SECRET.
+##
+## Nim "branch words": if elif while for case of and or try except.
+## `else` is not counted: it adds no test of its own.
 
 import std/[os, strutils, tables]
 

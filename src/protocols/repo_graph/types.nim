@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Repo Graph Types                                   |
-# | -> Shared graph, socket, grouping, and tag primitives    |
-# ============================================================
+## ============================================================
+## | Otter Repo Graph Types                                   |
+## | -> Shared graph, socket, grouping, and tag primitives    |
+## ============================================================
 
 import std/[strutils]
 

@@ -41,7 +41,7 @@ import ../repo_graph/types as graphTypes
 import ../repo_graph/analysis_pipeline
 import ./types
 import ./project
-import ./pipeline
+import ./inventory
 import ./state_writes
 import ./yields
 import ./blast
@@ -121,10 +121,10 @@ proc checkName*(r: CheckRequest): string {.role: helper,
   if r.arg.len > 0:
     result = result & " " & r.arg
 
-proc needsGraph(r: CheckRequest): bool {.inline.} =
+proc needsGraph(r: CheckRequest): bool {.inline, role: parser.} =
   result = r.kind in {ckState, ckYields, ckBlast}
 
-proc needsStats(r: CheckRequest): bool {.inline.} =
+proc needsStats(r: CheckRequest): bool {.inline, role: parser.} =
   result = r.kind == ckStats
 
 proc graphWhen(rootDir: string, want: bool): RepoGraph {.role: dataFetcher,

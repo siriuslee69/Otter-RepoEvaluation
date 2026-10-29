@@ -11,6 +11,8 @@
 ## |   depth     two writers, but read in between     -> safe       |
 ## ================================================================
 
+import runePragmas
+
 type
   Feed* = object
     ## {.role: truthState.}
@@ -20,7 +22,7 @@ type
     ticker*: string       ## otter:latest - only the newest symbol matters
     depth*: int
 
-proc ingest*(S: var Feed, p: float) =
+proc ingest*(S: var Feed, p: float) {.role: truthBuilder.} =
   ## S: the feed   p: the newest price.
   ## Replaces price outright: whatever was there is not looked at.
   S.price = p
@@ -28,40 +30,40 @@ proc ingest*(S: var Feed, p: float) =
   S.lastSeen = "ingest"
   S.ticker = "AAA"
 
-proc resample*(S: var Feed) =
+proc resample*(S: var Feed) {.role: actor.} =
   ## S: the feed. Replaces price again, also without reading it.
   S.price = 0.0
   S.lastSeen = "resample"
   S.ticker = "BBB"
 
-proc accumulate*(S: var Feed) =
+proc accumulate*(S: var Feed) {.role: actor.} =
   ## S: the feed. Reads volume before writing it, so nothing is lost.
   S.volume = S.volume + 1
 
-proc snapshot*(S: var Feed, n: int) =
+proc snapshot*(S: var Feed, n: int) {.role: parser.} =
   ## S: the feed   n: the new depth. A blind write.
   S.depth = n
 
-proc rebase*(S: var Feed, n: int) =
+proc rebase*(S: var Feed, n: int) {.role: actor.} =
   ## S: the feed   n: the new depth. A second blind write.
   S.depth = n
 
-proc render*(S: Feed): string =
+proc render*(S: Feed): string {.role: dataWriter.} =
   ## S: the feed. Reads price and volume, and nothing else.
   result = $S.price & " " & $S.volume
 
-proc showDepth*(S: Feed): string =
+proc showDepth*(S: Feed): string {.role: dataWriter.} =
   ## S: the feed. Reads depth.
   result = $S.depth
 
-proc runFeed*(S: var Feed) =
+proc runFeed*(S: var Feed) {.role: orchestrator.} =
   ## S: the feed. Two blind writes of price, back to back. The price
   ## ingest stored never reaches render.
   ingest(S, 1.0)
   resample(S)
   discard render(S)
 
-proc runSafe*(S: var Feed) =
+proc runSafe*(S: var Feed) {.role: orchestrator.} =
   ## S: the feed. Two blind writes of depth, with a read between them,
   ## so the first value did reach somebody.
   snapshot(S, 1)

@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Timed Child                                       |
-# | -> Child process used to verify exit-log flushing       |
-# ============================================================
+## ============================================================
+## | Otter Timed Child                                       |
+## | -> Child process used to verify exit-log flushing       |
+## ============================================================
 
 import runePragmas
 import otter_repo_evaluation

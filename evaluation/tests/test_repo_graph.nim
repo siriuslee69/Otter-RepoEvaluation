@@ -1,21 +1,22 @@
-# ============================================================
-# | Otter Repo Graph Tests                                   |
-# | -> Validate merged analysis and sample-runner flows      |
-# ============================================================
+## ============================================================
+## | Otter Repo Graph Tests                                   |
+## | -> Validate merged analysis and sample-runner flows      |
+## ============================================================
 
 import std/[json, os, sets, strutils, tables, unittest]
 
 import otter_repo_evaluation
 
 suite "otter repo graph":
+  # {.testKind: tkIntegration.}
   test "analyze repo and build orchestrator groups":
     var
       root: string = joinPath(getCurrentDir(), "build", "test_repo_graph_repo")
       srcDir: string = ""
       sampleFile: string = ""
-      g: RepoGraph
-      byName: Table[string, FunctionInfo]
-      graphJson: JsonNode
+      g: RepoGraph = default(RepoGraph)
+      byName: Table[string, FunctionInfo] = default(Table[string, FunctionInfo])
+      graphJson: JsonNode = default(JsonNode)
     if dirExists(root):
       removeDir(root)
     srcDir = joinPath(root, "src")
@@ -66,14 +67,15 @@ proc socketShape*(a, b: int; c: string; d: var float; flag: bool = false): strin
     check graphJson["functions"].len >= 3
     removeDir(root)
 
+  # {.testKind: tkIntegration.}
   test "run exported function with generated sample args":
     var
       root: string = joinPath(getCurrentDir(), "build", "test_repo_graph_runner")
       srcDir: string = ""
       sampleFile: string = ""
-      g: RepoGraph
-      f: FunctionInfo
-      r: RunSampleResult
+      g: RepoGraph = default(RepoGraph)
+      f: FunctionInfo = default(FunctionInfo)
+      r: RunSampleResult = default(RunSampleResult)
     if dirExists(root):
       removeDir(root)
     srcDir = joinPath(root, "src")
@@ -197,7 +199,7 @@ suite "tag pragma shapes":
     var
       root: string = joinPath(getCurrentDir(), "build", "test_tag_shapes_repo")
       srcDir: string = ""
-      g: RepoGraph
+      g: RepoGraph = default(RepoGraph)
       byName: Table[string, FunctionInfo] = initTable[string, FunctionInfo]()
     if dirExists(root):
       removeDir(root)
@@ -231,7 +233,7 @@ suite "otter repo graph: headers and uses that read like something else":
   test "a parameter default at the end of a line is not the body":
     var
       root: string = joinPath(getCurrentDir(), "build", "test_default_eq_repo")
-      g: RepoGraph
+      g: RepoGraph = default(RepoGraph)
       byName: Table[string, FunctionInfo] = initTable[string, FunctionInfo]()
     if dirExists(root):
       removeDir(root)

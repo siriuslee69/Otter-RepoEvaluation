@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Repo Graph Nim Parser                              |
-# | -> Lightweight Nim parser for graph and socket data      |
-# ============================================================
+## ============================================================
+## | Otter Repo Graph Nim Parser                              |
+## | -> Lightweight Nim parser for graph and socket data      |
+## ============================================================
 
 import std/[sets, strutils]
 
@@ -378,7 +378,7 @@ proc parseParamSockets(sHeader: string): tuple[params: seq[string], sockets: seq
     cleanType: string = ""
     dir: SocketDirection = sdInput
     eqIdx: int = -1
-    socket: FunctionSocket
+    socket: FunctionSocket = default(FunctionSocket)
 
   proc splitParamSegments(s: string): seq[string] =
     result = @[]
@@ -458,7 +458,7 @@ proc parseParamSockets(sHeader: string): tuple[params: seq[string], sockets: seq
 
 proc addRiskTag(f: var FunctionInfo, k, v: string) {.role: helper, tag: "graph|parsing".} =
   var
-    rk: RiskTag
+    rk: RiskTag = default(RiskTag)
   rk.key = k.strip()
   rk.value = v.strip()
   if rk.key.len == 0:
@@ -466,34 +466,16 @@ proc addRiskTag(f: var FunctionInfo, k, v: string) {.role: helper, tag: "graph|p
   f.riskTags.add(rk)
 
 
-proc addIssueRef(f: var FunctionInfo, v: string) {.role: helper, tag: "graph|parsing".} =
+proc addParsedText(S: var seq[string], v: string, b: bool = false)
+    {.inline, role: actor, tag: "graph|parsing".} =
+  ## S: unique parsed values; v: next value; b: lower-case it for pragma keys.
   var
-    t: string = ""
-  t = v.strip()
-  if t.len == 0:
+    t: string = v.strip()
+  if b:
+    t = t.toLowerAscii()
+  if t.len == 0 or t in S:
     return
-  if t notin f.issueRefs:
-    f.issueRefs.add(t)
-
-
-proc addPragmaTag(f: var FunctionInfo, v: string) {.role: helper, tag: "graph|parsing".} =
-  var
-    t: string = ""
-  t = v.strip().toLowerAscii()
-  if t.len == 0:
-    return
-  if t notin f.pragmaTags:
-    f.pragmaTags.add(t)
-
-
-proc addUserInputSignal(f: var FunctionInfo, v: string) {.role: helper, tag: "graph|parsing".} =
-  var
-    t: string = ""
-  t = v.strip()
-  if t.len == 0:
-    return
-  if t notin f.userInputSignals:
-    f.userInputSignals.add(t)
+  S.add(t)
 
 
 proc markUserInputDeclared(f: var FunctionInfo, reason: string) {.role: helper, tag: "graph|parsing".} =
@@ -542,13 +524,13 @@ proc parsePragmaToken(tok: string, f: var FunctionInfo) {.role: parser, tag: "gr
       f.role = r
       f.roleConfidence = 1.0
       f.roleReason = "pragma role"
-      addPragmaTag(f, "role:" & roleToString(r))
+      addParsedText(f.pragmaTags, "role:" & roleToString(r), true)
       return
     if key == "user_input" or key == "userinput" or key == "input_handler":
       markUserInputDeclared(f, "pragma user_input")
-      addPragmaTag(f, "user_input")
+      addParsedText(f.pragmaTags, "user_input", true)
       return
-    addPragmaTag(f, key)
+    addParsedText(f.pragmaTags, key, true)
     return
   kv = t.split(":", maxsplit = 1)
   if kv.len != 2:
@@ -562,17 +544,17 @@ proc parsePragmaToken(tok: string, f: var FunctionInfo) {.role: parser, tag: "gr
       f.role = r
       f.roleConfidence = 1.0
       f.roleReason = "pragma role"
-      addPragmaTag(f, "role:" & roleToString(r))
+      addParsedText(f.pragmaTags, "role:" & roleToString(r), true)
     else:
-      addPragmaTag(f, "role:" & rawValue.strip())
+      addParsedText(f.pragmaTags, "role:" & rawValue.strip(), true)
   elif key == "risk":
     for item in rawValue.split('|'):
       if item.strip().len > 0:
         addRiskTag(f, item.strip(), "")
-        addPragmaTag(f, "risk:" & item.strip().toLowerAscii())
+        addParsedText(f.pragmaTags, "risk:" & item.strip().toLowerAscii(), true)
   elif key == "issue" or key == "issueref":
-    addIssueRef(f, rawValue)
-    addPragmaTag(f, "issue:" & rawValue.toLowerAscii())
+    addParsedText(f.issueRefs, rawValue)
+    addParsedText(f.pragmaTags, "issue:" & rawValue.toLowerAscii(), true)
   elif key == "tag" or key == "tags" or key == "metatags":
     ## A tag list arrives in one of three shapes, and all three mean the same
     ## thing:
@@ -586,30 +568,30 @@ proc parsePragmaToken(tok: string, f: var FunctionInfo) {.role: parser, tag: "gr
     ## and fell through as one blob. `tagItemName` strips the punctuation and
     ## the `tag` prefix the enum form carried, so every shape lands as the
     ## same bare names.
-    addPragmaTag(f, "tag")
+    addParsedText(f.pragmaTags, "tag", true)
     for item in rawValue.split({'|', ',', ';'}):
       if tagItemName(item).len > 0:
-        addPragmaTag(f, tagItemName(item))
+        addParsedText(f.pragmaTags, tagItemName(item), true)
   elif key == "user_input" or key == "userinput" or key == "input_handler":
     if parseBoolLike(rawValue, true):
       markUserInputDeclared(f, "pragma user_input")
-      addPragmaTag(f, "user_input")
+      addParsedText(f.pragmaTags, "user_input", true)
     else:
-      addPragmaTag(f, "user_input:false")
+      addParsedText(f.pragmaTags, "user_input:false", true)
   elif key.startsWith("risk_"):
     addRiskTag(f, key, rawValue)
-    addPragmaTag(f, key.toLowerAscii() & ":" & rawValue.toLowerAscii())
+    addParsedText(f.pragmaTags, key.toLowerAscii() & ":" & rawValue.toLowerAscii(), true)
   elif key.startsWith("tag_"):
     key = key["tag_".len .. ^1]
     if rawValue.len > 0:
-      addPragmaTag(f, key & ":" & rawValue)
+      addParsedText(f.pragmaTags, key & ":" & rawValue, true)
     else:
-      addPragmaTag(f, key)
+      addParsedText(f.pragmaTags, key, true)
   else:
     if rawValue.len > 0:
-      addPragmaTag(f, key & ":" & rawValue)
+      addParsedText(f.pragmaTags, key & ":" & rawValue, true)
     else:
-      addPragmaTag(f, key)
+      addParsedText(f.pragmaTags, key, true)
 
 
 proc parsePragmas(sHeader: string, f: var FunctionInfo) {.role: parser, tag: "graph|parsing".} =
@@ -650,38 +632,38 @@ proc parseDocTags(ls: seq[string], iStart: int, f: var FunctionInfo) {.role: par
         f.role = r
         f.roleConfidence = 1.0
         f.roleReason = "doc role"
-        addPragmaTag(f, "role:" & roleToString(r))
+        addParsedText(f.pragmaTags, "role:" & roleToString(r), true)
     elif t.startsWith("## @risk"):
       v = t["## @risk".len .. ^1].strip()
       if v.len > 0:
         for s in v.split({'|', ','}):
           if s.strip().len > 0:
             addRiskTag(f, s.strip(), "")
-            addPragmaTag(f, "risk:" & s.strip().toLowerAscii())
+            addParsedText(f.pragmaTags, "risk:" & s.strip().toLowerAscii(), true)
     elif t.startsWith("## @issue"):
       v = t["## @issue".len .. ^1].strip()
-      addIssueRef(f, v)
-      addPragmaTag(f, "issue:" & v.toLowerAscii())
+      addParsedText(f.issueRefs, v)
+      addParsedText(f.pragmaTags, "issue:" & v.toLowerAscii(), true)
     elif t.startsWith("## @tag"):
       v = t["## @tag".len .. ^1].strip()
       if v.len > 0:
         for s in v.split({'|', ',', ';'}):
           if s.strip().len > 0:
-            addPragmaTag(f, s.strip())
+            addParsedText(f.pragmaTags, s.strip(), true)
     elif t.startsWith("## @tags"):
       v = t["## @tags".len .. ^1].strip()
       if v.len > 0:
         for s in v.split({'|', ',', ';'}):
           if s.strip().len > 0:
-            addPragmaTag(f, s.strip())
+            addParsedText(f.pragmaTags, s.strip(), true)
     elif t.startsWith("## @user_input") or t.startsWith("## @input_handler"):
       v = t[t.find('@') + 1 .. ^1]
       v = if " " in v: v.split(' ', maxsplit = 1)[1].strip() else: ""
       if parseBoolLike(v, true):
         markUserInputDeclared(f, "doc user_input")
-        addPragmaTag(f, "user_input")
+        addParsedText(f.pragmaTags, "user_input", true)
       else:
-        addPragmaTag(f, "user_input:false")
+        addParsedText(f.pragmaTags, "user_input:false", true)
     elif t.startsWith("#"):
       discard
     else:
@@ -821,14 +803,17 @@ proc parseAliasSpec(raw: string): tuple[name: string, alias: string] {.role: par
     result.alias = parts[1].strip()
 
 
-proc parseImportBindings(ls: seq[string], currentModulePath: string): seq[ImportBinding] {.role: parser, tag: "graph|importContext".} =
+proc parseImportBindings*(ls: seq[string], currentModulePath: string): seq[ImportBinding] {.role: parser, tag: "graph|importContext".} =
+  ## ls: module lines; currentModulePath: repository-relative module name.
+  ## The call graph and import statistics share this interpretation. Grouped
+  ## bracket imports are not resolved yet and are deliberately skipped.
   var
     line: string = ""
     body: string = ""
-    moduleSpec: tuple[name: string, alias: string]
+    moduleSpec: tuple[name: string, alias: string] = default(tuple[name: string, alias: string])
     modulePath: string = ""
     item: string = ""
-    symbolSpec: tuple[name: string, alias: string]
+    symbolSpec: tuple[name: string, alias: string] = default(tuple[name: string, alias: string])
     splitIdx: int = -1
   result = @[]
   for raw in ls:
@@ -912,7 +897,7 @@ proc extractCalls*(bodyLines: seq[string]): seq[string] {.role: parser, tag: "gr
   ## after it. Exported because the diff review reads the lines a
   ## change removed, which belong to no routine at all.
   var
-    seen: HashSet[string]
+    seen: HashSet[string] = default(HashSet[string])
     line: string = ""
     i: int = 0
     i0: int = 0
@@ -960,7 +945,7 @@ proc extractCalls*(bodyLines: seq[string]): seq[string] {.role: parser, tag: "gr
 
 proc detectUserInputSignals(calls: seq[string], bodyLines: seq[string]): seq[string] {.role: parser, tag: "graph|parsing".} =
   var
-    seen: HashSet[string]
+    seen: HashSet[string] = default(HashSet[string])
     t: string = ""
     lc: string = ""
   result = @[]
@@ -991,13 +976,13 @@ proc parseFunctionBlock(ls: seq[string], modulePath, sourcePath: string,
     fileBindings: seq[ImportBinding], iStart: int): tuple[ok: bool, f: FunctionInfo,
     iNext: int] {.role: parser, tag: "graph|parsing".} =
   var
-    f: FunctionInfo
+    f: FunctionInfo = default(FunctionInfo)
     i: int = 0
     baseIndent: int = 0
-    header: tuple[sHeader: string, iEnd: int]
-    nameData: tuple[name: string, isExported: bool]
-    leading: tuple[docLines: seq[string], commentLines: seq[string]]
-    parsedParams: tuple[params: seq[string], sockets: seq[FunctionSocket]]
+    header: tuple[sHeader: string, iEnd: int] = default(tuple[sHeader: string, iEnd: int])
+    nameData: tuple[name: string, isExported: bool] = default(tuple[name: string, isExported: bool])
+    leading: tuple[docLines: seq[string], commentLines: seq[string]] = default(tuple[docLines: seq[string], commentLines: seq[string]])
+    parsedParams: tuple[params: seq[string], sockets: seq[FunctionSocket]] = default(tuple[params: seq[string], sockets: seq[FunctionSocket]])
   if not isFunctionStartLine(ls[iStart]):
     result = (false, f, iStart + 1)
     return
@@ -1033,7 +1018,7 @@ proc parseFunctionBlock(ls: seq[string], modulePath, sourcePath: string,
   f.returnType = parseReturnType(header.sHeader, f.name)
   if f.returnType.len > 0:
     var
-      resultSocket: FunctionSocket
+      resultSocket: FunctionSocket = default(FunctionSocket)
     resultSocket.name = "result"
     resultSocket.typeName = f.returnType
     resultSocket.direction = sdOutput
@@ -1078,7 +1063,7 @@ proc parseFunctionBlock(ls: seq[string], modulePath, sourcePath: string,
   f.calls = extractCalls(f.bodyLines)
   f.innerCommentLines = collectInnerComments(f.bodyLines)
   for signal in detectUserInputSignals(f.calls, f.bodyLines):
-    addUserInputSignal(f, signal)
+    addParsedText(f.userInputSignals, signal)
   if f.userInputDeclared:
     f.handlesUserInput = true
     if f.userInputSignals.len > 0:
@@ -1100,7 +1085,7 @@ proc parseNimFile*(rootDir, filePath: string): seq[FunctionInfo] {.role: parser,
   var
     lines: seq[string] = @[]
     i: int = 0
-    parsed: tuple[ok: bool, f: FunctionInfo, iNext: int]
+    parsed: tuple[ok: bool, f: FunctionInfo, iNext: int] = default(tuple[ok: bool, f: FunctionInfo, iNext: int])
     modulePath: string = ""
     fileBindings: seq[ImportBinding] = @[]
   result = @[]

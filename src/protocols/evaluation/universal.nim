@@ -1,7 +1,9 @@
-# ============================================================
-# | NIST Eval Universal Test                                |
-# | -> Maurer universal statistical test                    |
-# ============================================================
+## ============================================================
+## | NIST Eval Universal Test                                |
+## | -> Maurer universal statistical test                    |
+## ============================================================
+
+import runePragmas
 
 import std/math
 
@@ -10,7 +12,7 @@ import ./types
 
 
 proc universalTest*(Bs: openArray[uint8], l, q: int,
-    a: float64 = defaultAlpha): NistResult =
+    a: float64 = defaultAlpha): NistResult {.role: math.} =
   ## Bs: input bit sequence (0/1).
   ## l: block size for patterns.
   ## q: initialization blocks (0 for default).

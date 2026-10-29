@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Test UI Protocol                                   |
-# | -> Public discovery, configuration, and process models   |
-# ============================================================
+## ============================================================
+## | Otter Test UI Protocol                                   |
+## | -> Public discovery, configuration, and process models   |
+## ============================================================
 
 import ./test_ui/[catalog, config, jobs, types]
 

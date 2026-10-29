@@ -3,7 +3,7 @@
 ##   func / raises: [] / var output / exception / "_" parameter / compile-time
 ##   use / template - all must compile traced, and the trace must show them.
 
-import std/[os, osproc, strutils, unittest]
+import std/[os, strutils, unittest]
 import ../../src/protocols/trace_run
 
 const

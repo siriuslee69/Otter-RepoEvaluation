@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Repo Graph IO Utils                                |
-# | -> File discovery and stable path normalization helpers  |
-# ============================================================
+## ============================================================
+## | Otter Repo Graph IO Utils                                |
+## | -> File discovery and stable path normalization helpers  |
+## ============================================================
 
 import std/[algorithm, os, strutils]
 
@@ -47,10 +47,10 @@ const
     ## bytes that score exactly as a key does, and a vendored RFC is
     ## full of published test vectors and author addresses.
 
-proc normalizeSlashes*(s: string): string {.inline.} =
+proc normalizeSlashes*(s: string): string {.inline, role: helper.} =
   result = s.replace('\\', '/')
 
-proc extensionOf*(p: string): string {.inline.} =
+proc extensionOf*(p: string): string {.inline, role: parser.} =
   ## p: any path. The ending in lower case and without its dot, or ""
   ## when the name carries none.
   var
@@ -114,7 +114,7 @@ proc isScannablePath*(relPath: string): bool {.role: parser,
     extensionOf(relPath) in sourceExts
 
 
-proc listNimFiles*(rootDir: string, bIncludeTests: bool = false): seq[string] =
+proc listNimFiles*(rootDir: string, bIncludeTests: bool = false): seq[string] {.role: dataFetcher.} =
   var
     rootNormalized: string = ""
     pNormalized: string = ""
@@ -140,7 +140,7 @@ proc listNimFiles*(rootDir: string, bIncludeTests: bool = false): seq[string] =
   result.sort(system.cmp[string])
 
 
-proc toModulePath*(rootDir, filePath: string): string =
+proc toModulePath*(rootDir, filePath: string): string {.role: helper.} =
   var
     rootNormalized: string = ""
     fileNormalized: string = ""
@@ -157,7 +157,7 @@ proc toModulePath*(rootDir, filePath: string): string =
   result = p
 
 
-proc toImportModulePath*(modulePath: string): string =
+proc toImportModulePath*(modulePath: string): string {.role: helper.} =
   var
     p: string = ""
   p = normalizeSlashes(modulePath)
@@ -169,18 +169,19 @@ proc toImportModulePath*(modulePath: string): string =
   result = p
 
 
-proc readLinesSafe*(filePath: string): seq[string] =
+proc readLinesSafe*(filePath: string): seq[string] {.role: dataFetcher.} =
   if not fileExists(filePath):
     result = @[]
     return
   result = readFile(filePath).splitLines()
 
 
-proc isTestPath*(path: string): bool =
+proc isTestPath*(path: string): bool {.role: parser.} =
   ## path: one source path. Tests live under a tests folder or are
   ## named for what they are.
   ##
-  ## Only the file's own name and the folders right above it are read.
+  ## Match whole folder names, at any fixture depth. A test_ prefix under
+  ## src/ alone is not enough: test_scan.nim is part of Otter's library.
   ## A tree that happens to sit in a folder called `my_test_repo` is
   ## not a tree of tests, and looking for the word anywhere in the path
   ## would say that it is.
@@ -191,21 +192,22 @@ proc isTestPath*(path: string): bool =
   var
     parts: seq[string] = normalizeSlashes(path).toLowerAscii().split('/')
     i: int = 0
+    inSource: bool = false
   result = false
   if parts.len == 0:
     return
-  if parts[^1].startsWith("test_") or parts[^1].endsWith("_test.nim"):
-    result = true
-    return
-  i = max(0, parts.len - 4)
   while i < parts.len - 1:
     if parts[i] == "tests" or parts[i] == "test":
       result = true
       return
+    if parts[i] == "src":
+      inSource = true
     i = i + 1
+  result = not inSource and
+    (parts[^1].startsWith("test_") or parts[^1].endsWith("_test.nim"))
 
 
-proc isSrcPath*(path: string): bool =
+proc isSrcPath*(path: string): bool {.role: parser.} =
   ## path: one source path. Whether it belongs to the source of the
   ## program rather than to its tests. A file under a `tests` folder
   ## is a test even when that folder sits inside `src`, so the two
@@ -214,7 +216,7 @@ proc isSrcPath*(path: string): bool =
     p: string = normalizeSlashes(path)
   result = (p.startsWith("src/") or "/src/" in p) and not isTestPath(p)
 
-proc padTo*(s: string, n: int): string {.inline.} =
+proc padTo*(s: string, n: int): string {.inline, role: helper.} =
   ## s: any text   n: the width of the column it sits in.
   ## The same text with spaces after it, so that what follows lines
   ## up. Here rather than in each report because three reports wanted

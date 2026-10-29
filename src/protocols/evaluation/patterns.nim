@@ -1,7 +1,9 @@
-# ============================================================
-# | NIST Eval Pattern Tests                                 |
-# | -> Approximate entropy and serial tests                 |
-# ============================================================
+## ============================================================
+## | NIST Eval Pattern Tests                                 |
+## | -> Approximate entropy and serial tests                 |
+## ============================================================
+
+import runePragmas
 
 import std/math
 
@@ -10,7 +12,7 @@ import ./math_utils
 import ./types
 
 
-proc patternCounts*(Bs: openArray[uint8], m: int): seq[uint32] =
+proc patternCounts*(Bs: openArray[uint8], m: int): seq[uint32] {.role: math.} =
   ## Bs: input bit sequence (0/1).
   ## m: pattern size.
   var
@@ -42,7 +44,7 @@ proc patternCounts*(Bs: openArray[uint8], m: int): seq[uint32] =
       result = counts
 
 
-proc phiForM*(Bs: openArray[uint8], m: int): float64 =
+proc phiForM*(Bs: openArray[uint8], m: int): float64 {.role: math.} =
   ## Bs: input bit sequence (0/1).
   ## m: pattern size.
   var
@@ -64,7 +66,7 @@ proc phiForM*(Bs: openArray[uint8], m: int): float64 =
 
 
 proc approximateEntropyTest*(Bs: openArray[uint8], m: int,
-    a: float64 = defaultAlpha): NistResult =
+    a: float64 = defaultAlpha): NistResult {.role: math.} =
   ## Bs: input bit sequence (0/1).
   ## m: pattern size.
   ## a: alpha threshold.
@@ -86,7 +88,7 @@ proc approximateEntropyTest*(Bs: openArray[uint8], m: int,
     result = makeResult("approx_entropy_m" & $m, chi, p, a)
 
 
-proc psi2ForM*(Bs: openArray[uint8], m: int): float64 =
+proc psi2ForM*(Bs: openArray[uint8], m: int): float64 {.role: math.} =
   ## Bs: input bit sequence (0/1).
   ## m: pattern size.
   var
@@ -107,7 +109,7 @@ proc psi2ForM*(Bs: openArray[uint8], m: int): float64 =
 
 
 proc serialTest*(Bs: openArray[uint8], m: int,
-    a: float64 = defaultAlpha): tuple[r1, r2: NistResult] =
+    a: float64 = defaultAlpha): tuple[r1, r2: NistResult] {.role: math.} =
   ## Bs: input bit sequence (0/1).
   ## m: pattern size (>= 2).
   ## a: alpha threshold.
@@ -119,8 +121,8 @@ proc serialTest*(Bs: openArray[uint8], m: int,
     delta2: float64 = 0.0
     p1: float64 = 0.0
     p2: float64 = 0.0
-    r1: NistResult
-    r2: NistResult
+    r1: NistResult = default(NistResult)
+    r2: NistResult = default(NistResult)
   if m < 3:
     r1 = makeResult("serial_m" & $m & "_1", 0.0, 0.0, a)
     r2 = makeResult("serial_m" & $m & "_2", 0.0, 0.0, a)

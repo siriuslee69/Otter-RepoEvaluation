@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Test UI Catalog                                    |
-# | -> Discover annotated zero-argument routines in tests    |
-# ============================================================
+## ============================================================
+## | Otter Test UI Catalog                                    |
+## | -> Discover annotated zero-argument routines in tests    |
+## ============================================================
 
 import std/[algorithm, os, sets, strutils]
 
@@ -53,7 +53,7 @@ when defined(amd64) or defined(i386):
       tag: "parsing|testing|ui".} =
     ## flag: x86 SIMD/AES feature checked directly through CPUID.
     var
-      leaf0, leaf1, leaf7: array[4, int32]
+      leaf0, leaf1, leaf7: array[4, int32] = default(array[4, int32])
       avxState: bool = false
     leaf0 = cpuid(0, 0)
     leaf1 = cpuid(1, 0)
@@ -288,7 +288,7 @@ proc appendSourceEntries(E: var seq[OtterUiTestEntry], sourcePath, testsRoot: st
     pragmaAt: int = 0
     values: seq[string] = @[]
     routine: string = ""
-    entry: OtterUiTestEntry
+    entry: OtterUiTestEntry = default(OtterUiTestEntry)
   while searchAt < source.len:
     pragmaAt = source.find(Marker, searchAt)
     if pragmaAt < 0:
@@ -326,8 +326,8 @@ proc validateEntries(E: openArray[OtterUiTestEntry])
     {.role: parser, tag: "parsing|testing|ui".} =
   ## E: complete catalog checked for ambiguous worker identities and tabs.
   var
-    ids: HashSet[string]
-    tabs: HashSet[string]
+    ids: HashSet[string] = default(HashSet[string])
+    tabs: HashSet[string] = default(HashSet[string])
     i: int = 0
     tabKey: string = ""
   while i < E.len:
@@ -345,7 +345,7 @@ proc discoverOtterUiTests*(repoRoot: string): OtterUiCatalog
     {.role: metaOrchestrator, tag: "parsing|testing|ui".} =
   ## repoRoot: repository whose tests tree is scanned for otterUiTest pragmas.
   var
-    flags: HashSet[string]
+    flags: HashSet[string] = default(HashSet[string])
   result.config = loadOtterUiConfig(repoRoot)
   if not dirExists(result.config.testsRoot):
     raise newException(IOError, "tests directory does not exist: " & result.config.testsRoot)

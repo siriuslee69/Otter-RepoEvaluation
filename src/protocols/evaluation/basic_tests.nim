@@ -1,7 +1,10 @@
-# ============================================================
-# | NIST Eval Basic Tests                                   |
-# | -> Frequency, runs, longest-run, cumulative sums        |
-# ============================================================
+## ============================================================
+## | NIST Eval Basic Tests                                   |
+## | -> Frequency, runs, longest-run, cumulative sums        |
+## ============================================================
+
+import runePragmas
+import var_invariants
 
 import std/math
 
@@ -11,7 +14,7 @@ import ./math_utils
 import ./types
 
 
-proc monobitTest*(Bs: openArray[uint8], a: float64 = defaultAlpha): NistResult =
+proc monobitTest*(Bs: openArray[uint8], a: float64 = defaultAlpha): NistResult {.role: math.} =
   ## Bs: input bit sequence (0/1).
   ## a: alpha threshold.
   var
@@ -35,7 +38,7 @@ proc monobitTest*(Bs: openArray[uint8], a: float64 = defaultAlpha): NistResult =
 
 
 proc blockFrequencyTest*(Bs: openArray[uint8], m: int,
-    a: float64 = defaultAlpha): NistResult =
+    a: float64 = defaultAlpha): NistResult {.role: math.} =
   ## Bs: input bit sequence (0/1).
   ## m: block size in bits.
   ## a: alpha threshold.
@@ -71,7 +74,7 @@ proc blockFrequencyTest*(Bs: openArray[uint8], m: int,
       result = makeResult("block_frequency", chi, p, a)
 
 
-proc runsTest*(Bs: openArray[uint8], a: float64 = defaultAlpha): NistResult =
+proc runsTest*(Bs: openArray[uint8], a: float64 = defaultAlpha): NistResult {.role: math.} =
   ## Bs: input bit sequence (0/1).
   ## a: alpha threshold.
   var
@@ -97,158 +100,81 @@ proc runsTest*(Bs: openArray[uint8], a: float64 = defaultAlpha): NistResult =
       result = makeResult("runs", float64(v), p, a)
 
 
-proc longestRunOfOnesTest*(Bs: openArray[uint8], m: int,
-    a: float64 = defaultAlpha): NistResult =
-  ## Bs: input bit sequence (0/1).
-  ## m: block size for longest-run calculation.
-  ## a: alpha threshold.
+proc longestRunModel(m: int): tuple[first: int, P: seq[float64]]
+    {.role: truthBuilder.} =
+  ## m: supported block length. First/last categories include their tails.
+  case m
+  of 8: result = (1, @[0.2148, 0.3672, 0.2305, 0.1875])
+  of 128: result = (4, @[0.1174, 0.2430, 0.2493, 0.1752, 0.1027, 0.1124])
+  of 10000: result = (10, @[0.0882, 0.2092, 0.2483, 0.1933, 0.1208, 0.0675, 0.0727])
+  else: result = (0, @[])
+
+proc longestInBlock(B: openArray[uint8], o, m: int): int {.role: math,
+    needsRun: o >= 0 and m > 0 and o <= B.len and m <= B.len - o.} =
+  ## B: bits; o: first index; m: block length. The checked range stays in B.
   var
-    n: int = Bs.len
-    nBlocks: int = 0
-    i: int = 0
-    j: int = 0
-    longest: int = 0
+    i: int = o
     run: int = 0
-    v0: int = 0
-    v1: int = 0
-    v2: int = 0
-    v3: int = 0
-    v4: int = 0
-    v5: int = 0
-    v6: int = 0
+  result = 0
+  while i < o + m:
+    if B[i] == 1'u8:
+      inc run
+    else:
+      run = 0
+    result = max(result, run)
+    inc i
+
+proc longestRunCounts(B: openArray[uint8], m, first, bins: int): seq[int]
+    {.role: math.} =
+  ## B: bits; m: block length; first: first category; bins: category count.
+  ## The incomplete final block is left out, as in the other block tests.
+  var
+    i: int = 0
+    bucket: int = 0
+  result = newSeq[int](bins)
+  while i < B.len div m:
+    bucket = clamp(longestInBlock(B, i * m, m) - first, 0, bins - 1)
+    inc result[bucket]
+    inc i
+
+proc longestRunChi(C: seq[int], P: seq[float64], n: int): float64
+    {.role: math.} =
+  ## C: observed counts; P: category probabilities; n: complete blocks.
+  var
+    i: int = 0
+    expected: float64 = 0.0
+    delta: float64 = 0.0
+  result = 0.0
+  while i < C.len:
+    expected = n.float64 * P[i]
+    delta = C[i].float64 - expected
+    result += delta * delta / expected
+    inc i
+
+proc longestRunOfOnesTest*(Bs: openArray[uint8], m: int,
+    a: float64 = defaultAlpha): NistResult {.role: math.} =
+  ## Bs: bits (0/1); m: 8, 128, or 10000; a: pass threshold.
+  ## Unsupported lengths and streams shorter than one block fail with p=0.
+  var
+    model: tuple[first: int, P: seq[float64]] = longestRunModel(m)
+    C: seq[int] = @[]
+    n: int = 0
     chi: float64 = 0.0
     p: float64 = 0.0
-    exp0: float64 = 0.0
-    exp1: float64 = 0.0
-    exp2: float64 = 0.0
-    exp3: float64 = 0.0
-    exp4: float64 = 0.0
-    exp5: float64 = 0.0
-    exp6: float64 = 0.0
-  nBlocks = n div m
-  if nBlocks == 0:
-    result = makeResult("longest_run_m" & $m, 0.0, 0.0, a)
-  elif m == 8:
-    while i < nBlocks:
-      longest = 0
-      run = 0
-      j = 0
-      while j < m:
-        if Bs[i * m + j] == 1'u8:
-          run = run + 1
-          if run > longest:
-            longest = run
-        else:
-          run = 0
-        j = j + 1
-      if longest <= 1:
-        v0 = v0 + 1
-      elif longest == 2:
-        v1 = v1 + 1
-      elif longest == 3:
-        v2 = v2 + 1
-      else:
-        v3 = v3 + 1
-      i = i + 1
-    exp0 = float64(nBlocks) * 0.2148
-    exp1 = float64(nBlocks) * 0.3672
-    exp2 = float64(nBlocks) * 0.2305
-    exp3 = float64(nBlocks) * 0.1875
-    chi = ((float64(v0) - exp0) * (float64(v0) - exp0)) / exp0
-    chi = chi + ((float64(v1) - exp1) * (float64(v1) - exp1)) / exp1
-    chi = chi + ((float64(v2) - exp2) * (float64(v2) - exp2)) / exp2
-    chi = chi + ((float64(v3) - exp3) * (float64(v3) - exp3)) / exp3
-    p = regularizedGammaQ(1.5, chi / 2.0)
-    result = makeResult("longest_run_m8", chi, p, a)
-  elif m == 128:
-    while i < nBlocks:
-      longest = 0
-      run = 0
-      j = 0
-      while j < m:
-        if Bs[i * m + j] == 1'u8:
-          run = run + 1
-          if run > longest:
-            longest = run
-        else:
-          run = 0
-        j = j + 1
-      if longest <= 4:
-        v0 = v0 + 1
-      elif longest == 5:
-        v1 = v1 + 1
-      elif longest == 6:
-        v2 = v2 + 1
-      elif longest == 7:
-        v3 = v3 + 1
-      elif longest == 8:
-        v4 = v4 + 1
-      else:
-        v5 = v5 + 1
-      i = i + 1
-    exp0 = float64(nBlocks) * 0.1174
-    exp1 = float64(nBlocks) * 0.2430
-    exp2 = float64(nBlocks) * 0.2493
-    exp3 = float64(nBlocks) * 0.1752
-    exp4 = float64(nBlocks) * 0.1027
-    exp5 = float64(nBlocks) * 0.1124
-    chi = ((float64(v0) - exp0) * (float64(v0) - exp0)) / exp0
-    chi = chi + ((float64(v1) - exp1) * (float64(v1) - exp1)) / exp1
-    chi = chi + ((float64(v2) - exp2) * (float64(v2) - exp2)) / exp2
-    chi = chi + ((float64(v3) - exp3) * (float64(v3) - exp3)) / exp3
-    chi = chi + ((float64(v4) - exp4) * (float64(v4) - exp4)) / exp4
-    chi = chi + ((float64(v5) - exp5) * (float64(v5) - exp5)) / exp5
-    p = regularizedGammaQ(2.5, chi / 2.0)
-    result = makeResult("longest_run_m128", chi, p, a)
-  elif m == 10000:
-    while i < nBlocks:
-      longest = 0
-      run = 0
-      j = 0
-      while j < m:
-        if Bs[i * m + j] == 1'u8:
-          run = run + 1
-          if run > longest:
-            longest = run
-        else:
-          run = 0
-        j = j + 1
-      if longest <= 10:
-        v0 = v0 + 1
-      elif longest == 11:
-        v1 = v1 + 1
-      elif longest == 12:
-        v2 = v2 + 1
-      elif longest == 13:
-        v3 = v3 + 1
-      elif longest == 14:
-        v4 = v4 + 1
-      elif longest == 15:
-        v5 = v5 + 1
-      else:
-        v6 = v6 + 1
-      i = i + 1
-    exp0 = float64(nBlocks) * 0.0882
-    exp1 = float64(nBlocks) * 0.2092
-    exp2 = float64(nBlocks) * 0.2483
-    exp3 = float64(nBlocks) * 0.1933
-    exp4 = float64(nBlocks) * 0.1208
-    exp5 = float64(nBlocks) * 0.0675
-    exp6 = float64(nBlocks) * 0.0727
-    chi = ((float64(v0) - exp0) * (float64(v0) - exp0)) / exp0
-    chi = chi + ((float64(v1) - exp1) * (float64(v1) - exp1)) / exp1
-    chi = chi + ((float64(v2) - exp2) * (float64(v2) - exp2)) / exp2
-    chi = chi + ((float64(v3) - exp3) * (float64(v3) - exp3)) / exp3
-    chi = chi + ((float64(v4) - exp4) * (float64(v4) - exp4)) / exp4
-    chi = chi + ((float64(v5) - exp5) * (float64(v5) - exp5)) / exp5
-    chi = chi + ((float64(v6) - exp6) * (float64(v6) - exp6)) / exp6
-    p = regularizedGammaQ(3.0, chi / 2.0)
-    result = makeResult("longest_run_m10000", chi, p, a)
-  else:
-    result = makeResult("longest_run_m" & $m, 0.0, 0.0, a)
+    name: string = "longest_run_m" & $m
+  result = makeResult(name, 0.0, 0.0, a)
+  if model.P.len == 0:
+    return
+  n = Bs.len div m
+  if n == 0:
+    return
+  C = longestRunCounts(Bs, m, model.first, model.P.len)
+  chi = longestRunChi(C, model.P, n)
+  p = regularizedGammaQ((model.P.len - 1).float64 / 2.0, chi / 2.0)
+  result = makeResult(name, chi, p, a)
 
 
-proc maxCumulativeSum*(Bs: openArray[uint8], f: bool): int =
+proc maxCumulativeSum*(Bs: openArray[uint8], f: bool): int {.role: math.} =
   ## Bs: input bit sequence (0/1).
   ## f: true for forward, false for backward.
   var
@@ -274,7 +200,7 @@ proc maxCumulativeSum*(Bs: openArray[uint8], f: bool): int =
   result = m
 
 
-proc cumulativeSumsPValue*(z: float64, n: float64): float64 =
+proc cumulativeSumsPValue*(z: float64, n: float64): float64 {.role: math.} =
   ## z: max excursion.
   ## n: total number of bits.
   var
@@ -310,7 +236,7 @@ proc cumulativeSumsPValue*(z: float64, n: float64): float64 =
 
 
 proc cumulativeSumsTest*(Bs: openArray[uint8], f: bool,
-    a: float64 = defaultAlpha): NistResult =
+    a: float64 = defaultAlpha): NistResult {.role: math.} =
   ## Bs: input bit sequence (0/1).
   ## f: true for forward, false for backward.
   ## a: alpha threshold.

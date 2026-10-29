@@ -1,15 +1,15 @@
-# ============================================================
-# | Otter ct samples -> three routines with known answers    |
-# | -> compiled and checked by test_machine_code.nim         |
-# ============================================================
-#
-#   earlyExitEqual      stops at the first different byte    -> BRANCH
-#   xorAccumulateEqual  looks at every byte, decides at end  -> clean
-#   secretLookup        reads table[secret]                  -> ADDRESS
-#
-# {.noinline.} keeps each one a routine of its own in the binary. The
-# main block feeds them the command line, so the compiler cannot work
-# the answers out ahead of time and drop the routines.
+## ============================================================
+## | Otter ct samples -> three routines with known answers    |
+## | -> compiled and checked by test_machine_code.nim         |
+## ============================================================
+##
+##   earlyExitEqual      stops at the first different byte    -> BRANCH
+##   xorAccumulateEqual  looks at every byte, decides at end  -> clean
+##   secretLookup        reads table[secret]                  -> ADDRESS
+##
+## {.noinline.} keeps each one a routine of its own in the binary. The
+## main block feeds them the command line, so the compiler cannot work
+## the answers out ahead of time and drop the routines.
 
 import std/os
 

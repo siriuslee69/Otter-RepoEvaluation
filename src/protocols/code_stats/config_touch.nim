@@ -402,7 +402,7 @@ proc mapTouches*(A: var seq[ConfigField], F: seq[FunctionInfo]): int
   ## A <- every setting found   F <- every routine in the tree
   ## Returns how many routines touched at least one setting.
   var
-    got: tuple[read: bool, write: bool]
+    got: tuple[read: bool, write: bool] = default(tuple[read: bool, write: bool])
     hit: bool = false
     seats: Table[string, HashSet[string]] = initTable[string,
       HashSet[string]]()
@@ -577,7 +577,7 @@ proc configReportOf*(rootDir: string, files: seq[string],
   ## rootDir <- the repository   files <- every source file
   ## F <- every routine already parsed out of the tree
   var
-    found: tuple[types: seq[string], fields: seq[ConfigField]]
+    found: tuple[types: seq[string], fields: seq[ConfigField]] = default(tuple[types: seq[string], fields: seq[ConfigField]])
     rows: seq[ConfigField] = @[]
   result = ConfigReport(types: @[], fields: @[], conflicts: @[],
     fieldCount: 0, deadCount: 0, unsetCount: 0, contestedCount: 0,

@@ -1,7 +1,9 @@
-# ============================================================
-# | NIST Eval Rank Test                                     |
-# | -> Binary matrix rank computations                      |
-# ============================================================
+## ============================================================
+## | NIST Eval Rank Test                                     |
+## | -> Binary matrix rank computations                      |
+## ============================================================
+
+import runePragmas
 
 import std/math
 
@@ -10,7 +12,7 @@ import ./math_utils
 import ./types
 
 
-proc lnPow2MinusPow2(a, b: int): float64 =
+proc lnPow2MinusPow2(a, b: int): float64 {.role: math.} =
   ## a: exponent for first power of two.
   ## b: exponent for second power of two.
   var
@@ -26,7 +28,7 @@ proc lnPow2MinusPow2(a, b: int): float64 =
       result = float64(b) * ln2 + ln(t)
 
 
-proc rankProbability*(r, c, k: int): float64 =
+proc rankProbability*(r, c, k: int): float64 {.role: math.} =
   ## r: matrix rows.
   ## c: matrix cols.
   ## k: target rank.
@@ -55,7 +57,7 @@ proc rankProbability*(r, c, k: int): float64 =
     result = exp(logNum - logAll)
 
 
-proc binaryMatrixRank*(Bs: openArray[uint8], r, c, o: int): int =
+proc binaryMatrixRank*(Bs: openArray[uint8], r, c, o: int): int {.role: math.} =
   ## Bs: input bit sequence (0/1).
   ## r: matrix rows.
   ## c: matrix cols.
@@ -104,7 +106,7 @@ proc binaryMatrixRank*(Bs: openArray[uint8], r, c, o: int): int =
 
 
 proc matrixRankTest*(Bs: openArray[uint8], r, c: int,
-    a: float64 = defaultAlpha): NistResult =
+    a: float64 = defaultAlpha): NistResult {.role: math.} =
   ## Bs: input bit sequence (0/1).
   ## r: matrix rows.
   ## c: matrix cols.

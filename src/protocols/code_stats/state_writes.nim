@@ -192,7 +192,7 @@ type
     notes*: seq[string]
     error*: string
 
-proc isIdentChar(c: char): bool {.inline.} =
+proc isIdentChar(c: char): bool {.inline, role: parser.} =
   result = c.isAlphaNumeric() or c == '_'
 
 proc isResetter*(name: string): bool {.role: parser,
@@ -272,10 +272,10 @@ proc openerOf(s: string, close: int, a, b: char): int {.role: parser,
       return i
     i = i - 1
 
-proc openParenOf(s: string, close: int): int {.inline.} =
+proc openParenOf(s: string, close: int): int {.inline, role: parser.} =
   result = openerOf(s, close, '(', ')')
 
-proc openBracketOf(s: string, close: int): int {.inline.} =
+proc openBracketOf(s: string, close: int): int {.inline, role: parser.} =
   result = openerOf(s, close, '[', ']')
 
 proc callNameBefore(s: string, close: int): string {.role: parser,
@@ -711,7 +711,7 @@ proc fieldOf(s: string): tuple[name, typ: string] {.role: parser,
   result = (name: n, typ: t[colon + 1 .. ^1].split('=')[0].strip(
     chars = {' ', ',', ';'}))
 
-proc indentOf(s: string): int {.inline.} =
+proc indentOf(s: string): int {.inline, role: parser.} =
   result = 0
   while result < s.len and s[result] == ' ':
     result = result + 1
@@ -948,7 +948,7 @@ proc fillTraffic(st: var StateType, holders: seq[StateHolder])
         st.entries[k].readers.add(h.f.name)
     k = k + 1
 
-proc absLine(f: FunctionInfo, k: int): int {.inline.} =
+proc absLine(f: FunctionInfo, k: int): int {.inline, role: parser.} =
   ## f: one routine   k: an index into its body.
   ## Which line of the file that is. The parser keeps the body without
   ## its header, and records where the routine ends, so counting back
@@ -1005,7 +1005,7 @@ proc readsBetween(f: FunctionInfo, recvs: HashSet[string], field: string,
       return true
     k = k + 1
 
-proc isBranchHead(s: string): bool {.inline.} =
+proc isBranchHead(s: string): bool {.inline, role: parser.} =
   result = s.startsWith("of ") or s.startsWith("elif ") or
     s.startsWith("else:") or s.startsWith("else ")
 
@@ -1167,7 +1167,7 @@ proc collectFindings(holders: seq[StateHolder], at: int, r: var StateReport)
       r.states[at].entries[k].hazard = true
     k = k + 1
 
-proc isState(st: StateType): bool {.inline.} =
+proc isState(st: StateType): bool {.inline, role: parser.} =
   ## st: one type. Whether it was declared to be shared, written state.
   result = st.role in stateRoles
 

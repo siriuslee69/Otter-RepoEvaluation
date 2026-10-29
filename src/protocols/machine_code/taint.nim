@@ -1,52 +1,52 @@
-# ============================================================
-# | Otter Machine Code -> forward search for secret data     |
-# | -> which jumps and addresses depend on a secret          |
-# ============================================================
-#
-# A routine is "constant-time" when how long it takes does not depend
-# on the secret it was given. On x86-64 three things break that:
-#
-#   ┌──────────────────────────┬─────────────────────────────────────┐
-#   │ what                     │ why it leaks                        │
-#   ├──────────────────────────┼─────────────────────────────────────┤
-#   │ a conditional jump whose │ one way is longer than the other    │
-#   │ condition is secret      │                                     │
-#   │ a memory address made    │ the cache remembers which address   │
-#   │ from a secret            │ was touched; an observer can time it│
-#   │ a division of a secret   │ `div` takes longer for some numbers │
-#   └──────────────────────────┴─────────────────────────────────────┘
-#
-# The search marks places that hold a secret, then walks forward
-# through the instructions, marking every place a marked one flows into.
-#
-# Def. 1  A "place" is a register (rax), the flags, a stack slot
-#         (stack@rsp+0x10), the values pushed ("pushed"), or all other
-#         memory taken together ("memory").
-# Def. 2  A mark ("taint") is a set of two bits:
-#           tbSecret   the value itself is secret
-#           tbPointer  the value is an address of secret bytes; the
-#                      address itself is public
-#         Reading memory through a tbPointer address gives tbSecret.
-#         Only tbSecret ever causes a finding.
-# Def. 3  A "block" is a run of instructions with one way in (the top)
-#         and one way out (the bottom). The "control-flow graph" is the
-#         blocks plus the arrows "the bottom of A can continue at B".
-#
-#   entry marks ──> block 0 ──> block 1 ──┐
-#                      ▲                   │   marks are merged where
-#                      └──── block 2 <─────┘   arrows meet, and the walk
-#                                              repeats until no mark grows
-#
-# The walk ignores which way a jump went: at a merge both ways count.
-# It can therefore mark too much, never too little, within what the
-# instruction table describes.
-#
-# Starting marks come from the System V calling convention: the first
-# six whole-number arguments arrive in rdi, rsi, rdx, rcx, r8, r9.
-#
-#   proc f(a: openArray[byte], k: byte)     a.ptr -> rdi  tbPointer
-#                                           a.len -> rsi  public
-#                                           k     -> rdx  tbSecret
+## ============================================================
+## | Otter Machine Code -> forward search for secret data     |
+## | -> which jumps and addresses depend on a secret          |
+## ============================================================
+##
+## A routine is "constant-time" when how long it takes does not depend
+## on the secret it was given. On x86-64 three things break that:
+##
+##   ┌──────────────────────────┬─────────────────────────────────────┐
+##   │ what                     │ why it leaks                        │
+##   ├──────────────────────────┼─────────────────────────────────────┤
+##   │ a conditional jump whose │ one way is longer than the other    │
+##   │ condition is secret      │                                     │
+##   │ a memory address made    │ the cache remembers which address   │
+##   │ from a secret            │ was touched; an observer can time it│
+##   │ a division of a secret   │ `div` takes longer for some numbers │
+##   └──────────────────────────┴─────────────────────────────────────┘
+##
+## The search marks places that hold a secret, then walks forward
+## through the instructions, marking every place a marked one flows into.
+##
+## Def. 1  A "place" is a register (rax), the flags, a stack slot
+##         (stack@rsp+0x10), the values pushed ("pushed"), or all other
+##         memory taken together ("memory").
+## Def. 2  A mark ("taint") is a set of two bits:
+##           tbSecret   the value itself is secret
+##           tbPointer  the value is an address of secret bytes; the
+##                      address itself is public
+##         Reading memory through a tbPointer address gives tbSecret.
+##         Only tbSecret ever causes a finding.
+## Def. 3  A "block" is a run of instructions with one way in (the top)
+##         and one way out (the bottom). The "control-flow graph" is the
+##         blocks plus the arrows "the bottom of A can continue at B".
+##
+##   entry marks ──> block 0 ──> block 1 ──┐
+##                      ▲                   │   marks are merged where
+##                      └──── block 2 <─────┘   arrows meet, and the walk
+##                                              repeats until no mark grows
+##
+## The walk ignores which way a jump went: at a merge both ways count.
+## It can therefore mark too much, never too little, within what the
+## instruction table describes.
+##
+## Starting marks come from the System V calling convention: the first
+## six whole-number arguments arrive in rdi, rsi, rdx, rcx, r8, r9.
+##
+##   proc f(a: openArray[byte], k: byte)     a.ptr -> rdi  tbPointer
+##                                           a.len -> rsi  public
+##                                           k     -> rdx  tbSecret
 
 import std/[os, sequtils, sets, strutils, tables]
 
@@ -749,7 +749,7 @@ proc reachesReturn(F: Flows, r: Routine, G: seq[Block], reg: string): bool {.
   settle(S, G, E, reached)
   result = S.retBits != {}
 
-proc flowOf(F: Flows, t: uint64): set[0 .. 5] =
+proc flowOf(F: Flows, t: uint64): set[0 .. 5] {.role: parser.} =
   ## F: the binary's flows   t: a routine's start. Which of the six
   ## argument registers can reach rax. Unknown, or already being worked
   ## out further up (a loop of calls): all six, to be safe.

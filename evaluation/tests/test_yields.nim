@@ -1,10 +1,10 @@
-# ============================================================
-# | Otter Yield Path Tests                                   |
-# | -> Every way a routine can end, not only the good one    |
-# ============================================================
-#
-# `examples/yields/` is one file of seven routines, each ending in a
-# different way. Its doc box names the expected verdict for each.
+## ============================================================
+## | Otter Yield Path Tests                                   |
+## | -> Every way a routine can end, not only the good one    |
+## ============================================================
+##
+## `examples/yields/` is one file of seven routines, each ending in a
+## different way. Its doc box names the expected verdict for each.
 
 import std/[os, sets, unittest]
 

@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Test UI Configuration                              |
-# | -> Read the .otter theme, title, banner, and log path    |
-# ============================================================
+## ============================================================
+## | Otter Test UI Configuration                              |
+## | -> Read the .otter theme, title, banner, and log path    |
+## ============================================================
 
 import std/[os, strutils]
 
@@ -157,7 +157,7 @@ proc loadOtterUiConfig*(repoRoot: string): OtterUiConfig
     configPath: string = ""
     cssPath: string = ""
     repoName: string = ""
-    generated: tuple[configPath, cssPath: string]
+    generated: tuple[configPath, cssPath: string] = default(tuple[configPath, cssPath: string])
   result.repoRoot = absolutePath(repoRoot)
   result.testsRoot = testsRootOf(result.repoRoot)
   repoName = splitPath(result.repoRoot).tail

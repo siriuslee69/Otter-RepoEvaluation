@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Repo Graph Root                                    |
-# | -> Public exports for parsing, graphing, and execution   |
-# ============================================================
+## ============================================================
+## | Otter Repo Graph Root                                    |
+## | -> Public exports for parsing, graphing, and execution   |
+## ============================================================
 
 import ./repo_graph/types
 import ./repo_graph/io_utils

@@ -1,7 +1,9 @@
-# ============================================================
-# | NIST Eval Math Utilities                                |
-# | -> Gamma helpers and normal distribution utilities      |
-# ============================================================
+## ============================================================
+## | NIST Eval Math Utilities                                |
+## | -> Gamma helpers and normal distribution utilities      |
+## ============================================================
+
+import runePragmas
 
 import std/math
 
@@ -11,12 +13,12 @@ const
   gammaFpMin = 1.0e-30
 
 
-proc normalCdf*(x: float64): float64 =
+proc normalCdf*(x: float64): float64 {.role: math.} =
   ## x: input value to evaluate the standard normal CDF at.
   result = 0.5 * erfc(-x / sqrt(2.0))
 
 
-proc gammaSeries(a, x: float64): float64 =
+proc gammaSeries(a, x: float64): float64 {.role: math.} =
   var
     ap: float64 = a
     sum: float64 = 1.0 / a
@@ -32,7 +34,7 @@ proc gammaSeries(a, x: float64): float64 =
   result = sum * exp(-x + a * ln(x) - lgamma(a))
 
 
-proc gammaContinuedFraction(a, x: float64): float64 =
+proc gammaContinuedFraction(a, x: float64): float64 {.role: math.} =
   var
     b: float64 = x + 1.0 - a
     c: float64 = 1.0 / gammaFpMin
@@ -59,7 +61,7 @@ proc gammaContinuedFraction(a, x: float64): float64 =
   result = exp(-x + a * ln(x) - lgamma(a)) * h
 
 
-proc regularizedGammaQ*(a, x: float64): float64 =
+proc regularizedGammaQ*(a, x: float64): float64 {.role: math.} =
   ## a: shape parameter.
   ## x: input value to evaluate the upper regularized gamma at.
   var

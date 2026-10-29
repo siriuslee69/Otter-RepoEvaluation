@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Repo Graph Exporters                               |
-# | -> Convert repo graphs into text and JSON outputs        |
-# ============================================================
+## ============================================================
+## | Otter Repo Graph Exporters                               |
+## | -> Convert repo graphs into text and JSON outputs        |
+## ============================================================
 
 import std/[algorithm, json, sets, strutils, tables]
 
@@ -111,7 +111,7 @@ proc toDotGraph*(g: RepoGraph): string {.role: helper, tag: "graph".} =
 
 proc normalizeTags(tags: openArray[string]): seq[string] {.role: helper, tag: "graph".} =
   var
-    seen: HashSet[string]
+    seen: HashSet[string] = default(HashSet[string])
     t: string = ""
   seen = initHashSet[string]()
   result = @[]
@@ -127,9 +127,9 @@ proc normalizeTags(tags: openArray[string]): seq[string] {.role: helper, tag: "g
 
 proc toCallTree*(g: RepoGraph, nDepthLimit: int = 8): string {.role: helper, tag: "graph".} =
   var
-    outMap: Table[string, seq[string]]
-    inDeg: Table[string, int]
-    byId: Table[string, FunctionInfo]
+    outMap: Table[string, seq[string]] = default(Table[string, seq[string]])
+    inDeg: Table[string, int] = default(Table[string, int])
+    byId: Table[string, FunctionInfo] = default(Table[string, FunctionInfo])
     lines: seq[string] = @[]
     roots: seq[string] = @[]
     childLast: bool = false
@@ -153,7 +153,7 @@ proc toCallTree*(g: RepoGraph, nDepthLimit: int = 8): string {.role: helper, tag
       seen: HashSet[string]) =
     var
       label: string = ""
-      localSeen: HashSet[string]
+      localSeen: HashSet[string] = default(HashSet[string])
       children: seq[string] = @[]
       i: int = 0
       branchPrefix: string = ""
@@ -222,9 +222,9 @@ proc toGraphJson*(g: RepoGraph): string {.role: helper, tag: "graph".} =
     fnodes: seq[JsonNode] = @[]
     edges: seq[JsonNode] = @[]
     groups: seq[JsonNode] = @[]
-    sockets: seq[JsonNode]
-    risks: seq[JsonNode]
-    tags: seq[JsonNode]
+    sockets: seq[JsonNode] = default(seq[JsonNode])
+    risks: seq[JsonNode] = default(seq[JsonNode])
+    tags: seq[JsonNode] = default(seq[JsonNode])
   for f in g.functions:
     sockets = @[]
     risks = @[]

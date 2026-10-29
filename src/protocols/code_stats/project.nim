@@ -1,24 +1,28 @@
-# ============================================================
-# | Otter Code Statistics Project                            |
-# | -> analyzeProject: one folder in, one shape out          |
-# ============================================================
-#
-# This is the whole entry point. A window hands it a folder and gets
-# back everything it needs to draw:
-#
-#     analyzeProject("/home/me/MyRepo")
-#       .files      one cell per file
-#       .nest       the bars
-#       .tests      the rings
-#       .roles      the tally
-#
-# Nothing is cached here. A caller that wants the figures kept keeps
-# them itself, because the tree changes under us while an agent works
-# and a stale chart is worse than a slow one.
+## ============================================================
+## | Otter Code Statistics Project                            |
+## | -> analyzeProject: one folder in, one shape out          |
+## ============================================================
+##
+## This is the whole entry point. A window hands it a folder and gets
+## back everything it needs to draw:
+##
+##     analyzeProject("/home/me/MyRepo")
+##       .files      one cell per file
+##       .nest       the bars
+##       .tests      the rings
+##       .roles      the tally
+##
+## Nothing is cached here. A caller that wants the figures kept keeps
+## them itself, because the tree changes under us while an agent works
+## and a stale chart is worse than a slow one.
 
 import std/[os, sets, strutils, tables]
 
 import ./pipeline
+import ./inventory
+import ./input_scan
+import ./imports
+import ./source_metrics
 import ./test_scan
 import ./types
 import ./shape
@@ -339,7 +343,7 @@ proc analyzeProject*(rootDir: string): ProjectStats {.role: orchestrator,
   # ---- stage 3: what needs stage 2 -------------------------------------
   together:
     result.unsafeDetails = scanUnsafeDetails(rootDir, allSourceFiles,
-      parts.src, inputScan.inputs, graph.edges)
+      parts.src, inputScan.inputs)
     result.placeholders = placeholdersOf(all, calledNames, normDir)
     result.unusedFuncs = unusedReportOf(parts.src, calledNames, normDir)
     result.families = familiesOf(result.shape.shapes, parts.src)

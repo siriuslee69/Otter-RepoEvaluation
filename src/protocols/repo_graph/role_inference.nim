@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Repo Graph Role Inference                          |
-# | -> Heuristic role scoring for untagged functions         |
-# ============================================================
+## ============================================================
+## | Otter Repo Graph Role Inference                          |
+## | -> Heuristic role scoring for untagged functions         |
+## ============================================================
 
 import std/[math, strutils, tables]
 
@@ -45,10 +45,10 @@ proc nameContainsOneOf(s: string, A: openArray[string]): bool {.role: helper, ta
 
 proc inferRoles*(g: var RepoGraph) {.role: truthBuilder, tag: "graph|parsing".} =
   var
-    inDeg: Table[string, int]
-    outDeg: Table[string, int]
+    inDeg: Table[string, int] = default(Table[string, int])
+    outDeg: Table[string, int] = default(Table[string, int])
     i: int = 0
-    f: FunctionInfo
+    f: FunctionInfo = default(FunctionInfo)
     dIn: int = 0
     dOut: int = 0
     nBranches: int = 0

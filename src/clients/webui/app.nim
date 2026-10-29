@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Repo Graph WebUI App                               |
-# | -> Nim WebUI host for the interactive repo graph         |
-# ============================================================
+## ============================================================
+## | Otter Repo Graph WebUI App                               |
+## | -> Nim WebUI host for the interactive repo graph         |
+## ============================================================
 
 import std/[json, os, osproc, strutils]
 
@@ -66,7 +66,7 @@ proc bootstrapPayload(): string {.role: helper, tag: "ui|graph".} =
 
 proc analyzePayload(rootDir: string, includeTests: bool): string {.role: actor, tag: "ui|graph".} =
   var
-    g: RepoGraph
+    g: RepoGraph = default(RepoGraph)
   g = analyzeRepo(rootDir, includeTests)
   result = pretty(%*{
     "ok": true,
@@ -79,7 +79,7 @@ proc annotationPayload(rootDir: string, annotations: JsonNode): string {.role: a
   var
     lines: seq[string] = @[]
     i: int = 0
-    item: JsonNode
+    item: JsonNode = default(JsonNode)
     outPath: string = ""
   lines.add("# Otter Notes For Codex")
   lines.add("")
@@ -111,7 +111,7 @@ proc viewSettingsPath(rootDir: string): string {.role: helper, tag: "ui|graph".}
 proc loadViewSettingsPayload(rootDir: string): string {.role: helper, tag: "ui|graph".} =
   var
     path: string = ""
-    settings: JsonNode
+    settings: JsonNode = default(JsonNode)
   path = viewSettingsPath(rootDir)
   if fileExists(path):
     settings = parseJson(readFile(path))
@@ -139,7 +139,7 @@ proc saveViewSettingsPayload(rootDir: string, settings: JsonNode): string {.role
 proc chooseFolderPayload(): string {.role: actor, tag: "ui|graph".} =
   var
     cmd: string = ""
-    r: tuple[output: string, exitCode: int]
+    r: tuple[output: string, exitCode: int] = default(tuple[output: string, exitCode: int])
     selected: string = ""
   cmd = folderPickerCommand()
   if cmd.len == 0:
@@ -215,7 +215,7 @@ proc otterRunFunction(req: JsonNode): string {.webuiCb, role: actor, tag: "ui|gr
     rootDir: string = ""
     functionId: string = ""
     includeTests: bool = true
-    r: RunSampleResult
+    r: RunSampleResult = default(RunSampleResult)
   rootDir = parseRootDir(req)
   functionId = parseFunctionId(req)
   includeTests = if req.hasKey("includeTests"): req["includeTests"].getBool(true) else: true
@@ -226,7 +226,7 @@ proc otterRunFunction(req: JsonNode): string {.webuiCb, role: actor, tag: "ui|gr
 proc otterSendAnnotations(req: JsonNode): string {.webuiCb, role: actor, tag: "ui|graph".} =
   var
     rootDir: string = ""
-    annotations: JsonNode
+    annotations: JsonNode = default(JsonNode)
   rootDir = parseRootDir(req)
   if req.hasKey("annotations"):
     annotations = req["annotations"]
@@ -251,7 +251,7 @@ proc otterLoadViewSettings(req: JsonNode): string {.webuiCb, role: helper, tag: 
 proc otterSaveViewSettings(req: JsonNode): string {.webuiCb, role: actor, tag: "ui|graph".} =
   var
     rootDir: string = ""
-    settings: JsonNode
+    settings: JsonNode = default(JsonNode)
   rootDir = parseRootDir(req)
   if req.hasKey("settings"):
     settings = req["settings"]
@@ -279,7 +279,7 @@ proc otterChooseFolder(req: JsonNode): string {.webuiCb, role: actor, tag: "ui|g
 
 when isMainModule:
   var
-    w: Window
+    w: Window = default(Window)
     rootOk: bool = false
   w = newWindow()
   w.setSize(1480, 920)

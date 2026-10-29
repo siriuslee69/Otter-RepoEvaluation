@@ -14,9 +14,11 @@
 ## |   nim c -d:otterVis:1,2 -d:otterVisEvery:1000 -r src/pipeline.nim |
 ## ================================================================
 
+import runePragmas
+
 import ../../../src/protocols/visibility
 
-proc readRows*(n: int): seq[int] {.visGroup: 1.} =
+proc readRows*(n: int): seq[int] {.visGroup: 1, role: dataFetcher.} =
   ## n: how many rows to make up.
   ## Group 1 is the reading half of the program.
   result = @[]
@@ -24,7 +26,7 @@ proc readRows*(n: int): seq[int] {.visGroup: 1.} =
     result.add(i)
 
 
-proc addUp*(A: seq[int]): int {.visGroup: 2.} =
+proc addUp*(A: seq[int]): int {.visGroup: 2, role: math.} =
   ## A: the rows. Group 2 is the working half.
   ##
   ## Two loops, one inside the other, so the trace shows the inner one
@@ -34,7 +36,7 @@ proc addUp*(A: seq[int]): int {.visGroup: 2.} =
     for k in 0 .. 1:
       result = result + a * k
 
-proc run*(n: int): int {.visGroup: 2.} =
+proc run*(n: int): int {.visGroup: 2, role: orchestrator.} =
   ## n: how many rows. What they add up to.
   ## An early `return` on purpose: the `<-` line still prints, because
   ## it is put in with `defer`.

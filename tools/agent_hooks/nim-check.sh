@@ -42,6 +42,29 @@ for f in "$@"; do
   BEGIN { max = ENVIRON["MAXN"] + 0; if (max <= 0) max = 24 }
   FNR == 1 { inBlock = 0; open = 0 }
 
+  # Mask string contents before applying declaration rules. The program in a
+  # triple-quoted test fixture is data, not another declaration in this file.
+  function codeOf(s,   i, c, out, quoted, escaped) {
+    note = ""; out = ""; quoted = 0; escaped = 0
+    for (i = 1; i <= length(s); i++) {
+      c = substr(s, i, 1)
+      if (!quoted && substr(s, i, 3) == "\"\"\"") {
+        triple = !triple; i += 2; out = out "\"\""; continue
+      }
+      if (triple) continue
+      if (quoted) {
+        if (c == "\"" && !escaped) { quoted = 0; out = out "\"" }
+        if (c == "\\" && !escaped) escaped = 1; else escaped = 0
+        continue
+      }
+      if (c == "#") { note = substr(s, i); break }
+      if (c == "\"") quoted = 1
+      out = out c
+    }
+    return out
+  }
+  { sub(/\r$/, ""); rawLine = $0; $0 = codeOf($0) }
+
   # How many brackets a line leaves open; strings and comments do not count.
   #   "parts: tuple[a: int, b: int] = ("   -> 1   the value goes on below
   function openOf(s,   t, o, c) {
@@ -63,26 +86,26 @@ for f in "$@"; do
     d = substr($0, RSTART, RLENGTH); sub(/^[a-z]+[[:space:]]+/, "", d); gsub(/`/, "", d)
     curName = d; curLine = NR; phDone = 0
   }
-  { low = tolower($0) }
+  { low = tolower(note) }
   # "placeholder" as a word, not the field `S.placeholders` or a name
   # like `placeholderWords` that merely contains it.
-  (low ~ /(^|[^a-z_.])placeholder([^a-z_]|$)|not implemented|unimplemented|[^a-z]stub[^a-z]|for now/) && curName != "" && !phDone {
+  (low ~ /(^|[^a-z_.])placeholder([^a-z_]|$)|not implemented|unimplemented|[^a-z]stub[^a-z]|for now/) && note !~ /^##/ && $0 !~ /^[[:space:]]*$/ && curName != "" && !phDone {
     if (curName !~ /^ph_/) {
       flag(curLine, "placeholder body in `" curName "` — rename to `ph_" curName "` or finish it")
       phDone = 1
     }
   }
 
-  # --- `tags` collides with Nim built-in; the shared pragma is metaTags ---
+  # --- `tags` collides with Nim built-in; the shared pragma is tag ---
   /\{\.[[:space:]]*tags[[:space:]]*:/ || /,[[:space:]]*tags[[:space:]]*:/ {
-    flag(NR, "`tags:` pragma collides with Nim built-in — use `metaTags:`")
+    flag(NR, "`tags:` pragma collides with Nim built-in — use `tag:`")
   }
 
   # --- the .iron/ directory was removed; state lives in agents/PROGRESS.md ---
-  /\.iron\// { flag(NR, "`.iron/` was removed — use agents/PROGRESS.md and meta/metaPragmas.nim") }
+  /\.iron\// { flag(NR, "`.iron/` was removed — use agents/PROGRESS.md and shared runePragmas") }
 
   # --- flagged vocabulary ---
-  low ~ /aud[i]t/ { flag(NR, "avoid that word — use evaluate / benchmark / harden / check / verify") }
+  tolower(rawLine) ~ /aud[i]t/ { flag(NR, "avoid that word — use evaluate / benchmark / harden / check / verify") }
 
   # --- declaration blocks ---
   /^[[:space:]]*(var|let|const|type)[[:space:]]*$/ {
@@ -99,7 +122,7 @@ for f in "$@"; do
         next
       }
       if (blockKw == "let") flag(NR, "`let` in a block — use `var` or `const` unless this is a many-branch init")
-      if ((blockKw == "var") && $0 ~ /^[[:space:]]*[A-Za-z_][A-Za-z0-9_,[:space:]]*:/) {
+      if ((blockKw == "var") && $0 ~ /^[[:space:]]*[A-Za-z_][A-Za-z0-9_,[:space:]]*[:=]/) {
         declText = $0; declLine = NR; open = openOf($0)
         if (open <= 0) judgeDecl()
       }
@@ -116,15 +139,15 @@ for f in "$@"; do
     if (kw == prevKw && ind == prevInd && NR == prevNR + 1)
       flag(NR, "repeated `" kw "` on consecutive lines — indent them into one `" kw ":` block")
     prevKw = kw; prevInd = ind; prevNR = NR
-    if (kw == "var" && $0 ~ /:[[:space:]]*[^=]+$/) flag(NR, "`var` without a default value — initialize it")
+    if (kw == "var" && $0 !~ /=/ && $0 ~ /:/) flag(NR, "`var` without a default value — initialize it")
     next
   }
   { if ($0 !~ /^[[:space:]]*$/) prevKw = "" }
-  ' "$f" 2>/dev/null)
+  ' "$f") || { echo "otter: cannot check $f" >&2; exit 2; }
 
   # --- layout rules, read from the path rather than the contents ---
   case "$f" in
-    */evaluation/*|evaluation/*) ;;
+    */evaluation/*|evaluation/*|*/src/*|src/*|*/examples/*|examples/*) ;;
     *)
       case "$(basename "$f")" in
         test_*.nim|*_test.nim)

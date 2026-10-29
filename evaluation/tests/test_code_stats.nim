@@ -1,11 +1,11 @@
-# ============================================================
-# | Otter Code Statistics Tests                              |
-# | -> Nesting, bands, test kinds, and one whole repository  |
-# ============================================================
-#
-# A small tree is written to disk, measured, and checked figure by
-# figure. Writing the tree out rather than pointing at Otter itself
-# keeps the numbers stable while Otter is being worked on.
+## ============================================================
+## | Otter Code Statistics Tests                              |
+## | -> Nesting, bands, test kinds, and one whole repository  |
+## ============================================================
+##
+## A small tree is written to disk, measured, and checked figure by
+## figure. Writing the tree out rather than pointing at Otter itself
+## keeps the numbers stable while Otter is being worked on.
 
 import std/[os, unittest]
 
@@ -81,6 +81,7 @@ proc pick(S: ProjectStats, name: string): FileStat {.role: parser,
 
 
 suite "otter code statistics":
+  # {.testKind: tkUnit.}
   test "a block inside a block is a site, and the deepest one is a leaf":
     var
       s: ProjectStats = analyzeProject(sampleTree())
@@ -97,6 +98,7 @@ suite "otter code statistics":
     check s.nest.triples >= 1
     check s.nest.deeper >= 1
 
+  # {.testKind: tkUnit.}
   test "one for loop on its own is not nesting":
     var
       s: ProjectStats = analyzeProject(sampleTree())
@@ -108,12 +110,13 @@ suite "otter code statistics":
   test "a folder with no Nim files says so instead of reading as clean":
     var
       empty: string = joinPath(getCurrentDir(), "build", "code_stats_bare")
-      s: ProjectStats
+      s: ProjectStats = default(ProjectStats)
     createDir(empty)
     s = analyzeProject(empty)
     check s.error.len > 0
     check s.files.len == 0
 
+  # {.testKind: tkUnit.}
   test "a declared kind beats the wording, and is counted as declared":
     var
       s: ProjectStats = analyzeProject(sampleTree())
@@ -122,6 +125,7 @@ suite "otter code statistics":
     check countOf(s.tests.kinds, "edge case") == 1
     check countOf(s.tests.kinds, "benchmark") == 1
 
+  # {.testKind: tkUnit.}
   test "a routine no test reaches lands in the first bucket":
     var
       s: ProjectStats = analyzeProject(sampleTree())
@@ -129,6 +133,7 @@ suite "otter code statistics":
     check s.tests.functions == 6
     check "src/sample::lonely" in s.unused
 
+  # {.testKind: tkUnit.}
   test "the sanitizer role marks the file as taking input":
     var
       s: ProjectStats = analyzeProject(sampleTree())
@@ -137,6 +142,7 @@ suite "otter code statistics":
     check f.functions == 6
     check f.isTest == false
 
+  # {.testKind: tkUnit.}
   test "every file lands in a size band and keeps its share":
     var
       s: ProjectStats = analyzeProject(sampleTree())
@@ -145,6 +151,7 @@ suite "otter code statistics":
     check s.files[0].share == 1.0
     check s.files[^1].share <= 1.0
 
+  # {.testKind: tkUnit.}
   test "the health band follows the average routine length":
     check healthOf(4.0) == hbOk
     check healthOf(20.0) == hbAlright
@@ -176,11 +183,13 @@ suite "otter code statistics":
     check bucketOf(41) == 5
     check bucketOf(4000) == 5
 
+  # {.testKind: tkUnit.}
   test "a pragma is a template use, so pragma-only repositories count":
     var
       s: ProjectStats = analyzeProject(sampleTree())
     check s.nest.templateCalls >= 4
 
+  # {.testKind: tkUnit.}
   test "the role tally names what was declared and what was not":
     var
       s: ProjectStats = analyzeProject(sampleTree())
@@ -188,6 +197,7 @@ suite "otter code statistics":
     check countOf(s.roles, "math") == 1
     check countOf(s.roles, "helper") == 2
 
+  # {.testKind: tkUnit.}
   test "the words decide the kind only when no pragma did":
     check kindFromWords("an empty list is refused", "") == "edge case"
     check kindFromWords("benchmark the sweep", "") == "benchmark"
@@ -196,6 +206,7 @@ suite "otter code statistics":
     check kindFromPragma("testkind:tkBugfix") == "bugfix"
     check kindFromPragma("role:helper") == ""
 
+  # {.testKind: tkUnit.}
   test "a routine written inside another one starts its nesting again":
     check indentOf("    x") == 4
     check firstWord("  if a == 1:") == "if"

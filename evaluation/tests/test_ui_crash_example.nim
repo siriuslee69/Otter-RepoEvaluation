@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Test UI Crash Example                              |
-# | -> Process exit used to verify backend crash isolation   |
-# ============================================================
+## ============================================================
+## | Otter Test UI Crash Example                              |
+## | -> Process exit used to verify backend crash isolation   |
+## ============================================================
 
 import otter_repo_evaluation
 

@@ -1,7 +1,9 @@
-# ============================================================
-# | NIST Eval Linear Complexity                             |
-# | -> Berlekamp-Massey based linear complexity test        |
-# ============================================================
+## ============================================================
+## | NIST Eval Linear Complexity                             |
+## | -> Berlekamp-Massey based linear complexity test        |
+## ============================================================
+
+import runePragmas
 
 import std/math
 
@@ -10,7 +12,7 @@ import ./math_utils
 import ./types
 
 
-proc berlekampMassey*(Bs: openArray[uint8], m, o: int): int =
+proc berlekampMassey*(Bs: openArray[uint8], m, o: int): int {.role: math.} =
   ## Bs: input bit sequence (0/1).
   ## m: block length in bits.
   ## o: starting offset in bits.
@@ -53,7 +55,7 @@ proc berlekampMassey*(Bs: openArray[uint8], m, o: int): int =
 
 
 proc linearComplexityTest*(Bs: openArray[uint8], m: int,
-    a: float64 = defaultAlpha): NistResult =
+    a: float64 = defaultAlpha): NistResult {.role: math.} =
   ## Bs: input bit sequence (0/1).
   ## m: block size in bits.
   ## a: alpha threshold.

@@ -1,36 +1,36 @@
-# ============================================================
-# | Otter Machine Code -> instruction table                  |
-# | -> for each mnemonic: what it reads, what it writes      |
-# ============================================================
-#
-# The forward search (taint.nim) needs one answer per instruction:
-# which places does it look at, and which places does it change?
-#
-#   add  rax, rcx      reads  rax, rcx          writes  rax, flags
-#   mov  rax, rcx      reads  rcx               writes  rax
-#   cmp  rax, rcx      reads  rax, rcx          writes  flags
-#   mul  rcx           reads  rax, rcx  (hidden)  writes  rax, rdx, flags
-#
-# "Operand 0" is the first thing written after the mnemonic, "operand 1"
-# the second, and so on. "Hidden" registers are ones the instruction
-# uses without naming them. "Flags" is the small register a compare
-# writes and a conditional jump reads.
-#
-# Registers are named by their full 64-bit name. The smaller names are
-# windows onto the same register:
-#
-#   rax ┌────────────────────────────────────────────┐
-#   eax │                      ┌─────────────────────┤
-#   ax  │                      │          ┌──────────┤
-#   al  │                      │          │   ┌──────┤
-#       └──────────────────────┴──────────┴───┴──────┘
-#
-# so `al` and `eax` both count as `rax`. Vector registers xmm3, ymm3 and
-# zmm3 all count as `xmm3`.
-#
-# An instruction missing from this table gets a cautious default: every
-# operand is read, the first one and the flags are written. `known` is
-# false then, and the report counts how often that happened.
+## ============================================================
+## | Otter Machine Code -> instruction table                  |
+## | -> for each mnemonic: what it reads, what it writes      |
+## ============================================================
+##
+## The forward search (taint.nim) needs one answer per instruction:
+## which places does it look at, and which places does it change?
+##
+##   add  rax, rcx      reads  rax, rcx          writes  rax, flags
+##   mov  rax, rcx      reads  rcx               writes  rax
+##   cmp  rax, rcx      reads  rax, rcx          writes  flags
+##   mul  rcx           reads  rax, rcx  (hidden)  writes  rax, rdx, flags
+##
+## "Operand 0" is the first thing written after the mnemonic, "operand 1"
+## the second, and so on. "Hidden" registers are ones the instruction
+## uses without naming them. "Flags" is the small register a compare
+## writes and a conditional jump reads.
+##
+## Registers are named by their full 64-bit name. The smaller names are
+## windows onto the same register:
+##
+##   rax ┌────────────────────────────────────────────┐
+##   eax │                      ┌─────────────────────┤
+##   ax  │                      │          ┌──────────┤
+##   al  │                      │          │   ┌──────┤
+##       └──────────────────────┴──────────┴───┴──────┘
+##
+## so `al` and `eax` both count as `rax`. Vector registers xmm3, ymm3 and
+## zmm3 all count as `xmm3`.
+##
+## An instruction missing from this table gets a cautious default: every
+## operand is read, the first one and the flags are written. `known` is
+## false then, and the report counts how often that happened.
 
 import std/[strutils]
 

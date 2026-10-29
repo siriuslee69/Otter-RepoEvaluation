@@ -1,10 +1,10 @@
-# ============================================================
-# | Otter Code Statistics JSON                               |
-# | -> One measured repository, written out for a window     |
-# ============================================================
-#
-# The field names here are the contract every front end reads, so they
-# change only when the shape they describe does.
+## ============================================================
+## | Otter Code Statistics JSON                               |
+## | -> One measured repository, written out for a window     |
+## ============================================================
+##
+## The field names here are the contract every front end reads, so they
+## change only when the shape they describe does.
 
 import std/[json]
 

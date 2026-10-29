@@ -1,7 +1,9 @@
-# ============================================================
-# | NIST Eval Excursions                                    |
-# | -> Random excursions and variant tests                  |
-# ============================================================
+## ============================================================
+## | NIST Eval Excursions                                    |
+## | -> Random excursions and variant tests                  |
+## ============================================================
+
+import runePragmas
 
 import std/math
 
@@ -11,7 +13,7 @@ import ./types
 
 
 proc computeExcursionsCounts*(Bs: openArray[uint8], j: var int,
-    Cs: var array[9, array[6, int]], Vs: var array[19, int]): void =
+    Cs: var array[9, array[6, int]], Vs: var array[19, int]): void {.role: math.} =
   ## Bs: input bit sequence (0/1).
   ## j: output cycle count.
   ## Cs: per-state visit counts for random excursions.
@@ -20,7 +22,7 @@ proc computeExcursionsCounts*(Bs: openArray[uint8], j: var int,
     i: int = 0
     n: int = Bs.len
     s: int = 0
-    cycleCounts: array[9, int]
+    cycleCounts: array[9, int] = default(array[9, int])
     state: int = 0
     k: int = 0
   j = 0
@@ -75,13 +77,13 @@ proc computeExcursionsCounts*(Bs: openArray[uint8], j: var int,
 
 
 proc randomExcursionsTests*(Bs: openArray[uint8],
-    a: float64 = defaultAlpha): seq[NistResult] =
+    a: float64 = defaultAlpha): seq[NistResult] {.role: math.} =
   ## Bs: input bit sequence (0/1).
   ## a: alpha threshold.
   var
     rs: seq[NistResult] = @[]
-    Cs: array[9, array[6, int]]
-    Vs: array[19, int]
+    Cs: array[9, array[6, int]] = default(array[9, array[6, int]])
+    Vs: array[19, int] = default(array[19, int])
     j: int = 0
     state: int = 0
     idx: int = 0
@@ -115,13 +117,13 @@ proc randomExcursionsTests*(Bs: openArray[uint8],
 
 
 proc randomExcursionsVariantTests*(Bs: openArray[uint8],
-    a: float64 = defaultAlpha): seq[NistResult] =
+    a: float64 = defaultAlpha): seq[NistResult] {.role: math.} =
   ## Bs: input bit sequence (0/1).
   ## a: alpha threshold.
   var
     rs: seq[NistResult] = @[]
-    Cs: array[9, array[6, int]]
-    Vs: array[19, int]
+    Cs: array[9, array[6, int]] = default(array[9, array[6, int]])
+    Vs: array[19, int] = default(array[19, int])
     j: int = 0
     state: int = 0
     idx: int = 0

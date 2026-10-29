@@ -87,7 +87,7 @@ proc gitOut*(dir: string, args: openArray[string]):
   ## two measurements running at once cannot tread on each other.
   var
     parts: seq[string] = @["-C", dir]
-    got: tuple[output: string, exitCode: int]
+    got: tuple[output: string, exitCode: int] = default(tuple[output: string, exitCode: int])
   result = (text: "", ok: false)
   for row in args:
     parts.add(row)
@@ -107,7 +107,7 @@ proc treeCounts*(dir, sha: string): TimelinePoint {.role: truthBuilder,
   ##   100644 blob a1b2c3...    1432<TAB>src/main.nim
   ##   ^mode  ^kind ^contents   ^size    ^path
   var
-    got: tuple[text: string, ok: bool]
+    got: tuple[text: string, ok: bool] = default(tuple[text: string, ok: bool])
     at: int = 0
     path: string = ""
     head: string = ""
@@ -145,7 +145,7 @@ proc ignoredNow*(dir: string): int {.role: dataFetcher,
   ## right now that git has been told to leave alone. This is the one
   ## number that only has an answer for the present moment.
   var
-    got: tuple[text: string, ok: bool]
+    got: tuple[text: string, ok: bool] = default(tuple[text: string, ok: bool])
   result = 0
   got = gitOut(dir, ["ls-files", "--others", "--ignored",
     "--exclude-standard"])
@@ -160,7 +160,7 @@ proc workingPoint*(dir: string): TimelinePoint {.role: truthBuilder,
   ## dir <- the repository, as the folder stands this second, changes
   ## and all. This is the only point that can count ignored files.
   var
-    got: tuple[text: string, ok: bool]
+    got: tuple[text: string, ok: bool] = default(tuple[text: string, ok: bool])
     path: string = ""
     full: string = ""
   result = TimelinePoint(sha: "working", subject: "working tree",
@@ -235,7 +235,7 @@ proc timelineOf*(dir: string, want: int = timelinePoints): TimelineStats
   ## that was merged once does not appear as a hundred separate moments
   ## in the history of the main line.
   var
-    got: tuple[text: string, ok: bool]
+    got: tuple[text: string, ok: bool] = default(tuple[text: string, ok: bool])
     rows: seq[string] = @[]
     picks: seq[string] = @[]
     at: int = 0
@@ -276,7 +276,7 @@ proc timelineLines*(S: TimelineStats): seq[string] {.role: helper,
     tag: "stats".} =
   ## S <- one repository's history, put into lines a terminal can show.
   var
-    row: TimelinePoint
+    row: TimelinePoint = default(TimelinePoint)
   result = @[]
   if S.error.len > 0:
     result.add("History: " & S.error)

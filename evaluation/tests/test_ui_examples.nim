@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Test UI Examples                                   |
-# | -> Grouped versions and one tab-free standalone test     |
-# ============================================================
+## ============================================================
+## | Otter Test UI Examples                                   |
+## | -> Grouped versions and one tab-free standalone test     |
+## ============================================================
 
 import std/[os, strutils, unittest]
 

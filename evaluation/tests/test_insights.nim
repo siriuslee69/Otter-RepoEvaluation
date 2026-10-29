@@ -465,7 +465,7 @@ suite "unused: routines nothing calls":
     var
       a: FunctionInfo = fn("oldOne", @[])
       b: FunctionInfo = fn("oldTwo", @[])
-      got: UnusedReport
+      got: UnusedReport = default(UnusedReport)
     a.isExported = false
     b.isExported = false
     a.lineEnd = a.lineStart + 40
@@ -555,7 +555,7 @@ suite "call depth: how deep the stack can get":
   test "each depth is split by what the routines there are":
     var
       A: seq[FunctionInfo] = @[calls("a", @[]), calls("b", @[])]
-      got: CallDepthStats
+      got: CallDepthStats = default(CallDepthStats)
     A[0].role = frHelper
     A[1].role = frHelper
     got = callDepthOf(A, @[], "")
@@ -682,7 +682,7 @@ suite "coupling: are the guards themselves checked":
       g: FunctionInfo = fn("clean", @[], pragmas = @["role:sanitizer"])
       hits: CountTable[string] = initCountTable[string]()
       edge: HashSet[string] = initHashSet[string]()
-      got: CouplingStats
+      got: CouplingStats = default(CouplingStats)
     g.id = "mod-a::clean"
     hits.inc("mod-a::clean", 5)
     edge.incl("mod-a::clean")

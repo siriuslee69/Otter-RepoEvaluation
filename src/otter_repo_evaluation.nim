@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Public Module                                     |
-# | -> Instrumentation, evaluation, and repository graphs  |
-# ============================================================
+## ============================================================
+## | Otter Public Module                                     |
+## | -> Instrumentation, evaluation, and repository graphs  |
+## ============================================================
 
 import ./protocols/types
 import ./protocols/evaluation

@@ -1,13 +1,13 @@
-# ============================================================
-# | Otter Machine Code Tests                                 |
-# | -> objdump reading, and the ct check on known samples    |
-# ============================================================
-#
-#   canned objdump text  ──parseObjdump──>  routines, as expected?
-#   ct_samples.nim       ──ctCheck──────>   leaks where expected,
-#                                           clean where expected?
-#
-# The second half needs `nim` and `objdump` on the PATH.
+## ============================================================
+## | Otter Machine Code Tests                                 |
+## | -> objdump reading, and the ct check on known samples    |
+## ============================================================
+##
+##   canned objdump text  ──parseObjdump──>  routines, as expected?
+##   ct_samples.nim       ──ctCheck──────>   leaks where expected,
+##                                           clean where expected?
+##
+## The second half needs `nim` and `objdump` on the PATH.
 
 import std/[os, sequtils, strutils, unittest]
 

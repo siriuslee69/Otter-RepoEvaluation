@@ -1,18 +1,18 @@
-# ============================================================
-# | Otter Layout Tests                                       |
-# | -> is a routine anywhere near the thing that uses it?    |
-# ============================================================
-#
-# `layout.nim` reads nothing but the routine records, so these tests
-# build the records directly rather than shaping an example
-# repository. That is deliberate: the whole check is a set of
-# thresholds, and a threshold is tested by standing on both sides of
-# it, which is fiddly to arrange in real source and trivial here.
-#
-# The two findings under test both come from a real refactor:
-#
-#   three constructors of one type, 1500 lines apart
-#   one 1796-line file with a thin waist two thirds of the way down
+## ============================================================
+## | Otter Layout Tests                                       |
+## | -> is a routine anywhere near the thing that uses it?    |
+## ============================================================
+##
+## `layout.nim` reads nothing but the routine records, so these tests
+## build the records directly rather than shaping an example
+## repository. That is deliberate: the whole check is a set of
+## thresholds, and a threshold is tested by standing on both sides of
+## it, which is fiddly to arrange in real source and trivial here.
+##
+## The two findings under test both come from a real refactor:
+##
+##   three constructors of one type, 1500 lines apart
+##   one 1796-line file with a thin waist two thirds of the way down
 
 import std/[strutils, unittest]
 

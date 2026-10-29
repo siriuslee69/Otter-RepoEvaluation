@@ -1,7 +1,9 @@
-# ============================================================
-# | NIST Eval Template Tests                                |
-# | -> Non-overlapping and overlapping template matching    |
-# ============================================================
+## ============================================================
+## | NIST Eval Template Tests                                |
+## | -> Non-overlapping and overlapping template matching    |
+## ============================================================
+
+import runePragmas
 
 import std/math
 
@@ -10,7 +12,7 @@ import ./math_utils
 import ./types
 
 
-proc buildTemplateList*(m, c: int): seq[int] =
+proc buildTemplateList*(m, c: int): seq[int] {.role: truthBuilder.} =
   ## m: template size in bits.
   ## c: maximum number of templates to include (0 for default limit).
   var
@@ -36,7 +38,7 @@ proc buildTemplateList*(m, c: int): seq[int] =
     result = ts
 
 
-proc nonOverlappingCount(Bs: openArray[uint8], t, m, o, b: int): int =
+proc nonOverlappingCount(Bs: openArray[uint8], t, m, o, b: int): int {.role: math.} =
   ## Bs: input bit sequence (0/1).
   ## t: template bits as integer.
   ## m: template size in bits.
@@ -81,7 +83,7 @@ proc nonOverlappingCount(Bs: openArray[uint8], t, m, o, b: int): int =
 
 
 proc nonOverlappingTemplateTests*(Bs: openArray[uint8], m, b, c: int,
-    a: float64 = defaultAlpha): seq[NistResult] =
+    a: float64 = defaultAlpha): seq[NistResult] {.role: math.} =
   ## Bs: input bit sequence (0/1).
   ## m: template size in bits.
   ## b: block size in bits.
@@ -136,7 +138,7 @@ proc nonOverlappingTemplateTests*(Bs: openArray[uint8], m, b, c: int,
           result = rs
 
 
-proc overlappingCount(Bs: openArray[uint8], m, o, b: int): int =
+proc overlappingCount(Bs: openArray[uint8], m, o, b: int): int {.role: math.} =
   ## Bs: input bit sequence (0/1).
   ## m: template size in bits.
   ## o: block offset in bits.
@@ -162,7 +164,7 @@ proc overlappingCount(Bs: openArray[uint8], m, o, b: int): int =
 
 
 proc overlappingTemplateTest*(Bs: openArray[uint8], m, b: int,
-    a: float64 = defaultAlpha): NistResult =
+    a: float64 = defaultAlpha): NistResult {.role: math.} =
   ## Bs: input bit sequence (0/1).
   ## m: template size in bits.
   ## b: block size in bits.

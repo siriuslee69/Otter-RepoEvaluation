@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Repo Graph CLI                                     |
-# | -> Analyze repos, write artifacts, and run sample calls  |
-# ============================================================
+## ============================================================
+## | Otter Repo Graph CLI                                     |
+## | -> Analyze repos, write artifacts, and run sample calls  |
+## ============================================================
 
 import std/[json, os, strutils]
 
@@ -100,7 +100,7 @@ proc runSnapshot(args: seq[string]) {.role: actor, tag: "graph|execution".} =
     items: seq[string] = @[]
     rootDir: string = "."
     includeTests: bool = false
-    g: RepoGraph
+    g: RepoGraph = default(RepoGraph)
   items = positionalArgs(args)
   if items.len > 0:
     rootDir = items[0]
@@ -115,7 +115,7 @@ proc runArtifacts(args: seq[string]) {.role: actor, tag: "graph|execution".} =
     rootDir: string = "."
     outputDir: string = ""
     includeTests: bool = false
-    g: RepoGraph
+    g: RepoGraph = default(RepoGraph)
   items = positionalArgs(args)
   if items.len > 0:
     rootDir = items[0]
@@ -137,7 +137,7 @@ proc runSample(args: seq[string]) {.role: actor, tag: "graph|execution".} =
     rootDir: string = "."
     functionId: string = ""
     includeTests: bool = true
-    r: RunSampleResult
+    r: RunSampleResult = default(RunSampleResult)
   items = positionalArgs(args)
   if items.len > 0:
     rootDir = items[0]
@@ -188,8 +188,8 @@ proc runBlast(args: seq[string]) {.role: actor,
     name: string = ""
     n: int = 0
     m: int = 0
-    r: BlastRadius
-    g: RepoGraph
+    r: BlastRadius = default(BlastRadius)
+    g: RepoGraph = default(RepoGraph)
   items = positionalArgs(args)
   if items.len < 2:
     echo "Usage: otter_repo_graph blast <repoRoot> <name> " &
@@ -216,7 +216,7 @@ proc runUi(args: seq[string]) {.role: actor,
   var
     items: seq[string] = @[]
     rootDir: string = "."
-    r: UiDepthReport
+    r: UiDepthReport = default(UiDepthReport)
   items = positionalArgs(args)
   if items.len > 0:
     rootDir = items[0]
@@ -237,8 +237,8 @@ proc runState(args: seq[string]) {.role: actor,
     items: seq[string] = @[]
     rootDir: string = "."
     focus: string = ""
-    r: StateReport
-    g: RepoGraph
+    r: StateReport = default(StateReport)
+    g: RepoGraph = default(RepoGraph)
   items = positionalArgs(args)
   if items.len > 0:
     rootDir = items[0]
@@ -262,8 +262,8 @@ proc runYields(args: seq[string]) {.role: actor,
     items: seq[string] = @[]
     rootDir: string = "."
     name: string = ""
-    r: YieldPaths
-    g: RepoGraph
+    r: YieldPaths = default(YieldPaths)
+    g: RepoGraph = default(RepoGraph)
   items = positionalArgs(args)
   if items.len < 2:
     echo "Usage: otter_repo_graph yields <repoRoot> <name> [--json]"
@@ -289,7 +289,7 @@ proc runDiff(args: seq[string]) {.role: actor,
     rootDir: string = "."
     rev: string = "HEAD"
     out0: string = ""
-    r: DiffReview
+    r: DiffReview = default(DiffReview)
   items = positionalArgs(args)
   if items.len > 0:
     rootDir = items[0]
@@ -348,7 +348,7 @@ proc runStats(args: seq[string]) {.role: actor,
   var
     items: seq[string] = @[]
     rootDir: string = "."
-    s: ProjectStats
+    s: ProjectStats = default(ProjectStats)
   items = positionalArgs(args)
   if items.len > 0:
     rootDir = items[0]

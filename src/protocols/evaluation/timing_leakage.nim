@@ -1,7 +1,9 @@
-# ============================================================
-# | Timing Leakage                                           |
-# | -> First/second-order Welch tests for fixed/random data  |
-# ============================================================
+## ============================================================
+## | Timing Leakage                                           |
+## | -> First/second-order Welch tests for fixed/random data  |
+## ============================================================
+
+import runePragmas
 
 import std/math
 import ./types
@@ -12,7 +14,7 @@ type
     mean: float64
     variance: float64
 
-proc sampleStats(X: openArray[float64]): SampleStats =
+proc sampleStats(X: openArray[float64]): SampleStats {.role: math.} =
   var
     i: int = 0
     delta, m2: float64 = 0.0
@@ -26,7 +28,7 @@ proc sampleStats(X: openArray[float64]): SampleStats =
   if result.count > 1:
     result.variance = m2 / float64(result.count - 1)
 
-proc centeredSquareStats(X: openArray[float64], mean: float64): SampleStats =
+proc centeredSquareStats(X: openArray[float64], mean: float64): SampleStats {.role: math.} =
   var
     i: int = 0
     value, delta, m2: float64 = 0.0
@@ -41,7 +43,7 @@ proc centeredSquareStats(X: openArray[float64], mean: float64): SampleStats =
   if result.count > 1:
     result.variance = m2 / float64(result.count - 1)
 
-proc welchT(A, B: SampleStats): float64 =
+proc welchT(A, B: SampleStats): float64 {.role: math.} =
   var
     denominator: float64 = 0.0
   if A.count <= 1 or B.count <= 1:
@@ -52,11 +54,11 @@ proc welchT(A, B: SampleStats): float64 =
     result = (A.mean - B.mean) / denominator
 
 proc welchTimingLeakage*(name: string, fixed, random: openArray[float64],
-    threshold: float64 = 4.5): TimingLeakageResult =
+    threshold: float64 = 4.5): TimingLeakageResult {.role: math.} =
   ## name: measured operation. fixed/random: interleaved timing classes.
   ## threshold: absolute t-value boundary, conventionally 4.5 for dudect-style checks.
   var
-    A, B, A2, B2: SampleStats
+    A, B, A2, B2: SampleStats = default(SampleStats)
   A = sampleStats(fixed)
   B = sampleStats(random)
   A2 = centeredSquareStats(fixed, A.mean)

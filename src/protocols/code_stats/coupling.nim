@@ -270,7 +270,7 @@ proc couplingOf*(A: seq[FunctionInfo], E: seq[CallEdge], root: string,
     guards: HashSet[string] = initHashSet[string]()
     known: HashSet[string] = initHashSet[string]()
     leaning: CountTable[string] = initCountTable[string]()
-    got: tuple[found: bool, at: string, route: seq[string]]
+    got: tuple[found: bool, at: string, route: seq[string]] = default(tuple[found: bool, at: string, route: seq[string]])
     kind: GuardKind = gkNone
     rows: seq[InputGuard] = @[]
     guardRows: seq[SanitizerTests] = @[]

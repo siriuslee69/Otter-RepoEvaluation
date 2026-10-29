@@ -453,9 +453,9 @@ proc scanLine*(line, path, commit: string, n: int,
   ## One line can hold more than one kind of find, so every test is
   ## run rather than stopping at the first.
   var
-    pair: tuple[name: string, value: string]
-    got: tuple[score: float, entropy: float, reasons: seq[string]]
-    who: tuple[hit: bool, who: string]
+    pair: tuple[name: string, value: string] = default(tuple[name: string, value: string])
+    got: tuple[score: float, entropy: float, reasons: seq[string]] = default(tuple[score: float, entropy: float, reasons: seq[string]])
+    who: tuple[hit: bool, who: string] = default(tuple[hit: bool, who: string])
     mail: string = ""
     relief: float = reliefOf(line, bVectors)
   if line.len > 4000:
@@ -593,7 +593,7 @@ proc scanHistory*(dir: string, S: var seq[SecretFind],
   ##
   ## Returns how many commits were read.
   var
-    got: tuple[output: string, exitCode: int]
+    got: tuple[output: string, exitCode: int] = default(tuple[output: string, exitCode: int])
     commit: string = ""
     path: string = ""
     n: int = 0

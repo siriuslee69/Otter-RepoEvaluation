@@ -1,13 +1,15 @@
-# ============================================================
-# | Statistical Campaign                                    |
-# | -> Pass-proportion bounds across repeated test windows  |
-# ============================================================
+## ============================================================
+## | Statistical Campaign                                    |
+## | -> Pass-proportion bounds across repeated test windows  |
+## ============================================================
+
+import runePragmas
 
 import std/math
 import ./types
 
 proc evaluateFailureProportion*(name: string, failures, total: int,
-    alpha: float64 = 0.01, z: float64 = 3.0): ProportionResult =
+    alpha: float64 = 0.01, z: float64 = 3.0): ProportionResult {.role: math.} =
   ## name: test label. failures/total: repeated-window outcomes.
   ## alpha/z: expected failure probability and normal-bound multiplier.
   var

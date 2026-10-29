@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Repo Graph Builder                                 |
-# | -> Resolve function calls into graph edges               |
-# ============================================================
+## ============================================================
+## | Otter Repo Graph Builder                                 |
+## | -> Resolve function calls into graph edges               |
+## ============================================================
 
 import std/[sets, tables]
 
@@ -60,13 +60,13 @@ proc chooseTargetIndex(fs: seq[FunctionInfo], callerIdx: int,
 proc buildCallGraph*(fs: seq[FunctionInfo]): tuple[edges: seq[CallEdge],
     unresolved: seq[string]] {.role: truthBuilder, tag: "graph|resolution".} =
   var
-    nameMap: Table[string, seq[int]]
-    edgeSet: HashSet[string]
+    nameMap: Table[string, seq[int]] = default(Table[string, seq[int]])
+    edgeSet: HashSet[string] = default(HashSet[string])
     callerIdx: int = 0
     idxs: seq[int] = @[]
     calleeIdx: int = -1
     edgeKey: string = ""
-    e: CallEdge
+    e: CallEdge = default(CallEdge)
   result.edges = @[]
   result.unresolved = @[]
   nameMap = initTable[string, seq[int]]()

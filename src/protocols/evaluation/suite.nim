@@ -1,7 +1,9 @@
-# ============================================================
-# | NIST Eval Suite                                         |
-# | -> Aggregated test runner for byte streams              |
-# ============================================================
+## ============================================================
+## | NIST Eval Suite                                         |
+## | -> Aggregated test runner for byte streams              |
+## ============================================================
+
+import runePragmas
 
 import ./bits
 import ./basic_tests
@@ -16,7 +18,7 @@ import ./types
 import ./universal
 
 
-proc universalBlockForBits(n: int): int =
+proc universalBlockForBits(n: int): int {.role: math.} =
   ## n: available bit count mapped to SP 800-22's largest valid L.
   const
     minimumBits: array[11, int] = [
@@ -33,7 +35,7 @@ proc universalBlockForBits(n: int): int =
     i = i + 1
 
 
-proc nistParamsForBits*(n: int): NistParams =
+proc nistParamsForBits*(n: int): NistParams {.role: truthBuilder.} =
   ## n: stream length in bits used to choose practical SP 800-22 parameters.
   result.alpha = defaultAlpha
   result.blockSize = 128
@@ -57,12 +59,12 @@ proc nistParamsForBits*(n: int): NistParams =
 
 
 proc nistCoreSuiteFromBytes*(Bs: openArray[uint8],
-    p: NistParams): seq[NistResult] =
+    p: NistParams): seq[NistResult] {.role: orchestrator.} =
   ## Bs: input bytes for the lower-cost core statistical diagnostics.
   ## p: parameters; template, universal, linear, and excursion fields are unused.
   var
     bits: seq[uint8] = @[]
-    s: tuple[r1, r2: NistResult]
+    s: tuple[r1, r2: NistResult] = default(tuple[r1, r2: NistResult])
   bits = bitsFromBytes(Bs)
   result.add(monobitTest(bits, p.alpha))
   result.add(blockFrequencyTest(bits, p.blockSize, p.alpha))
@@ -78,14 +80,14 @@ proc nistCoreSuiteFromBytes*(Bs: openArray[uint8],
   result.add(cumulativeSumsTest(bits, false, p.alpha))
 
 
-proc nistSuiteFromBytes*(Bs: openArray[uint8], p: NistParams): seq[NistResult] =
+proc nistSuiteFromBytes*(Bs: openArray[uint8], p: NistParams): seq[NistResult] {.role: orchestrator.} =
   ## Bs: input bytes to run the NIST-style suite on.
   ## p: suite parameters.
   var
     bits: seq[uint8] = @[]
     rs: seq[NistResult] = @[]
-    r: NistResult
-    s: tuple[r1, r2: NistResult]
+    r: NistResult = default(NistResult)
+    s: tuple[r1, r2: NistResult] = default(tuple[r1, r2: NistResult])
   bits = bitsFromBytes(Bs)
   r = monobitTest(bits, p.alpha)
   rs.add(r)

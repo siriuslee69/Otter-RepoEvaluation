@@ -1,31 +1,31 @@
-# ============================================================
-# | Otter Machine Code -> objdump reader                     |
-# | -> one binary in, its routines and instructions out      |
-# ============================================================
-#
-# objdump is the program that turns machine code back into text. Asked
-# with `-d -M intel --no-show-raw-insn -l`, it prints:
-#
-#   000000000000be60 <_ZN1s9earlyExitE9openArrayI5uInt8E...>:   <- routine
-#   _ZN1s9earlyExitE9openArrayI5uInt8E...():                    <- ignored
-#   /home/me/s.nim:10 (discriminator 6)                          <- source line
-#       be89:	movzx  ecx,BYTE PTR [rdx+rax*1]                    <- instruction
-#       be90:	je     be80 <_ZN1s9earlyExit...+0x20>              <- jump
-#
-# and this file turns that into:
-#
-#   Routine  name      "_ZN1s9earlyExitE9openArray..."   (as in the binary)
-#            baseName  "earlyExit"                       (as in the .nim)
-#            module    "s"
-#            instrs    ┌─────────┬──────────┬──────────────────────┬────────┬──────┐
-#                      │ address │ mnemonic │ operands             │ target │ line │
-#                      ├─────────┼──────────┼──────────────────────┼────────┼──────┤
-#                      │ 0xbe89  │ movzx    │ ecx | BYTE PTR [..]  │ -      │ 10   │
-#                      │ 0xbe90  │ je       │ be80 <..+0x20>       │ 0xbe80 │ 10   │
-#                      └─────────┴──────────┴──────────────────────┴────────┴──────┘
-#
-# A "mnemonic" is the short name of an instruction (mov, add, je).
-# "Operands" are the things it works on, written after it.
+## ============================================================
+## | Otter Machine Code -> objdump reader                     |
+## | -> one binary in, its routines and instructions out      |
+## ============================================================
+##
+## objdump is the program that turns machine code back into text. Asked
+## with `-d -M intel --no-show-raw-insn -l`, it prints:
+##
+##   000000000000be60 <_ZN1s9earlyExitE9openArrayI5uInt8E...>:   <- routine
+##   _ZN1s9earlyExitE9openArrayI5uInt8E...():                    <- ignored
+##   /home/me/s.nim:10 (discriminator 6)                          <- source line
+##       be89:	movzx  ecx,BYTE PTR [rdx+rax*1]                    <- instruction
+##       be90:	je     be80 <_ZN1s9earlyExit...+0x20>              <- jump
+##
+## and this file turns that into:
+##
+##   Routine  name      "_ZN1s9earlyExitE9openArray..."   (as in the binary)
+##            baseName  "earlyExit"                       (as in the .nim)
+##            module    "s"
+##            instrs    ┌─────────┬──────────┬──────────────────────┬────────┬──────┐
+##                      │ address │ mnemonic │ operands             │ target │ line │
+##                      ├─────────┼──────────┼──────────────────────┼────────┼──────┤
+##                      │ 0xbe89  │ movzx    │ ecx | BYTE PTR [..]  │ -      │ 10   │
+##                      │ 0xbe90  │ je       │ be80 <..+0x20>       │ 0xbe80 │ 10   │
+##                      └─────────┴──────────┴──────────────────────┴────────┴──────┘
+##
+## A "mnemonic" is the short name of an instruction (mov, add, je).
+## "Operands" are the things it works on, written after it.
 
 import std/[os, osproc, strutils]
 

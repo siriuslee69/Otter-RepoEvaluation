@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Evaluation Protocols                              |
-# | -> Statistical tests and repeatable benchmark helpers  |
-# ============================================================
+## ============================================================
+## | Otter Evaluation Protocols                              |
+## | -> Statistical tests and repeatable benchmark helpers  |
+## ============================================================
 
 import
   ./evaluation/constants,

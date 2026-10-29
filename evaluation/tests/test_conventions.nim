@@ -1,14 +1,13 @@
-# ============================================================
-# | Otter Convention Rule Tests                              |
-# | -> The rules one file can prove, and the repo layout     |
-# ============================================================
-#
-# These rules used to exist three times over: once in Guldur, once in
-# `nim-check.sh`, and nowhere in the library. Two of the copies had
-# already drifted apart. What is checked here is the single copy, so
-# that every caller reporting a finding is reporting the same finding.
+## ============================================================
+## | Otter Convention Rule Tests                              |
+## | -> The rules one file can prove, and the repo layout     |
+## ============================================================
+##
+## Test the library's file and layout rules from both ends: a real
+## violation must be reported and nearby valid code must stay quiet.
+## test_agent_hooks.sh checks the lighter shell hook's boundaries separately.
 
-import std/[os, strutils, unittest]
+import std/[os, unittest]
 
 import ../../src/protocols/code_stats/conventions
 import runePragmas
@@ -167,3 +166,51 @@ suite "conventions: the layout a repository is expected to have":
     writeFile(dir / "config.nims", "switch(\"path\", \"../Rune-Pragmas/meta\")\n")
     R = scanLayout(dir)
     check has(R, "pragmaSourceCheck")
+
+suite "conventions: source boundaries":
+  # {.testKind: tkRegression, covers: "scanConventions".}
+  test "separate routines do not share a declaration block":
+    var
+      R = scanConventions("a.nim", "## module\nproc f() =\n  var x = 1\n  echo x\n" &
+        "proc g() =\n  var y = 2\n  echo y\n")
+    check not has(R, "blockDeclCheck")
+
+  # {.testKind: tkRegression, covers: "scanConventions".}
+  test "program text in multiline strings is data":
+    var
+      text: string = "## module\nconst sample = \"\"\"\nlet x = 1\nfoo:\n" &
+        "proc f(longName: int) = discard\n\"\"\"\n"
+      R = scanConventions("a.nim", text)
+    check not has(R, "letDeclCheck")
+    check not has(R, "colonCallCheck")
+    check not has(R, "namingCheck")
+
+  # {.testKind: tkRegression, covers: "scanConventions".}
+  test "escaped quotes and hash characters do not start a comment":
+    var
+      R = scanConventions("a.nim", "## module\nproc f() =\n" &
+        "  echo \"escaped \\\" # not implemented\"\n  echo '#'\n")
+    check not has(R, "placeholderCheck")
+
+  # {.testKind: tkRegression, covers: "scanConventions".}
+  test "nested block comments do not introduce code":
+    var
+      R = scanConventions("a.nim", "## module\n#[\nlet x = 1\n#[ nested ]#\nfoo:\n]#\n")
+    check not has(R, "letDeclCheck")
+    check not has(R, "colonCallCheck")
+
+  # {.testKind: tkRegression, covers: "scanConventions".}
+  test "continued conditions and block macros are not ordinary colon calls":
+    var
+      good = scanConventions("a.nim", "## module\nif ready and\n    accepts(x):\n" &
+        "  discard\ntogether:\n  work()\n")
+      bad = scanConventions("b.nim", "## module\ndoWork:\n  input\n")
+    check not has(good, "colonCallCheck")
+    check has(bad, "colonCallCheck")
+
+  # {.testKind: tkRegression, covers: "scanConventions".}
+  test "typed fields and parameter continuations are not bare colon calls":
+    var
+      R = scanConventions("a.nim", "## module\nproc f(\n    guards: HashSet[string]):\n" &
+        "  discard\nconst\n  table: array[2, byte] = block:\n    [0'u8, 1'u8]\n")
+    check not has(R, "colonCallCheck")

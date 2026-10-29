@@ -1,9 +1,11 @@
-# ============================================================
-# | NIST Eval Bit Utilities                                 |
-# | -> Bit expansion, counting, and index helpers           |
-# ============================================================
+## ============================================================
+## | NIST Eval Bit Utilities                                 |
+## | -> Bit expansion, counting, and index helpers           |
+## ============================================================
 
-proc bitsFromBytes*(Bs: openArray[uint8]): seq[uint8] =
+import runePragmas
+
+proc bitsFromBytes*(Bs: openArray[uint8]): seq[uint8] {.role: truthBuilder.} =
   ## Bs: input bytes to expand into MSB-first bit sequence.
   var
     ts: seq[uint8] = @[]
@@ -24,7 +26,7 @@ proc bitsFromBytes*(Bs: openArray[uint8]): seq[uint8] =
   result = ts
 
 
-proc countOnesBits*(Bs: openArray[uint8]): uint32 =
+proc countOnesBits*(Bs: openArray[uint8]): uint32 {.role: math.} =
   ## Bs: input bit sequence (0/1).
   var
     i: int = 0
@@ -36,7 +38,7 @@ proc countOnesBits*(Bs: openArray[uint8]): uint32 =
   result = t
 
 
-proc countRunsBits*(Bs: openArray[uint8]): uint32 =
+proc countRunsBits*(Bs: openArray[uint8]): uint32 {.role: math.} =
   ## Bs: input bit sequence (0/1).
   var
     i: int = 0
@@ -57,7 +59,7 @@ proc countRunsBits*(Bs: openArray[uint8]): uint32 =
     result = tRuns
 
 
-proc largestPow2*(n: int): int =
+proc largestPow2*(n: int): int {.role: math.} =
   ## n: input value to clamp to the largest power of two <= n.
   var
     t: int = 1
@@ -69,7 +71,7 @@ proc largestPow2*(n: int): int =
     result = t
 
 
-proc bitReverse*(v, b: int): int =
+proc bitReverse*(v, b: int): int {.role: math.} =
   ## v: input index to reverse.
   ## b: number of bits to reverse.
   var

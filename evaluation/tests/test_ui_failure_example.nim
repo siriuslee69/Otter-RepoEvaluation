@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Test UI Failure Example                            |
-# | -> Supplies structured assertion details to the popup    |
-# ============================================================
+## ============================================================
+## | Otter Test UI Failure Example                            |
+## | -> Supplies structured assertion details to the popup    |
+## ============================================================
 
 import std/unittest
 

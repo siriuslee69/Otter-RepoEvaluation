@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Smoke Tests                                       |
-# | -> Verify timing, evaluation helpers, and exit logging  |
-# ============================================================
+## ============================================================
+## | Otter Smoke Tests                                       |
+## | -> Verify timing, evaluation helpers, and exit logging  |
+## ============================================================
 
 import std/[os, osproc, strutils, unittest]
 
@@ -33,6 +33,7 @@ proc pragmaLeaf*(a: int): int {.otterBench, role: helper, tag: "testing".} =
 
 
 suite "otter smoke":
+  # {.testKind: tkSmoke.}
   test "flag off keeps local timing store empty":
     clearTimings()
     check localBranch(4) == 6
@@ -40,9 +41,10 @@ suite "otter smoke":
     check timingCount() == 0
     check snapshotTimings().len == 0
 
+  # {.testKind: tkSmoke.}
   test "benchmark helpers are reachable through otter":
     var
-      A: array[1, BenchAlgo]
+      A: array[1, BenchAlgo] = default(array[1, BenchAlgo])
       R: seq[BenchResult] = @[]
       S: seq[StableBenchResult] = @[]
       s: string = ""
@@ -58,9 +60,10 @@ suite "otter smoke":
     check S[0].bytesPerOp == 4
     check formatStableBenchResults(S).contains("median_ns=")
 
+  # {.testKind: tkSmoke.}
   test "rank probabilities match binary matrix reference values":
     var
-      p32, p31, pRest: float64
+      p32, p31, pRest: float64 = 0.0
     p32 = rankProbability(32, 32, 32)
     p31 = rankProbability(32, 32, 31)
     pRest = 1.0 - p32 - p31
@@ -68,10 +71,11 @@ suite "otter smoke":
     check abs(p31 - 0.5775761901732048) < 1.0e-12
     check abs(pRest - 0.1336357146729541) < 1.0e-12
 
+  # {.testKind: tkSmoke.}
   test "statistical suite is reachable through otter":
     var
       Bs: seq[uint8] = @[]
-      p: NistParams
+      p: NistParams = default(NistParams)
       R: seq[NistResult] = @[]
       i: int = 0
     Bs.setLen(2048)
@@ -99,11 +103,12 @@ suite "otter smoke":
     R = nistCoreSuiteFromBytes(Bs, p)
     check R.len == 11
 
+  # {.testKind: tkSmoke.}
   test "timed child writes its log on process exit":
     var
       logPath: string = "evaluation/tests/build/otter_enabled.log"
       cmd: string = ""
-      r: tuple[output: string, exitCode: int]
+      r: tuple[output: string, exitCode: int] = default(tuple[output: string, exitCode: int])
       content: string = ""
     createDir("evaluation/tests/build")
     if fileExists(logPath):
@@ -117,6 +122,7 @@ suite "otter smoke":
     check content.contains("childLeaf")
     check content.contains("childBranch")
 
+  # {.testKind: tkSmoke.}
   test "otter-nim auto-wraps a plain Nim file":
     var
       oldLogPath: string = ""
@@ -125,7 +131,7 @@ suite "otter smoke":
       cmd: string = ""
       content: string = ""
       hadLogPath: bool = false
-      r: tuple[output: string, exitCode: int]
+      r: tuple[output: string, exitCode: int] = default(tuple[output: string, exitCode: int])
     createDir("evaluation/tests/build")
     createDir("build")
     if fileExists(logPath):

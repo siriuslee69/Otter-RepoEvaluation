@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Test UI App                                        |
-# | -> Main supervisor, WebUI, relay, test backend, workers  |
-# ============================================================
+## ============================================================
+## | Otter Test UI App                                        |
+## | -> Main supervisor, WebUI, relay, test backend, workers  |
+## ============================================================
 
 import std/[atomics, json, monotimes, os, osproc, strutils]
 
@@ -22,7 +22,7 @@ var
   GRepoRoot: string = ""
   GRuntimeDir: string = ""
   GResultsPath: string = ""
-  GLastBrowserHeartbeat: Atomic[int64]
+  GLastBrowserHeartbeat: Atomic[int64] = default(Atomic[int64])
 
 proc argumentValue(A: openArray[string], prefix: string): string {.role: parser,
     tag: "execution|testing|ui".} =
@@ -96,7 +96,7 @@ proc chooseResultsPath(): string {.role: actor,
   ## Opens the OS folder picker and returns its validated selected directory.
   var
     command: string = pickerCommand(GResultsPath)
-    probe: tuple[output: string, exitCode: int]
+    probe: tuple[output: string, exitCode: int] = default(tuple[output: string, exitCode: int])
     lines: seq[string] = @[]
     selected: string = ""
   if command.len == 0:
@@ -115,7 +115,7 @@ proc actionPayload(request: JsonNode): string {.role: actor,
     tag: "execution|testing|ui".} =
   var
     action: string = request{"action"}.getStr("")
-    response: JsonNode
+    response: JsonNode = default(JsonNode)
   try:
     if action == "setResultsPath":
       GResultsPath = normalizeResultsPath(request{"path"}.getStr(""))
@@ -277,10 +277,10 @@ proc runSupervisor(repoRoot: string) {.role: metaOrchestrator,
       $getCurrentProcessId())
     normalExitPath: string = joinPath(runtimeDir, NormalExitFile)
     readyPath: string = joinPath(runtimeDir, ReadyFile)
-    orchestrator: Process
-    testBackend: Process
-    ui: Process
-    response: JsonNode
+    orchestrator: Process = default(Process)
+    testBackend: Process = default(Process)
+    ui: Process = default(Process)
+    response: JsonNode = default(JsonNode)
     exitCode: int = 0
     startupFailed: bool = false
     serviceFailed: bool = false

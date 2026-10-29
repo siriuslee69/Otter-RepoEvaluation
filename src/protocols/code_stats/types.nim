@@ -1,18 +1,18 @@
-# ============================================================
-# | Otter Code Statistics Types                              |
-# | -> One repository measured: files, nesting, tests        |
-# ============================================================
-#
-# Everything a window needs to draw a project is in ProjectStats.
-# Nothing here reads a file; these are only the shapes.
-#
-#   ProjectStats
-#     files    one cell in the grid, one row in the list
-#     nest     the bar chart: templates, doubles, triples, deeper
-#     tests    the two rings: how many tests reach each function
-#
-# The bands are the colours the window uses, named rather than
-# numbered so a reader knows what "2" meant six months later.
+## ============================================================
+## | Otter Code Statistics Types                              |
+## | -> One repository measured: files, nesting, tests        |
+## ============================================================
+##
+## Everything a window needs to draw a project is in ProjectStats.
+## Nothing here reads a file; these are only the shapes.
+##
+##   ProjectStats
+##     files    one cell in the grid, one row in the list
+##     nest     the bar chart: templates, doubles, triples, deeper
+##     tests    the two rings: how many tests reach each function
+##
+## The bands are the colours the window uses, named rather than
+## numbered so a reader knows what "2" meant six months later.
 
 import ./shape
 import ./placeholders

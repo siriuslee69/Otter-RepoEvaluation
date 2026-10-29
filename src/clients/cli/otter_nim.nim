@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Nim CLI                                           |
-# | -> Auto-wrap a target Nim file with Otter spans         |
-# ============================================================
+## ============================================================
+## | Otter Nim CLI                                           |
+## | -> Auto-wrap a target Nim file with Otter spans         |
+## ============================================================
 
 import std/[os, osproc, strutils]
 
@@ -159,7 +159,7 @@ proc findProjectIndex(args: openArray[string]): int {.role: helper, tag: "parent
 proc wrapperPathFor(targetPath: string): string {.role: helper, tag: "parentIntegration".} =
   ## targetPath: absolute project path.
   var
-    f: tuple[dir, name, ext: string]
+    f: tuple[dir, name, ext: string] = default(tuple[dir, name, ext: string])
     t: string = ""
   f = splitFile(targetPath)
   t = f.name & "_otter_wrapped" & f.ext

@@ -10,3 +10,6 @@
 	path = submodules/Nimble-Tasks
 	url = https://github.com/siriuslee69/Nimble-Tasks.git
 	branch = main
+[submodule "submodules/Rune-Pragmas"]
+	path = submodules/Rune-Pragmas
+	url = https://github.com/siriuslee69/Rune-Pragmas.git

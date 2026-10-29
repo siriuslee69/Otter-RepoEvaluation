@@ -1,12 +1,12 @@
-# ============================================================
-# | Otter Visibility Tests                                   |
-# | -> Echoes put in for you, and taken back out             |
-# ============================================================
-#
-# Two claims to prove, and the second matters more than the first:
-#
-#   with a group on, the program says where it is
-#   with it off, nothing at all is written into the program
+## ============================================================
+## | Otter Visibility Tests                                   |
+## | -> Echoes put in for you, and taken back out             |
+## ============================================================
+##
+## Two claims to prove, and the second matters more than the first:
+##
+##   with a group on, the program says where it is
+##   with it off, nothing at all is written into the program
 
 import std/[os, osproc, strutils, unittest]
 

@@ -1,7 +1,7 @@
-# ============================================================
-# | Auto Trace Sample                                       |
-# | -> Plain Nim file used by the otter-nim smoke test      |
-# ============================================================
+## ============================================================
+## | Auto Trace Sample                                       |
+## | -> Plain Nim file used by the otter-nim smoke test      |
+## ============================================================
 
 proc autoLeaf*(a: int): int =
   ## a: input value.

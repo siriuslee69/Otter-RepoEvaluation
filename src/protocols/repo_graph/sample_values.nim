@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Repo Graph Sample Values                           |
-# | -> Best-effort sample expressions for function sockets   |
-# ============================================================
+## ============================================================
+## | Otter Repo Graph Sample Values                           |
+## | -> Best-effort sample expressions for function sockets   |
+## ============================================================
 
 import std/[strutils]
 

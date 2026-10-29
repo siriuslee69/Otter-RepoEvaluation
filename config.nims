@@ -1,4 +1,5 @@
-switch("path", "src")
+## Otter paths, shared pragmas/contracts, and build presets.
+switch("path", thisDir() & "/src")
 if dirExists("submodules/Fylgia-Utils/src"):
   switch("path", "submodules/Fylgia-Utils/src")
 elif dirExists("../Fylgia-Utils/src"):
@@ -11,9 +12,6 @@ elif dirExists("../Fylgia-Utils/src"):
 if fileExists(thisDir() & "/submodules/Fylgia-Utils/src/protocols/math/vector_space.nim") and
     fileExists(thisDir() & "/submodules/Fylgia-Utils/src/protocols/threads/auto_thread.nim"):
   switch("define", "otterFylgiaSubmodule")
-
-## Pragma module, named for this repository so no other repo on the Nim
-## path can capture it. See CONTRIBUTING in Proto-RepoTemplate.
 
 ## Shared pragma module: one file for the whole workspace, so there is no
 ## per-repository copy to drift or to collide on the Nim path.
@@ -34,3 +32,12 @@ if dirExists(thisDir() & "/../Var-Invariants/src"):
   switch("path", thisDir() & "/../Var-Invariants/src")
 if dirExists(thisDir() & "/submodules/Var-Invariants/src"):
   switch("path", thisDir() & "/submodules/Var-Invariants/src")
+
+## Build settings use the shared reader, as in Proto-RepoTemplate.
+when fileExists(thisDir() & "/../Nimble-Tasks/src/preset.nims"):
+  include "../Nimble-Tasks/src/preset.nims"
+elif fileExists(thisDir() & "/submodules/Nimble-Tasks/src/preset.nims"):
+  include "submodules/Nimble-Tasks/src/preset.nims"
+else:
+  {.error: "Nimble-Tasks/src/preset.nims not found: update the submodule".}
+applyPreset()

@@ -1,23 +1,23 @@
-# ============================================================
-# | Otter Code Statistics Nesting                            |
-# | -> Blocks inside blocks, and how much lives in the last  |
-# ============================================================
-#
-# One routine's body is read line by line while a stack of open blocks
-# is kept. A line that opens a block is a site; its depth is how many
-# counting blocks are already open.
-#
-#     proc f =
-#       for row in A:          depth 1
-#         if row.ok:           depth 2   <- a site
-#           while n > 0:       depth 3   <- a site, and a leaf
-#             dec n            1 line inside the last layer
-#
-# `else`, `elif`, `of`, `except` and `finally` continue a block that is
-# already open, so they never add a level of their own. A routine
-# declared inside another routine starts with a clean stack, which is
-# why pulling an inline proc out of a loop removes the nesting instead
-# of hiding it.
+## ============================================================
+## | Otter Code Statistics Nesting                            |
+## | -> Blocks inside blocks, and how much lives in the last  |
+## ============================================================
+##
+## One routine's body is read line by line while a stack of open blocks
+## is kept. A line that opens a block is a site; its depth is how many
+## counting blocks are already open.
+##
+##     proc f =
+##       for row in A:          depth 1
+##         if row.ok:           depth 2   <- a site
+##           while n > 0:       depth 3   <- a site, and a leaf
+##             dec n            1 line inside the last layer
+##
+## `else`, `elif`, `of`, `except` and `finally` continue a block that is
+## already open, so they never add a level of their own. A routine
+## declared inside another routine starts with a clean stack, which is
+## why pulling an inline proc out of a loop removes the nesting instead
+## of hiding it.
 
 import std/[strutils]
 

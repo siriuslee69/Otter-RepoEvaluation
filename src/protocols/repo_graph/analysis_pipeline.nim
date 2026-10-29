@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Repo Graph Analysis Pipeline                       |
-# | -> End-to-end repo analysis orchestration               |
-# ============================================================
+## ============================================================
+## | Otter Repo Graph Analysis Pipeline                       |
+## | -> End-to-end repo analysis orchestration               |
+## ============================================================
 
 import std/[os]
 
@@ -18,7 +18,7 @@ proc analyzeRepo*(rootDir: string, bIncludeTests: bool = false): RepoGraph {.rol
   var
     files: seq[string] = @[]
     fs: seq[FunctionInfo] = @[]
-    graph: tuple[edges: seq[CallEdge], unresolved: seq[string]]
+    graph: tuple[edges: seq[CallEdge], unresolved: seq[string]] = default(tuple[edges: seq[CallEdge], unresolved: seq[string]])
   files = listNimFiles(rootDir, bIncludeTests)
   fs = parseNimFiles(rootDir, files)
   graph = buildCallGraph(fs)

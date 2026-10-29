@@ -1,17 +1,17 @@
-# ============================================================
-# | Otter UI Depth Tests                                     |
-# | -> How many things must be opened to reach a control     |
-# ============================================================
-#
-# `examples/ui_depth/` is a page with a deliberate inversion: the
-# thing people need most sits three clicks down, and the thing they
-# need least is on screen. Every number here has a right answer that
-# can be checked by reading thirty lines of markup.
+## ============================================================
+## | Otter UI Depth Tests                                     |
+## | -> How many things must be opened to reach a control     |
+## ============================================================
+##
+## `examples/ui_depth/` is a page with a deliberate inversion: the
+## thing people need most sits three clicks down, and the thing they
+## need least is on screen. Every number here has a right answer that
+## can be checked by reading thirty lines of markup.
 
 import std/[os, sets, strutils, unittest]
 
 import ../../src/protocols/code_stats/ui_depth
-import ../../src/protocols/code_stats/pipeline
+import ../../src/protocols/code_stats/inventory
 import runePragmas
 
 proc sampleReport(): UiDepthReport {.testKind: tkUnit,

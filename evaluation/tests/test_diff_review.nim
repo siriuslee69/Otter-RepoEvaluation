@@ -1,11 +1,11 @@
-# ============================================================
-# | Otter Diff Review Tests                                  |
-# | -> What one change did, rather than what the tree is like |
-# ============================================================
-#
-# A throwaway repository is built in a scratch folder, committed,
-# changed, and measured. That is the only honest way to test this:
-# it works by measuring two trees, so it needs two trees.
+## ============================================================
+## | Otter Diff Review Tests                                  |
+## | -> What one change did, rather than what the tree is like |
+## ============================================================
+##
+## A throwaway repository is built in a scratch folder, committed,
+## changed, and measured. That is the only honest way to test this:
+## it works by measuring two trees, so it needs two trees.
 
 import std/[os, osproc, strutils, unittest]
 

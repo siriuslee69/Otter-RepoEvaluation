@@ -1,14 +1,14 @@
-# ============================================================
-# | Otter Embedded Code Tests                                |
-# | -> A string that holds a program, and which one          |
-# ============================================================
-#
-# The case that started this: a `# otter:allow` comment was written onto
-# a line of JavaScript living inside a Nim string. `#` is not a comment
-# in JavaScript, so the generated page stopped working. Naming the
-# language names the comment marks, which is the whole point.
+## ============================================================
+## | Otter Embedded Code Tests                                |
+## | -> A string that holds a program, and which one          |
+## ============================================================
+##
+## The case that started this: a `# otter:allow` comment was written onto
+## a line of JavaScript living inside a Nim string. `#` is not a comment
+## in JavaScript, so the generated page stopped working. Naming the
+## language names the comment marks, which is the whole point.
 
-import std/[strutils, unittest]
+import std/unittest
 
 import ../../src/protocols/code_stats/embedded
 import runePragmas

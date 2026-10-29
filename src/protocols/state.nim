@@ -1,7 +1,7 @@
-# ============================================================
-# | Otter Timing State                                      |
-# | -> Store timing tuples and flush them to disk           |
-# ============================================================
+## ============================================================
+## | Otter Timing State                                      |
+## | -> Store timing tuples and flush them to disk           |
+## ============================================================
 
 import std/[exitprocs, locks, os, strutils]
 
@@ -15,9 +15,9 @@ const
   DefaultOtterLogPath* {.role: helper, tag: "logging|parentIntegration".} = "build/otter_timings.log"
 
 var
-  gOtterLock: Lock
+  gOtterLock: Lock = default(Lock)
   gOtterLockReady: bool = false
-  gOtterMemory: OtterTimingMemory
+  gOtterMemory: OtterTimingMemory = default(OtterTimingMemory)
 
 # ------------------------------------------------------------
 # The log is written from an exit hook, and by then Nim has already
@@ -37,7 +37,7 @@ var
   gOtterTextLen: int = 0
   gOtterTextCap: int = 0
   gOtterCount: int = 0
-  gOtterPath: array[4096, char]
+  gOtterPath: array[4096, char] = default(array[4096, char])
   gOtterPathLen: int = 0
 
 
@@ -232,7 +232,7 @@ proc recordTiming*(n: string, p: string, l: int, c: int, a: int64,
   ## a: start tick.
   ## b: end tick.
   var
-    t: OtterTimingTuple
+    t: OtterTimingTuple = default(OtterTimingTuple)
   if not OtterTimingEnabled:
     return
   ensureOtterHook()
