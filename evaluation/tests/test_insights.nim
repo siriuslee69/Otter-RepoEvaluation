@@ -249,6 +249,11 @@ suite "secrets: things that should never have been typed in":
     check scoreValue("greeting",
       "Hello there, this is ordinary prose.").score < secretFloor
 
+  # {.testKind: tkRegression, pins: "a Nim declaration kept as text was scored as a key because its name said `signature`".}
+  test "a Nim declaration kept as text is not key material":
+    check scoreValue("f.signature", "proc build(): Feed =").score == 0.0
+    check scoreValue("signature", "func total(): int =").score == 0.0
+
   # {.testKind: tkUnit.}
   test "a marker takes a written-down vector below the floor":
     ## A known-answer test has to write the answer down. Both markers

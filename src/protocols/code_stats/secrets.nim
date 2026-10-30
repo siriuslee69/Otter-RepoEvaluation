@@ -331,6 +331,18 @@ proc looksLikePath*(s: string): bool {.role: parser,
     if at > 0 and tail.len - at <= 6 and at < tail.len - 1:
       return true
 
+proc looksLikeDeclaration(value: string): bool {.role: parser, tag: "stats".} =
+  ## value: the text a name was set to. True when it opens like a Nim
+  ## declaration, such as `proc build(): Feed =`. That is source text kept
+  ## in a string, not key material, whatever the name it was given.
+  const
+    starts: array[7, string] = ["proc ", "func ", "template ", "macro ",
+      "iterator ", "method ", "converter "]
+  result = false
+  for row in starts:
+    if value.startsWith(row):
+      return true
+
 proc scoreValue*(name, value: string):
     tuple[score: float, entropy: float, reasons: seq[string]]
     {.role: truthBuilder, tag: "stats".} =
@@ -352,6 +364,8 @@ proc scoreValue*(name, value: string):
     if name.toLowerAscii() == row:
       return
   if looksLikePath(value) and not nameLooksSecret(name):
+    return
+  if looksLikeDeclaration(value):
     return
   ent = entropyOf(value)
   for row in keyOpeners:
