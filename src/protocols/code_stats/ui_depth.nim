@@ -141,6 +141,27 @@ proc withoutComments*(css: string): string {.role: sanitizer,
       continue
     i = i + 1
 
+proc conditionalBlockAt(css: string, i: int): int {.role: parser,
+    tag: "stats".} =
+  ## css: one stylesheet; i: index of an `@`.
+  ## Index of the `{` that opens the block when this at-rule is a conditional
+  ## one (media, supports, container). Otherwise -1.
+  var
+    at: int = 0
+  result = -1
+  at = css.find('{', i)
+  if at >= 0 and ("media" in css[i ..< at] or
+      "supports" in css[i ..< at] or "container" in css[i ..< at]):
+    result = at
+
+proc blankRange(S: var string, a, b: int) {.role: helper,
+    tag: "stats".} =
+  ## S: the text, changed in place; a, b: the span [a, b) to blank.
+  ## Newlines stay, so line numbers after the span still hold.
+  for j in a ..< b:
+    if S[j] != '\n':
+      S[j] = ' '
+
 proc withoutAtRules*(css: string): string {.role: sanitizer,
     tag: "stats".} =
   ## css: one stylesheet. The same stylesheet with every `@media`,
@@ -163,9 +184,8 @@ proc withoutAtRules*(css: string): string {.role: sanitizer,
   result = css
   while i < css.len:
     if css[i] == '@' and skipFrom < 0:
-      at = css.find('{', i)
-      if at >= 0 and ("media" in css[i ..< at] or
-          "supports" in css[i ..< at] or "container" in css[i ..< at]):
+      at = conditionalBlockAt(css, i)
+      if at >= 0:
         skipFrom = at + 1
         depth = 1
         i = at + 1
@@ -178,9 +198,7 @@ proc withoutAtRules*(css: string): string {.role: sanitizer,
         if depth == 0:
           # Blank the block rather than cutting it, so every later
           # index still lines up with the original text.
-          for j in skipFrom ..< i:
-            if result[j] != '\n':
-              result[j] = ' '
+          blankRange(result, skipFrom, i)
           skipFrom = -1
     i = i + 1
 
@@ -300,7 +318,6 @@ proc controlsIn*(html, path: string, hidden: HashSet[string],
   var
     stack: seq[tuple[tag, why: string]] = @[]
     gates: seq[string] = @[]
-    at: int = 0
     stop: int = 0
     tagText: string = ""
     tagName: string = ""

@@ -578,6 +578,29 @@ proc markedPaths*(dir: string, files: seq[string]): HashSet[string]
       # without asking git to trace renames commit by commit.
       result.incl(extractFilename(rel))
 
+proc digitsAfterPlus(body: string): string {.role: parser, tag: "stats".} =
+  ## body: a hunk header such as `@@ -1,0 +42,3 @@`. The digits right after
+  ## its `+`, here `42`. Empty when there is no `+` or no digit after it.
+  var
+    at: int = body.find('+')
+  result = ""
+  if at <= 0:
+    return
+  for ch in body[at + 1 .. ^1]:
+    if ch.isDigit():
+      result.add(ch)
+    else:
+      break
+
+proc addedLineBefore(body: string): int {.role: parser, tag: "stats".} =
+  ## body: a hunk header. The number of the line just before its first added
+  ## line, so the `+` lines that follow can be counted up from there.
+  ## Zero when the header has no readable number.
+  try:
+    result = parseInt(digitsAfterPlus(body)) - 1
+  except ValueError:
+    result = 0
+
 proc scanHistory*(dir: string, S: var seq[SecretFind],
     marked: HashSet[string] = initHashSet[string]()): int
     {.role: orchestrator, input: thirdParty, risk: rkLow, speed: spLong,
@@ -597,7 +620,6 @@ proc scanHistory*(dir: string, S: var seq[SecretFind],
     commit: string = ""
     path: string = ""
     n: int = 0
-    body: string = ""
     bScan: bool = false
   result = 0
   try:
@@ -624,21 +646,7 @@ proc scanHistory*(dir: string, S: var seq[SecretFind],
       continue
     if line.startsWith("@@"):
       # `@@ -1,0 +42,3 @@` says the added lines start at 42.
-      body = line
-      n = 0
-      var
-        at: int = body.find('+')
-        num: string = ""
-      if at > 0:
-        for ch in body[at + 1 .. ^1]:
-          if ch.isDigit():
-            num.add(ch)
-          else:
-            break
-        try:
-          n = parseInt(num) - 1
-        except ValueError:
-          n = 0
+      n = addedLineBefore(line)
       continue
     if line.startsWith("+") and not line.startsWith("+++"):
       n = n + 1

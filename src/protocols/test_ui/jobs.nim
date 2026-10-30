@@ -634,13 +634,27 @@ proc processRequest(request: JsonNode, jobs: var Table[string, ManagedJob],
   else:
     result = %*{"ok": false, "error": "unsupported test backend action"}
 
+proc endUnfinishedJob(statePath, status: string, exitCode: int) {.role: actor,
+    tag: "execution|testing|ui".} =
+  ## statePath: the job's state file; status: the status to give it; exitCode: recorded with it.
+  ## Only a job still marked queued or running is changed. Any other state is left alone.
+  var
+    S: JsonNode = default(JsonNode)
+  try:
+    S = parseJson(readFile(statePath))
+    if S{"status"}.getStr("") in ["queued", "running"]:
+      S["status"] = %status
+      S["exitCode"] = %exitCode
+      atomicWrite(statePath, $S)
+  except CatchableError:
+    discard
+
 proc cleanupJobs(jobs: var Table[string, ManagedJob], runtimeDir: string) {.role: helper,
     tag: "execution|testing|ui".} =
   ## jobs/runtimeDir: process handles and state root repaired after workers finish.
   var
     completed: seq[string] = @[]
     statePath: string = ""
-    S: JsonNode = default(JsonNode)
     exitCode: int = 0
   for id, managed in jobs.mpairs:
     if not managed.process.running():
@@ -648,14 +662,7 @@ proc cleanupJobs(jobs: var Table[string, ManagedJob], runtimeDir: string) {.role
       managed.process.close()
       statePath = jobStatePath(runtimeDir, id)
       if fileExists(statePath):
-        try:
-          S = parseJson(readFile(statePath))
-          if S{"status"}.getStr("") in ["queued", "running"]:
-            S["status"] = %"fail"
-            S["exitCode"] = %exitCode
-            atomicWrite(statePath, $S)
-        except CatchableError:
-          discard
+        endUnfinishedJob(statePath, "fail", exitCode)
       completed.add(id)
   for id in completed:
     jobs.del(id)
@@ -679,17 +686,9 @@ proc markJobStopped(runtimeDir, id: string) {.role: truthBuilder,
   ## runtimeDir/id: interrupted job state finalized after owner lease expiry.
   var
     path: string = jobStatePath(runtimeDir, id)
-    S: JsonNode = default(JsonNode)
   if not fileExists(path):
     return
-  try:
-    S = parseJson(readFile(path))
-    if S{"status"}.getStr("") in ["queued", "running"]:
-      S["status"] = %"stopped"
-      S["exitCode"] = %130
-      atomicWrite(path, $S)
-  except CatchableError:
-    discard
+  endUnfinishedJob(path, "stopped", 130)
 
 proc runTestBackend*(appPath, repoRoot, runtimeDir: string)
     {.role: metaOrchestrator, tag: "execution|testing|ui".} =

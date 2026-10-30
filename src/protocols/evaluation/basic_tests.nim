@@ -37,6 +37,17 @@ proc monobitTest*(Bs: openArray[uint8], a: float64 = defaultAlpha): NistResult {
     result = makeResult("monobit", sObs, p, a)
 
 
+proc onesInBlock(Bs: openArray[uint8], s, m: int): int {.role: helper.} =
+  ## Bs: input bit sequence (0/1). s: index of the block's first bit.
+  ## m: block size in bits. Returns how many of those m bits are 1.
+  var
+    j: int = 0
+  result = 0
+  while j < m:
+    if Bs[s + j] == 1'u8:
+      result = result + 1
+    j = j + 1
+
 proc blockFrequencyTest*(Bs: openArray[uint8], m: int,
     a: float64 = defaultAlpha): NistResult {.role: math.} =
   ## Bs: input bit sequence (0/1).
@@ -46,7 +57,6 @@ proc blockFrequencyTest*(Bs: openArray[uint8], m: int,
     n: int = Bs.len
     nBlocks: int = 0
     i: int = 0
-    j: int = 0
     ones: int = 0
     pi: float64 = 0.0
     sum: float64 = 0.0
@@ -60,12 +70,7 @@ proc blockFrequencyTest*(Bs: openArray[uint8], m: int,
       result = makeResult("block_frequency", 0.0, 0.0, a)
     else:
       while i < nBlocks:
-        ones = 0
-        j = 0
-        while j < m:
-          if Bs[i * m + j] == 1'u8:
-            ones = ones + 1
-          j = j + 1
+        ones = onesInBlock(Bs, i * m, m)
         pi = float64(ones) / float64(m)
         sum = sum + (pi - 0.5) * (pi - 0.5)
         i = i + 1

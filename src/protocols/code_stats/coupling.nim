@@ -166,6 +166,33 @@ proc isDoor*(f: FunctionInfo): bool {.role: parser,
     return true
   result = t in ["datafetcher", "data_fetcher", "input"]
 
+proc newCallees(caller: string, M: Table[string, seq[string]],
+    seen: var HashSet[string], came: var Table[string, string]): seq[string]
+    {.role: helper, tag: "stats".} =
+  ## caller: the id walked from; M: who calls whom; seen: ids met so far;
+  ## came: who each new id was reached from. Returns the callees not met before.
+  result = @[]
+  for callee in M.getOrDefault(caller, @[]):
+    if seen.containsOrIncl(callee):
+      continue
+    came[callee] = caller
+    result.add(callee)
+
+proc routeBack(id, at: string, came: Table[string, string],
+    names: Table[string, string]): seq[string] {.role: helper,
+    tag: "stats".} =
+  ## id: the door; at: the guard reached; came: who each id was reached from.
+  ## The route from the door out to the guard, shown by name.
+  var
+    cur: string = at
+  result = @[]
+  while cur.len > 0:
+    result.add(names.getOrDefault(cur, cur))
+    if cur == id or not came.hasKey(cur):
+      break
+    cur = came[cur]
+  result.reverse()
+
 proc findGuard*(id: string, M: Table[string, seq[string]],
     guards: HashSet[string], names: Table[string, string], hops: int):
     tuple[found: bool, at: string, route: seq[string]] {.role: parser,
@@ -181,28 +208,15 @@ proc findGuard*(id: string, M: Table[string, seq[string]],
     seen: HashSet[string] = initHashSet[string]()
     came: Table[string, string] = initTable[string, string]()
     step: int = 0
-    at: string = ""
   result = (found: false, at: "", route: @[])
   seen.incl(id)
   while step < hops and now.len > 0:
     next = @[]
     for caller in now:
-      for callee in M.getOrDefault(caller, @[]):
-        if seen.containsOrIncl(callee):
-          continue
-        came[callee] = caller
+      for callee in newCallees(caller, M, seen, came):
         if callee in guards:
-          # Walk the route back to the door, then turn it round.
-          at = callee
-          result.route = @[]
-          while at.len > 0:
-            result.route.add(names.getOrDefault(at, at))
-            if at == id or not came.hasKey(at):
-              break
-            at = came[at]
-          result.route.reverse()
           return (found: true, at: names.getOrDefault(callee, callee),
-            route: result.route)
+            route: routeBack(id, callee, came, names))
         next.add(callee)
     now = next
     step = step + 1

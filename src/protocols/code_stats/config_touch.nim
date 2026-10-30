@@ -362,7 +362,6 @@ proc builtIn*(line, typeName, field: string): bool {.role: parser,
   var
     at: int = 0
     start: int = 0
-    owner: string = ""
   result = false
   at = line.find(typeName & "(")
   if at < 0:
@@ -443,6 +442,29 @@ proc mapTouches*(A: var seq[ConfigField], F: seq[FunctionInfo]): int
     A[i].verdict = verdictOf(A[i])
     i = i + 1
 
+proc settingsNamedIn(t: string, names: HashSet[string]): seq[string]
+    {.role: parser, tag: "stats".} =
+  ## t: one guard line; names: every setting name.
+  ## The settings the guard reads, once each: `cfg.quiet` gives `quiet`.
+  var
+    j: int = 0
+    word: string = ""
+  result = @[]
+  while j < t.len:
+    if t[j] == '.':
+      word = identAt(t, j + 1)
+      if word in names:
+        addName(result, word)
+    j = j + 1
+
+proc refusesLine(l: string): bool {.role: parser, tag: "stats".} =
+  ## l: the line after a guard, lower-cased. True when a refusal word leads
+  ## the line or stands in it.
+  result = false
+  for word in refusalWords:
+    if l.startsWith(word) or (word & " ") in l:
+      return true
+
 proc refusedPairs*(A: seq[ConfigField], F: seq[FunctionInfo],
     root: string): seq[ConfigConflict] {.role: truthBuilder,
     tag: "stats".} =
@@ -463,7 +485,6 @@ proc refusedPairs*(A: seq[ConfigField], F: seq[FunctionInfo],
     seen: HashSet[string] = initHashSet[string]()
     tag: string = ""
     i: int = 0
-    j: int = 0
   result = @[]
   for row in A:
     names.incl(row.name)
@@ -481,30 +502,29 @@ proc refusedPairs*(A: seq[ConfigField], F: seq[FunctionInfo],
         continue
       if " and " notin t and " or " notin t:
         continue
-      inLine = @[]
-      j = 0
-      while j < t.len:
-        if t[j] == '.':
-          nextLine = identAt(t, j + 1)
-          if nextLine in names:
-            addName(inLine, nextLine)
-        j = j + 1
+      inLine = settingsNamedIn(t, names)
       if inLine.len < 2:
         continue
       # The refusal is on the following line, indented under the guard.
       nextLine = ""
       if i < fn.bodyLines.len:
         nextLine = fn.bodyLines[i].strip().toLowerAscii()
-      for word in refusalWords:
-        if nextLine.startsWith(word) or (word & " ") in nextLine:
-          tag = inLine[0] & "|" & inLine[1]
-          if tag in seen:
-            break
-          seen.incl(tag)
-          result.add(ConfigConflict(a: inLine[0], b: inLine[1],
-            kind: "refused", detail: t, path: rel, line: fn.lineStart + i,
-            certainty: 0.95))
-          break
+      if not refusesLine(nextLine):
+        continue
+      tag = inLine[0] & "|" & inLine[1]
+      if tag in seen:
+        continue
+      seen.incl(tag)
+      result.add(ConfigConflict(a: inLine[0], b: inLine[1],
+        kind: "refused", detail: t, path: rel, line: fn.lineStart + i,
+        certainty: 0.95))
+
+proc sharedWriters(a, b: ConfigField): int {.role: helper, tag: "stats".} =
+  ## a, b: two settings. How many routines write both of them.
+  result = 0
+  for row in a.writers:
+    if row in b.writers:
+      result = result + 1
 
 proc contestedPairs*(A: seq[ConfigField]): seq[ConfigConflict]
     {.role: truthBuilder, tag: "stats".} =
@@ -525,10 +545,7 @@ proc contestedPairs*(A: seq[ConfigField]): seq[ConfigConflict]
     j = i + 1
     while j < A.len:
       if A[j].writeCount >= 2:
-        shared = 0
-        for row in A[i].writers:
-          if row in A[j].writers:
-            shared = shared + 1
+        shared = sharedWriters(A[i], A[j])
         if shared >= 2:
           result.add(ConfigConflict(a: A[i].name, b: A[j].name,
             kind: "contested",

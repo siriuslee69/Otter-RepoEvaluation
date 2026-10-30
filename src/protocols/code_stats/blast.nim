@@ -242,6 +242,26 @@ proc callersOf(g: RepoGraph, targetIds: HashSet[string], n: int):
     frontier = nextUp
     depth = depth + 1
 
+proc addCallArguments(perPos: var Table[int, ArgumentEvidence],
+    args: seq[string]) {.role: helper, tag: "graph".} =
+  ## perPos: evidence per argument position so far; args: one call's arguments.
+  ## A literal is kept once per position. Anything else counts as a variable.
+  var
+    i: int = 0
+    row: ArgumentEvidence = ArgumentEvidence()
+  while i < args.len:
+    if not perPos.hasKey(i):
+      perPos[i] = ArgumentEvidence(position: i, literals: @[],
+        fromVariables: 0)
+    row = perPos[i]
+    if isLiteral(args[i]):
+      if args[i] notin row.literals:
+        row.literals.add(args[i])
+    else:
+      row.fromVariables = row.fromVariables + 1
+    perPos[i] = row
+    i = i + 1
+
 proc feedersOf(g: RepoGraph, name: string, m: int):
     tuple[nodes: seq[BlastNode], args: seq[ArgumentEvidence]]
     {.role: truthBuilder, tag: "graph".} =
@@ -257,11 +277,8 @@ proc feedersOf(g: RepoGraph, name: string, m: int):
     seenNode: HashSet[string] = initHashSet[string]()
     perPos = initTable[int, ArgumentEvidence]()
     inside: string = ""
-    args: seq[string] = @[]
     at: int = 0
     key: string = ""
-    row: ArgumentEvidence = ArgumentEvidence()
-    i: int = 0
   result = (nodes: @[], args: @[])
   for f in g.functions:
     for line in f.bodyLines:
@@ -279,20 +296,7 @@ proc feedersOf(g: RepoGraph, name: string, m: int):
         seenNode.incl(key)
         nodes.add(BlastNode(name: c.name, path: f.sourcePath,
           line: f.lineStart, depth: c.depth, role: ""))
-      args = splitArgs(inside)
-      i = 0
-      while i < args.len:
-        if not perPos.hasKey(i):
-          perPos[i] = ArgumentEvidence(position: i, literals: @[],
-            fromVariables: 0)
-        row = perPos[i]
-        if isLiteral(args[i]):
-          if args[i] notin row.literals:
-            row.literals.add(args[i])
-        else:
-          row.fromVariables = row.fromVariables + 1
-        perPos[i] = row
-        i = i + 1
+      addCallArguments(perPos, splitArgs(inside))
   result.nodes = nodes
   for pos, row in perPos:
     result.args.add(row)

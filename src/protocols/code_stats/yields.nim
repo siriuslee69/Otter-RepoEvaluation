@@ -436,6 +436,29 @@ proc anySurvives(regions: seq[TryRegion], ats: seq[int], name: string): bool
     if survives(regions, at, name):
       return true
 
+proc passOutcomesUp(cur: var Table[string, Table[string, Outcome]],
+    f: FunctionInfo, calleeId, calleeName: string, regions: seq[TryRegion],
+    stated: bool): bool {.role: helper, tag: "graph".} =
+  ## cur: every routine's endings so far; f: the calling routine;
+  ## calleeId/calleeName: the routine it calls; regions: f's try blocks;
+  ## stated: whether f declares what it raises.
+  ## Copies each ending of the callee that can reach f. Returns true when at
+  ## least one was copied, so the caller goes round again.
+  var
+    ats: seq[int] = siteLines(f, calleeName)
+  result = false
+  for _, o in cur[calleeId]:
+    if o.kind == okRaise and (stated or not anySurvives(regions, ats, o.name)):
+      continue
+    if f.name in o.via or o.via.len >= maxChain:
+      continue
+    if cur[f.id].hasKey(o.name) and cur[f.id][o.name].via.len <= o.via.len + 1:
+      continue
+    cur[f.id][o.name] = Outcome(name: o.name, kind: o.kind,
+      via: @[f.name] & o.via,
+      source: (if o.source == "library": "library" else: "from a callee"))
+    result = true
+
 proc escapingOf*(g: RepoGraph): Table[string, seq[Outcome]]
     {.role: metaOrchestrator, tag: "graph".} =
   ## g: the whole graph.
@@ -474,7 +497,6 @@ proc escapingOf*(g: RepoGraph): Table[string, seq[Outcome]]
     cur: Table[string, Table[string, Outcome]] = initTable[string,
       Table[string, Outcome]]()
     said: tuple[stated: bool, names: seq[string]] = (false, @[])
-    ats: seq[int] = @[]
     moved: bool = true
     round: int = 0
   result = initTable[string, seq[Outcome]]()
@@ -502,20 +524,8 @@ proc escapingOf*(g: RepoGraph): Table[string, seq[Outcome]]
     moved = false
     for f in g.functions:
       for calleeId in calls[f.id]:
-        ats = siteLines(f, nameOf[calleeId])
-        for _, o in cur[calleeId]:
-          if o.kind == okRaise and stated[f.id]:
-            continue
-          if o.kind == okRaise and not anySurvives(regions[f.id], ats, o.name):
-            continue
-          if f.name in o.via or o.via.len >= maxChain:
-            continue
-          if cur[f.id].hasKey(o.name) and
-              cur[f.id][o.name].via.len <= o.via.len + 1:
-            continue
-          cur[f.id][o.name] = Outcome(name: o.name, kind: o.kind,
-            via: @[f.name] & o.via,
-            source: (if o.source == "library": "library" else: "from a callee"))
+        if passOutcomesUp(cur, f, calleeId, nameOf[calleeId], regions[f.id],
+            stated[f.id]):
           moved = true
     round = round + 1
   for id, rows in cur:
