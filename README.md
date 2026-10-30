@@ -5,7 +5,7 @@
 NixOS: enter a shell with the compiler and checking tools, then build the CLI.
 
 ```sh
-nix-shell -p nim git jq gcc binutils
+nix-shell -p nim git gcc binutils
 git clone --recurse-submodules https://github.com/siriuslee69/Otter-RepoEvaluation.git
 cd Otter-RepoEvaluation
 nimble install --depsOnly --yes
@@ -24,7 +24,7 @@ nimble buildCli
 ```
 
 Existing checkouts need `git submodule update --init --recursive`.
-The shell hooks need Bash, Git, jq, awk, and GNU core utilities. The machine-code
+The shell hooks need Bash, Git, awk, sha256sum, and GNU core utilities. They read their JSON with `nqa`, which `nqa-build.sh` compiles from the Null-QueryAPIs repository beside this one. The machine-code
 `ct` check currently needs Linux/x86-64 and `objdump`; ordinary source statistics
 use the Nim CLI on either platform.
 
@@ -1197,8 +1197,9 @@ The shared WebUI now uses qlacier-style floating menu shells: repo root search o
   sees only the defines it is given. Grouped bracket imports are currently
   skipped by import binding analysis. Dependency depth counts local modules;
   cycles are reported separately.
-- The gate needs `jq` on PATH. Without it the gate prints
-  `otter: jq is required to read the report` and exits 2. `nix-shell -p jq`
+- The gate reads its JSON with `nqa`, built by `tools/agent_hooks/nqa-build.sh`
+  from the Null-QueryAPIs repository (or `NQA_HOME`). Without a build the gate prints
+  `otter: nqa is needed to read the report, see nqa-build.sh` and exits 2. Run `nimble buildCli` in Null-QueryAPIs, or set `NQA_HOME`.
   provides it.
 - The gate prints each finding once per repository. To see every finding
   again, set `OTTER_REPORT_LOG=off`.

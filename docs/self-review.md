@@ -26,7 +26,7 @@ Otter. The rest were kept on purpose, with the reason written below.
 Two notes for anyone who runs this again:
 
 ```
-gate needs jq on PATH   no jq -> "otter: jq is required to read the report", exit 2
+gate needs nqa          no nqa -> "otter: nqa is needed to read the report, see nqa-build.sh", exit 2
 gate hides repeats      without OTTER_REPORT_LOG=off, rows printed before are not shown
 ```
 
@@ -124,7 +124,7 @@ execution coverage, so it is recorded rather than tuned away.
 3. **Nesting (203 triple, 42 at depth 4).** No site is deeper than 4 now. The
    largest groups at depth 4 are `extractCalls` (4 sites), `mapTouches` (4),
    `universalTest` (4), `parseImportBindings` (2), and `detectUserInputSignals` (2).
-   The list is `jq -r '.nest.sites[] | select(.depth==4)' stats.json`.
+   The list is `nqa -r '.nest.sites[] | select(.depth==4)' stats.json`.
 4. **Seam in `code_stats/state_writes.nim`** at about line 640: 21 routines
    above, 31 below, and only 7 of the upper ones are used below. Split into two
    modules and move those 7 to a shared file.

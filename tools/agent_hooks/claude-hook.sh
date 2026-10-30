@@ -17,10 +17,12 @@
 set -uo pipefail
 
 here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+query=$("$here/nqa-build.sh" 2>/dev/null) || query=""
+[ -n "$query" ] || { echo "otter: nqa is not available, the hook is skipped" >&2; exit 0; }
 
 payload=$(cat 2>/dev/null || true)
-file=$(printf '%s' "$payload" | jq -r '.tool_input.file_path // .tool_response.filePath // empty' 2>/dev/null)
-cwd=$(printf '%s' "$payload" | jq -r '.cwd // empty' 2>/dev/null)
+file=$(printf '%s' "$payload" | "$query" -r '.tool_input.file_path // .tool_response.filePath // empty' 2>/dev/null)
+cwd=$(printf '%s' "$payload" | "$query" -r '.cwd // empty' 2>/dev/null)
 [ -n "$cwd" ] && [ -d "$cwd" ] || cwd="${file:+$(dirname "$file")}"
 [ -n "$cwd" ] && [ -d "$cwd" ] || cwd="$PWD"
 
@@ -51,7 +53,7 @@ fi
 
 [ -n "${context//[[:space:]]/}" ] || exit 0
 
-jq -nc --arg c "$context" --arg m "$sysmsg" '
+"$query" -nc --arg c "$context" --arg m "$sysmsg" '
   { hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: $c } }
   + (if $m == "" then {} else { systemMessage: $m } end)
 '

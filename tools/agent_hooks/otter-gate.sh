@@ -74,19 +74,19 @@ if [ "$force" = 0 ]; then
 fi
 
 bin=$("$here/otter-build.sh") || exit 2
-command -v jq >/dev/null 2>&1 || { echo "otter: jq is required to read the report" >&2; exit 2; }
+query=$("$here/nqa-build.sh") || { echo "otter: nqa is needed to read the report, see nqa-build.sh" >&2; exit 2; }
 json="$CACHE/last-stats-$key.json"
 timeout "${OTTER_TIMEOUT:-240}" "$bin" stats "$root" --json > "$json" || {
   echo "otter: statistics failed or timed out" >&2; exit 2;
 }
-jq -e . "$json" >/dev/null 2>&1 || {
+"$query" -e . "$json" >/dev/null 2>&1 || {
   echo "otter: invalid statistics JSON, see $json" >&2; exit 2;
 }
 
 # Anchor forward so the next window starts here, whatever the findings are.
 anchor_here
 
-report=$(REPO="$root" CHANGED="$changed" THRESH="$THRESHOLD" FORCED="$force" jq -r '
+report=$(REPO="$root" CHANGED="$changed" THRESH="$THRESHOLD" FORCED="$force" "$query" -r '
   def top(n): .[0:n];
   def nz(x): if (x // 0) > 0 then true else false end;
   [
@@ -177,8 +177,8 @@ report=$(REPO="$root" CHANGED="$changed" THRESH="$THRESHOLD" FORCED="$force" jq 
      "Shape: \(.totalLines) lines, \(.functions) routines, avg \(.avgLines | floor)."]
   | join("\n")
 ' "$json" 2>/dev/null)
-jqStatus=$?
-[ "$jqStatus" -eq 0 ] || exit 2
+queryStatus=$?
+[ "$queryStatus" -eq 0 ] || exit 2
 
 printf '%s\n' "$report" | bash "$here/report-once.sh" --root "$root"
 reportStatus=$?
