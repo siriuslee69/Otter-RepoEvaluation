@@ -613,10 +613,47 @@ proc parsePragmas(sHeader: string, f: var FunctionInfo) {.role: parser, tag: "gr
     i = b + 2
 
 
+proc docDirective(t: string): string {.role: parser, tag: "graph|parsing".} =
+  ## t: one stripped line. The word after `## @`, so `## @tags a|b` gives
+  ## `tags`. Empty when the line is not a doc directive. Whole words only:
+  ## `tag` is never taken from `tags`.
+  var
+    body: string = ""
+    k: int = 0
+  result = ""
+  if not t.startsWith("## @"):
+    return
+  body = t["## @".len .. ^1]
+  while k < body.len and not body[k].isSpaceAscii:
+    k = k + 1
+  result = body[0 ..< k]
+
+proc docValue(t, directive: string): string {.role: parser, tag: "graph|parsing".} =
+  ## t: one stripped line; directive: its word from docDirective.
+  ## Returns the text after that word.
+  result = t["## @".len + directive.len .. ^1].strip()
+
+proc addTagList(f: var FunctionInfo, v: string) {.role: helper, tag: "graph|parsing".} =
+  ## f: the routine; v: names split by |, comma or semicolon.
+  for s in v.split({'|', ',', ';'}):
+    if s.strip().len > 0:
+      addParsedText(f.pragmaTags, s.strip(), true)
+
+proc addRiskList(f: var FunctionInfo, v: string) {.role: helper, tag: "graph|parsing".} =
+  ## f: the routine; v: risk names split by | or comma.
+  for s in v.split({'|', ','}):
+    if s.strip().len > 0:
+      addRiskTag(f, s.strip(), "")
+      addParsedText(f.pragmaTags, "risk:" & s.strip().toLowerAscii(), true)
+
 proc parseDocTags(ls: seq[string], iStart: int, f: var FunctionInfo) {.role: parser, tag: "graph|parsing".} =
+  ## ls: file lines; iStart: the routine's first line; f: the routine.
+  ## Reads the doc directives above the routine, going up until a line that is
+  ## neither a directive nor a plain comment.
   var
     i: int = iStart - 1
     t: string = ""
+    directive: string = ""
     v: string = ""
     r: FunctionRole = frUnknown
   while i >= 0:
@@ -624,8 +661,15 @@ proc parseDocTags(ls: seq[string], iStart: int, f: var FunctionInfo) {.role: par
     if t.len == 0:
       i = i - 1
       continue
-    if t.startsWith("## @role"):
-      v = t["## @role".len .. ^1].strip()
+    directive = docDirective(t)
+    if directive.len == 0:
+      if not t.startsWith("#"):
+        break
+      i = i - 1
+      continue
+    v = docValue(t, directive)
+    case directive
+    of "role":
       r = parseRole(v)
       if r != frUnknown and f.declaredRole == frUnknown:
         f.declaredRole = r
@@ -633,41 +677,21 @@ proc parseDocTags(ls: seq[string], iStart: int, f: var FunctionInfo) {.role: par
         f.roleConfidence = 1.0
         f.roleReason = "doc role"
         addParsedText(f.pragmaTags, "role:" & roleToString(r), true)
-    elif t.startsWith("## @risk"):
-      v = t["## @risk".len .. ^1].strip()
-      if v.len > 0:
-        for s in v.split({'|', ','}):
-          if s.strip().len > 0:
-            addRiskTag(f, s.strip(), "")
-            addParsedText(f.pragmaTags, "risk:" & s.strip().toLowerAscii(), true)
-    elif t.startsWith("## @issue"):
-      v = t["## @issue".len .. ^1].strip()
+    of "risk":
+      addRiskList(f, v)
+    of "issue":
       addParsedText(f.issueRefs, v)
       addParsedText(f.pragmaTags, "issue:" & v.toLowerAscii(), true)
-    elif t.startsWith("## @tag"):
-      v = t["## @tag".len .. ^1].strip()
-      if v.len > 0:
-        for s in v.split({'|', ',', ';'}):
-          if s.strip().len > 0:
-            addParsedText(f.pragmaTags, s.strip(), true)
-    elif t.startsWith("## @tags"):
-      v = t["## @tags".len .. ^1].strip()
-      if v.len > 0:
-        for s in v.split({'|', ',', ';'}):
-          if s.strip().len > 0:
-            addParsedText(f.pragmaTags, s.strip(), true)
-    elif t.startsWith("## @user_input") or t.startsWith("## @input_handler"):
-      v = t[t.find('@') + 1 .. ^1]
-      v = if " " in v: v.split(' ', maxsplit = 1)[1].strip() else: ""
+    of "tag", "tags":
+      addTagList(f, v)
+    of "user_input", "input_handler":
       if parseBoolLike(v, true):
         markUserInputDeclared(f, "doc user_input")
         addParsedText(f.pragmaTags, "user_input", true)
       else:
         addParsedText(f.pragmaTags, "user_input:false", true)
-    elif t.startsWith("#"):
-      discard
     else:
-      break
+      discard
     i = i - 1
 
 
@@ -892,6 +916,29 @@ proc genericCallAt(line: string, j: int): bool {.role: parser,
       return k + 1 < line.len and line[k + 1] == '('
     k = k + 1
 
+proc nameAfterDot(line: string, i: int): tuple[name: string, next: int,
+    called: bool] {.role: parser, tag: "graph|parsing".} =
+  ## line: one comment-free line of Nim; i: index of a `.`.
+  ## name: the identifier after the dot (spaces may come first);
+  ## next: index to continue from; called: true when a `(` follows the name.
+  ## With no identifier after the dot, name is empty and next is i + 1.
+  var
+    j: int = i + 1
+    k: int = 0
+  result = (name: "", next: i + 1, called: false)
+  while j < line.len and line[j].isSpaceAscii():
+    j = j + 1
+  if j >= line.len or not (line[j].isAlphaAscii() or line[j] == '_'):
+    return
+  k = j + 1
+  while k < line.len and (line[k].isAlphaNumeric() or line[k] == '_'):
+    k = k + 1
+  result.name = line[j ..< k]
+  result.next = k
+  while k < line.len and line[k].isSpaceAscii():
+    k = k + 1
+  result.called = k < line.len and line[k] == '('
+
 proc extractCalls*(bodyLines: seq[string]): seq[string] {.role: parser, tag: "graph|parsing".} =
   ## bodyLines: any lines of Nim. Every name written with a bracket
   ## after it. Exported because the diff review reads the lines a
@@ -902,8 +949,8 @@ proc extractCalls*(bodyLines: seq[string]): seq[string] {.role: parser, tag: "gr
     i: int = 0
     i0: int = 0
     j: int = 0
-    k: int = 0
     name: string = ""
+    dotted: tuple[name: string, next: int, called: bool] = (name: "", next: 0, called: false)
   result = @[]
   seen = initHashSet[string]()
   for raw in bodyLines:
@@ -922,23 +969,10 @@ proc extractCalls*(bodyLines: seq[string]): seq[string] {.role: parser, tag: "gr
         if j < line.len and (line[j] == '(' or genericCallAt(line, j)):
           addCall(result, seen, name)
       elif line[i] == '.':
-        j = i + 1
-        while j < line.len and line[j].isSpaceAscii():
-          j = j + 1
-        if j < line.len and (line[j].isAlphaAscii() or line[j] == '_'):
-          i0 = j
-          j = j + 1
-          while j < line.len and (line[j].isAlphaNumeric() or line[j] == '_'):
-            j = j + 1
-          name = line[i0 ..< j]
-          k = j
-          while k < line.len and line[k].isSpaceAscii():
-            k = k + 1
-          if k < line.len and line[k] == '(':
-            addCall(result, seen, name)
-          i = j
-        else:
-          i = i + 1
+        dotted = nameAfterDot(line, i)
+        if dotted.called:
+          addCall(result, seen, dotted.name)
+        i = dotted.next
       else:
         i = i + 1
 
@@ -1081,6 +1115,19 @@ proc parseFunctionBlock(ls: seq[string], modulePath, sourcePath: string,
   result = (true, f, i)
 
 
+proc blankTripleQuoted(L: seq[string]): seq[string] {.role: parser, tag: "graph|parsing".} =
+  ## L: one file's lines. Lines inside a """ string are blanked, so Nim text kept
+  ## in a string (a test fixture, for example) is not read as code.
+  ## Line count and line numbers stay the same.
+  var
+    inside: bool = false
+  result = L
+  for i in 0 ..< L.len:
+    if inside:
+      result[i] = ""
+    if L[i].count("\"\"\"") mod 2 == 1:
+      inside = not inside
+
 proc parseNimFile*(rootDir, filePath: string): seq[FunctionInfo] {.role: parser, tag: "graph|parsing".} =
   var
     lines: seq[string] = @[]
@@ -1089,7 +1136,7 @@ proc parseNimFile*(rootDir, filePath: string): seq[FunctionInfo] {.role: parser,
     modulePath: string = ""
     fileBindings: seq[ImportBinding] = @[]
   result = @[]
-  lines = readLinesSafe(filePath)
+  lines = blankTripleQuoted(readLinesSafe(filePath))
   if lines.len == 0:
     return
   modulePath = toModulePath(rootDir, filePath)

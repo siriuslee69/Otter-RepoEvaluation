@@ -228,6 +228,49 @@ proc viaEnumSet*() {.role: parser, tag: "ame|kdf".} =
       check "{tagame" notin byName[name].pragmaTags
     removeDir(root)
 
+  # {.testKind: tkRegression, pins: "a doc line `## @tags` was read as `@tag`, so its first word became a tag".}
+  test "a doc directive named tags is read as tags, not as a tag with a stray word":
+    var
+      root: string = joinPath(getCurrentDir(), "build", "test_doc_tags_repo")
+      g: RepoGraph = default(RepoGraph)
+      byName: Table[string, FunctionInfo] = initTable[string, FunctionInfo]()
+    if dirExists(root):
+      removeDir(root)
+    createDir(joinPath(root, "src"))
+    writeFile(joinPath(root, "src", "docs.nim"), """
+## @tags alpha|beta
+proc tagged*(): int =
+  1
+""")
+    g = analyzeRepo(root)
+    for f in g.functions:
+      byName[f.name] = f
+    check byName.hasKey("tagged")
+    check "alpha" in byName["tagged"].pragmaTags
+    check "beta" in byName["tagged"].pragmaTags
+    check "s alpha" notin byName["tagged"].pragmaTags
+    removeDir(root)
+
+  # {.testKind: tkRegression, pins: "routines written inside a triple-quoted string were counted as code".}
+  test "text inside a triple-quoted string is not read as code":
+    var
+      root: string = joinPath(getCurrentDir(), "build", "test_quoted_repo")
+      g: RepoGraph = default(RepoGraph)
+      names: seq[string] = @[]
+      q3: string = "\"\"\""
+    if dirExists(root):
+      removeDir(root)
+    createDir(joinPath(root, "src"))
+    writeFile(joinPath(root, "src", "fixture.nim"),
+      "const sample* = " & q3 & "\nproc inner*() =\n  discard\n" & q3 &
+      "\n\nproc outer*(): int =\n  1\n")
+    g = analyzeRepo(root)
+    for f in g.functions:
+      names.add(f.name)
+    check "outer" in names
+    check "inner" notin names
+    removeDir(root)
+
 suite "otter repo graph: headers and uses that read like something else":
   # {.testKind: tkRegression, pins: "a default value ending a line was read as the body, and the role after it was lost".}
   test "a parameter default at the end of a line is not the body":
