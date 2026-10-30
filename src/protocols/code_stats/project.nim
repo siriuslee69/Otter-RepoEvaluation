@@ -197,10 +197,12 @@ proc calledNamesOf(dir: string, A: seq[FunctionInfo]): HashSet[string]
   ##   a pragma applies it       {.needs: b <= a.}   <- never "called"
   ##   top-level code calls it   when isMainModule: stream(1)
   ##   something is handed it    createThread(t, serveThread, args)
+  ##   used as a method          c.isDigit          <- no brackets
   ##
-  ## The last three used to be invisible, so every macro written to be
+  ## The last four used to be invisible, so every macro written to be
   ## used as a pragma, every routine only ever reached from a module's
-  ## own top level, and every thread body was reported as dead weight.
+  ## own top level, every thread body, and every method-style call was
+  ## reported as dead weight.
   var
     known: HashSet[string] = initHashSet[string]()
     perFile: Table[string, seq[FunctionInfo]] = initTable[string,
@@ -219,6 +221,8 @@ proc calledNamesOf(dir: string, A: seq[FunctionInfo]): HashSet[string]
     for name in topLevelCalls(lines, perFile.getOrDefault(p, @[])):
       result.incl(name.toLowerAscii())
     for name in passedNames(lines, known):
+      result.incl(name.toLowerAscii())
+    for name in dottedNamesIn(lines, known):
       result.incl(name.toLowerAscii())
 
 proc keptSourceFiles(dir: string): seq[string] {.role: dataFetcher,

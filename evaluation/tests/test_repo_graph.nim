@@ -111,6 +111,7 @@ suite "otter repo graph: where a routine ends":
     if dirExists(root):
       removeDir(root)
     createDir(joinPath(root, "src"))
+    createDir(joinPath(root, ".git"))
     writeFile(joinPath(root, "sample.nimble"), "srcDir = \"src\"\n")
     writeFile(joinPath(root, "src", "edges.nim"), """
 proc stream*(n: int): seq[byte] =
@@ -154,6 +155,7 @@ when isMainModule:
     if dirExists(root):
       removeDir(root)
     createDir(joinPath(root, "src"))
+    createDir(joinPath(root, ".git"))
     writeFile(joinPath(root, "sample.nimble"), "srcDir = \"src\"\n")
     writeFile(joinPath(root, "src", "uses.nim"), """
 import std/macros
@@ -182,6 +184,7 @@ proc spread*(a, b: int): int {.wrapped: a <= b,
 echo onlyFromTop(3), marked(1), spread(1, 2)
 """)
     s = analyzeProject(root)
+    check s.error.len == 0
     for it in s.unusedFuncs.items:
       dead.add(it.name)
     check "loud" notin dead
@@ -237,6 +240,7 @@ proc viaEnumSet*() {.role: parser, tag: "ame|kdf".} =
     if dirExists(root):
       removeDir(root)
     createDir(joinPath(root, "src"))
+    createDir(joinPath(root, ".git"))
     writeFile(joinPath(root, "src", "docs.nim"), """
 ## @tags alpha|beta
 proc tagged*(): int =
@@ -261,6 +265,7 @@ proc tagged*(): int =
     if dirExists(root):
       removeDir(root)
     createDir(joinPath(root, "src"))
+    createDir(joinPath(root, ".git"))
     writeFile(joinPath(root, "src", "fixture.nim"),
       "const sample* = " & q3 & "\nproc inner*() =\n  discard\n" & q3 &
       "\n\nproc outer*(): int =\n  1\n")
@@ -281,6 +286,7 @@ suite "otter repo graph: headers and uses that read like something else":
     if dirExists(root):
       removeDir(root)
     createDir(joinPath(root, "src"))
+    createDir(joinPath(root, ".git"))
     writeFile(joinPath(root, "src", "limits.nim"), """
 proc openConnection*(L: int =
     defaultLimit()): int {.role: truthBuilder,
@@ -303,6 +309,7 @@ proc openConnection*(L: int =
     if dirExists(root):
       removeDir(root)
     createDir(joinPath(root, "src"))
+    createDir(joinPath(root, ".git"))
     writeFile(joinPath(root, "sample.nimble"), "srcDir = \"src\"\n")
     writeFile(joinPath(root, "src", "threads.nim"), """
 proc worker(a: int) {.thread.} =
@@ -321,10 +328,43 @@ proc start*() =
   rows.sort(cmpRows)
 """)
     s = analyzeProject(root)
+    check s.error.len == 0
     for it in s.unusedFuncs.items:
       dead.add(it.name)
     check "worker" notin dead
     check "cmpRows" notin dead
+
+  # {.testKind: tkRegression, pins: "a routine used as a method, with no brackets, was reported as dead".}
+  test "a routine used as a method without brackets is used, a truly unused one is not":
+    var
+      root: string = joinPath(getCurrentDir(), "build", "test_method_repo")
+      s: ProjectStats = ProjectStats()
+      dead: seq[string] = @[]
+    if dirExists(root):
+      removeDir(root)
+    createDir(joinPath(root, "src"))
+    createDir(joinPath(root, ".git"))
+    writeFile(joinPath(root, "sample.nimble"), "srcDir = \"src\"\n")
+    writeFile(joinPath(root, "src", "words.nim"), """
+proc isLetterish(c: char): bool =
+  ## c: one character.
+  result = c.isAlphaAscii
+
+proc lonelyHelper(c: char): bool =
+  ## c: one character.
+  result = c == 'x'
+
+proc start*(s: string): bool =
+  ## s: any text.
+  result = s.len > 0 and s[0].isLetterish
+""")
+    s = analyzeProject(root)
+    check s.error.len == 0
+    for it in s.unusedFuncs.items:
+      dead.add(it.name)
+    check "isLetterish" notin dead
+    check "lonelyHelper" in dead
+    removeDir(root)
 
   # {.testKind: tkRegression, pins: "converters, generic calls and operators were reported as dead".}
   test "a converter, a generic call and an operator are used":
@@ -335,6 +375,7 @@ proc start*() =
     if dirExists(root):
       removeDir(root)
     createDir(joinPath(root, "src"))
+    createDir(joinPath(root, ".git"))
     writeFile(joinPath(root, "sample.nimble"), "srcDir = \"src\"\n")
     writeFile(joinPath(root, "src", "implicit.nim"), """
 type
@@ -356,6 +397,7 @@ proc start*(): string =
   result = $r & $decodeAs[int](4)
 """)
     s = analyzeProject(root)
+    check s.error.len == 0
     for it in s.unusedFuncs.items:
       dead.add(it.name)
     check "toRow" notin dead
@@ -379,6 +421,7 @@ suite "otter test walk: what a test really reaches":
     if dirExists(root):
       removeDir(root)
     createDir(joinPath(root, "src"))
+    createDir(joinPath(root, ".git"))
     createDir(joinPath(root, "evaluation", "tests"))
     writeFile(joinPath(root, "sample.nimble"), "srcDir = \"src\"\n")
     writeFile(joinPath(root, "src", "fwd.nim"), """
@@ -398,6 +441,7 @@ suite "fwd":
     check parseList(1) == 3
 """)
     s = analyzeProject(root)
+    check s.error.len == 0
     check s.tests.untested.len == 0
     removeDir(root)
 
@@ -409,6 +453,7 @@ suite "fwd":
     if dirExists(root):
       removeDir(root)
     createDir(joinPath(root, "src"))
+    createDir(joinPath(root, ".git"))
     createDir(joinPath(root, "evaluation", "tests"))
     writeFile(joinPath(root, "sample.nimble"), "srcDir = \"src\"\n")
     writeFile(joinPath(root, "src", "tasks.nim"), """
@@ -433,5 +478,6 @@ suite "tasks":
     check helper() == @[2, 4]
 """)
     s = analyzeProject(root)
+    check s.error.len == 0
     check s.tests.untested.len == 0
     removeDir(root)

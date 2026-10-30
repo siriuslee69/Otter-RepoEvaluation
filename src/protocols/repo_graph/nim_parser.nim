@@ -939,6 +939,29 @@ proc nameAfterDot(line: string, i: int): tuple[name: string, next: int,
     k = k + 1
   result.called = k < line.len and line[k] == '('
 
+proc dottedNamesIn*(lines: seq[string], known: HashSet[string]): seq[string]
+    {.role: parser, tag: "graph|parsing".} =
+  ## lines: one file's lines; known: lowered names of this repository's routines.
+  ## Names written after a dot with no bracket, such as `c.isDigit` used as a
+  ## method. The call graph records only `.name(`, so these were missed.
+  ## Only names that belong to a routine here are returned.
+  var
+    line: string = ""
+    i: int = 0
+    dotted: tuple[name: string, next: int, called: bool] = (name: "", next: 0, called: false)
+  result = @[]
+  for raw in lines:
+    line = stripComment(raw)
+    i = 0
+    while i < line.len:
+      if line[i] == '.':
+        dotted = nameAfterDot(line, i)
+        if dotted.name.toLowerAscii() in known:
+          result.add(dotted.name)
+        i = dotted.next
+      else:
+        i = i + 1
+
 proc extractCalls*(bodyLines: seq[string]): seq[string] {.role: parser, tag: "graph|parsing".} =
   ## bodyLines: any lines of Nim. Every name written with a bracket
   ## after it. Exported because the diff review reads the lines a
