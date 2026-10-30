@@ -634,18 +634,18 @@ proc processRequest(request: JsonNode, jobs: var Table[string, ManagedJob],
   else:
     result = %*{"ok": false, "error": "unsupported test backend action"}
 
-proc endUnfinishedJob(statePath, status: string, exitCode: int) {.role: actor,
+proc endUnfinishedJob(p, status: string, c: int) {.role: actor,
     tag: "execution|testing|ui".} =
-  ## statePath: the job's state file; status: the status to give it; exitCode: recorded with it.
+  ## p: the job's state file; status: the status to give it; c: exit code recorded with it.
   ## Only a job still marked queued or running is changed. Any other state is left alone.
   var
     S: JsonNode = default(JsonNode)
   try:
-    S = parseJson(readFile(statePath))
+    S = parseJson(readFile(p))
     if S{"status"}.getStr("") in ["queued", "running"]:
       S["status"] = %status
-      S["exitCode"] = %exitCode
-      atomicWrite(statePath, $S)
+      S["exitCode"] = %c
+      atomicWrite(p, $S)
   except CatchableError:
     discard
 

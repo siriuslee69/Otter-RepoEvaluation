@@ -918,7 +918,8 @@ proc genericCallAt(line: string, j: int): bool {.role: parser,
 
 proc nameAfterDot(line: string, i: int): tuple[name: string, next: int,
     called: bool] {.role: parser, tag: "graph|parsing".} =
-  ## line: one comment-free line of Nim; i: index of a `.`.
+  ## line: one comment-free line of Nim; i: index of the character to read.
+  ## Only a `.` starts a name. Any other character gives an empty name and next = i + 1.
   ## name: the identifier after the dot (spaces may come first);
   ## next: index to continue from; called: true when a `(` follows the name.
   ## With no identifier after the dot, name is empty and next is i + 1.
@@ -926,6 +927,8 @@ proc nameAfterDot(line: string, i: int): tuple[name: string, next: int,
     j: int = i + 1
     k: int = 0
   result = (name: "", next: i + 1, called: false)
+  if line[i] != '.':
+    return
   while j < line.len and line[j].isSpaceAscii():
     j = j + 1
   if j >= line.len or not (line[j].isAlphaAscii() or line[j] == '_'):
@@ -939,28 +942,29 @@ proc nameAfterDot(line: string, i: int): tuple[name: string, next: int,
     k = k + 1
   result.called = k < line.len and line[k] == '('
 
+proc namesAfterDots(line: string, known: HashSet[string]): seq[string]
+    {.role: parser, tag: "graph|parsing".} =
+  ## line: one comment-free line of Nim; known: lowered names of this repository's routines.
+  ## The names written after a dot in the line that belong to a routine here.
+  var
+    i: int = 0
+    dotted: tuple[name: string, next: int, called: bool] = (name: "", next: 0, called: false)
+  result = @[]
+  while i < line.len:
+    dotted = nameAfterDot(line, i)
+    if dotted.name.toLowerAscii() in known:
+      result.add(dotted.name)
+    i = dotted.next
+
 proc dottedNamesIn*(lines: seq[string], known: HashSet[string]): seq[string]
     {.role: parser, tag: "graph|parsing".} =
   ## lines: one file's lines; known: lowered names of this repository's routines.
   ## Names written after a dot with no bracket, such as `c.isDigit` used as a
   ## method. The call graph records only `.name(`, so these were missed.
   ## Only names that belong to a routine here are returned.
-  var
-    line: string = ""
-    i: int = 0
-    dotted: tuple[name: string, next: int, called: bool] = (name: "", next: 0, called: false)
   result = @[]
   for raw in lines:
-    line = stripComment(raw)
-    i = 0
-    while i < line.len:
-      if line[i] == '.':
-        dotted = nameAfterDot(line, i)
-        if dotted.name.toLowerAscii() in known:
-          result.add(dotted.name)
-        i = dotted.next
-      else:
-        i = i + 1
+    result.add(namesAfterDots(stripComment(raw), known))
 
 proc extractCalls*(bodyLines: seq[string]): seq[string] {.role: parser, tag: "graph|parsing".} =
   ## bodyLines: any lines of Nim. Every name written with a bracket
