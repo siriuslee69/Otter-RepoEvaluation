@@ -1191,9 +1191,20 @@ The shared WebUI now uses qlacier-style floating menu shells: repo root search o
 
 ## Issue Playbook
 - Source reports are best-effort readings, not compiler proofs. Unused-import
-  candidates may use unqualified exports. Grouped bracket imports are currently
+  candidates are read from the exports of local modules; modules outside the
+  repository (std, submodules) are never reported. For an exact check run
+  `nim check --warnings:on <file>.nim` and look for `UnusedImport`; that check
+  sees only the defines it is given. Grouped bracket imports are currently
   skipped by import binding analysis. Dependency depth counts local modules;
   cycles are reported separately.
+- The gate needs `jq` on PATH. Without it the gate prints
+  `otter: jq is required to read the report` and exits 2. `nix-shell -p jq`
+  provides it.
+- The gate prints each finding once per repository. To see every finding
+  again, set `OTTER_REPORT_LOG=off`.
+- `analyzeProject` needs a `.git` folder. Without one it returns an empty
+  report with `error` set, so a test fixture must create `.git` (see
+  `evaluation/tests/test_repo_graph.nim`) and should assert that `error` is empty.
 - The checking hook builds a current CLI from content hashes, including config
   and dependency sources. A failed rebuild returns exit 2 and names `build.log`;
   it never hands out the previous binary as a successful check.

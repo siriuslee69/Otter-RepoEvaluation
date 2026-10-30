@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: simplify statistical checks and fix traced return values
+Commit Message: Record the Otter-on-Otter pass and its remaining work
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.
@@ -11,6 +11,16 @@ Features (Planned):
 - Parent-repo adoption of the pragma-driven test UI after Otter example validation.
 
 Features (Done):
+- 2026-10-30 Otter on Otter (docs/self-review.md, "third pass"). Running Otter
+  on itself found false positives in Otter, which were fixed: the unused-import
+  check now reads local module exports (279 -> 0; the compiler agrees), doc
+  directives are read by whole word (`@tags` was taken as `@tag`), text inside
+  `"""` strings is no longer read as code (6 placeholder false positives -> 0),
+  method-style calls count as uses, and the secret scorer skips Nim declarations.
+  Six "not dead" checks in test_repo_graph had been passing without analysing
+  anything (no .git folder); they now run and assert no error. Nesting at depth
+  5 (20 sites) is gone; two unused variables and two compiler hints are removed.
+  282 checks pass, 0 fail, no compiler warnings.
 - Tracing captures implicit results before the finally hook, fixing zero-valued
   exit logs on Nim 2.4.0. Fixtures cover one evaluation, early/explicit returns,
   generic/inferred result types, func/no-raise routines, and compile-time use.
@@ -201,8 +211,11 @@ Features (Done):
 - Added wildcard safe defaults, separate compile/run timing, horizontally scrollable version tabs, and repeated-click card deselection.
 
 Features (In Progress):
-- Convention follow-up: 131 naming candidates and 291 nesting sites at depth 3+;
-  state-write module split and other large-module refactors remain.
+- Convention follow-up (see docs/self-review.md, "Remaining work"): 131 naming
+  candidates; 245 nesting sites at depth 3+ (203 triple, 42 at depth 4); a seam
+  in code_stats/state_writes.nim; six oversized files; 42 embedded-language
+  strings (webui HTML in app.js); nine exported routines with no caller in the
+  workspace, awaiting an owner decision.
 - Broader parent-repo integration patterns beyond single-file auto-wrapping.
 - Deeper sample-object generation for harder Nim types and more private-function cases.
 - Keep extending parent-repo test metadata and runtime flag coverage as new suites are adopted.
@@ -243,3 +256,12 @@ Notes:
   false findings are gone, the three samples still answer right. Still
   open: one shared "other memory" mark (see Issue Playbook), and s* marks
   public fields of a secret object.
+
+- Last change/problem (2026-10-30, Otter on Otter): the gate reported six
+  placeholders in the test suite, and a first look at the import check reported
+  279 unused imports. Both were Otter's own errors: fixture text in strings
+  read as code, and a text match that ignored exported names. Fixes: parser
+  blanks triple-quoted lines, and the import check reads local exports. Each
+  fix has a regression test, and the new tests fail on the code from before.
+  Open: the layout hint cannot move `isFunctionStartLine` because Nim needs
+  declaration order; the check should respect it.

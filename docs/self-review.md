@@ -5,6 +5,149 @@ It is **not fully convention compliant**. Parameter names, deep nesting, and
 large modules still need work. The successful tests below do not clear those
 findings.
 
+## Otter on Otter — 2026-10-30, third pass
+
+This pass ran Otter on its own tree, then checked each finding by hand or
+with the Nim compiler before deciding anything. Some findings were real
+defects. Some were false positives in Otter itself, and those were fixed in
+Otter. The rest were kept on purpose, with the reason written below.
+
+### How it was checked
+
+| Check | Command | What it judged |
+| --- | --- | --- |
+| Gate | `OTTER_REPORT_LOG=off tools/agent_hooks/otter-gate.sh --force .` | secrets, layout, families, nesting, placeholders, state |
+| Stats | `$otter stats . --json` | unused routines and imports, coverage, nesting sites |
+| Per-file check | `nim-check.sh` over the 118 tracked Nim files | declarations, placeholders, block placement |
+| Convention statistics | `nim c -r evaluation/statistics/stat_conventions.nim` | parameter names |
+| Compiler | `nim check --warnings:on <file>` for every file | `UnusedImport`, `XDeclaredButNotUsed` |
+| Tests | `nimble test` | behaviour, 282 checks at the end |
+
+Two notes for anyone who runs this again:
+
+```
+gate needs jq on PATH   no jq -> "otter: jq is required to read the report", exit 2
+gate hides repeats      without OTTER_REPORT_LOG=off, rows printed before are not shown
+```
+
+### What the first run said, and what was true
+
+| Reported | Checked | Result |
+| --- | --- | --- |
+| 279 unused-import candidates | The compiler reports one (`exitprocs`), and it is needed when `-d:otterTrace` is set. The text match was wrong on almost every line. | Check rewritten to read local module exports. Now 0. |
+| 6 placeholder routines in tests | All six were fixture code inside `"""` strings, read as Nim. | Parser blanks triple-quoted lines. Now 0. |
+| No finding | `## @tags alpha\|beta` produced the tags `s alpha` and `beta`; the `@tags` branch could never run. | Doc directives read by whole word. Regression test added. |
+| 1 secret: `f.signature` | Source text of a Nim declaration, not a key. | Declarations kept as text score zero. |
+| `isWordChar` unused (new helper) | Used as `c.isWordChar` with no brackets; the call graph only records `.name(`. | Method-style uses counted when they name a repo routine. |
+| "not dead" checks passed | `analyzeProject` returns an empty report without a `.git` folder, so six fixtures never analysed anything. | Fixtures get `.git`; each run asserts `s.error` is empty. |
+| 2 compiler hints | `owner` (config_touch) and `at` (ui_depth) were never read. | Removed. |
+| 20 sites at depth 5 or deeper | Real. Eleven routines. | Each pulled into a named helper. Now 0. |
+
+```
+  Otter's own report       what was true
+  ────────────────────     ──────────────────────────────────────
+  unused imports   279  -> 1 real, config-dependent, kept
+  placeholders       6  -> 0 real (fixtures read as code)
+  "not dead" checks  6  -> 0 real checks (they never ran)
+```
+
+### Changes
+
+| Commit | What |
+| --- | --- |
+| `e3f4232` | Unused-import check reads local module exports; outside modules are not reported |
+| `aac7aec` | Doc directives read by whole word; triple-quoted text not read as code |
+| `fde6bbc` | Depth-5 nesting moved into helpers; two unused variables removed |
+| `00fbb17` | Method-style calls counted as uses; fixture repos get `.git`; error asserted |
+| `18d6141` | Nim declarations kept as text are not scored as secrets |
+| `d6b3a9e` | Dotted-name scan flattened to one loop; two job parameters renamed to one letter |
+
+Each fix has a regression test. Six of the seven new checks fail on the code
+from before this pass, so they pin the defect they name. The seventh, whole-word
+matching, passes on both versions and guards behaviour rather than a defect.
+
+### Before and after
+
+| Measure | Start | Now | Note |
+| --- | --- | --- | --- |
+| Unused-import candidates | 279 | 0 | Compiler agrees: 0 real in default build |
+| Placeholder routines | 6 | 0 | |
+| Nesting, depth 5 or deeper | 20 sites, 11 routines | 0 | |
+| Nesting, triple / deeper | 211 / 80 | 203 / 42 | |
+| Secret candidates | 8 | 6 | All six are fixtures or history; see below |
+| Compiler hints | 2 | 0 | |
+| Parameter naming candidates | 131 | 131 | Unchanged; see remaining work |
+| Layout candidates | 28 | 27 | |
+| Families | 8 | 8 | Kept; see below |
+| Embedded language strings | 41 | 42 | One new fixture string |
+| Routines counted | 949 | 958 | New helpers from the refactor |
+| Routines untested (inferred) | 245 | 282 | Helpers are reached only through callers |
+| Tests passing | 275 | 282 | +7 regression checks; 0 failing |
+
+The untested count rose because the refactor added routines that the inferred
+test graph reaches only through their callers. It is a lead, not a measured
+execution coverage, so it is recorded rather than tuned away.
+
+### Kept on purpose
+
+- `import std/exitprocs` in `src/otter_trace_runtime.nim`: used only when
+  `-d:otterTrace` is set. The compiler warns in the default build only. The
+  check was run with the define on and the warning went away.
+- `examples/families`, `examples/state_writes`, `examples/yields`: these are
+  demonstrations. Their family groups and the lost write in `feed.nim` are the
+  point of the example.
+- `examples/blast/src/pipeline.nim` is a sample tree that `test_blast` reads;
+  nothing compiles it. `nim check` on it fails with `invalid pragma: role`,
+  because it does not import `runePragmas`. That is expected for a sample.
+- Six secret candidates: a synthetic `sk-live` key and `anna`/`me` home paths
+  in test fixtures, an email in an old test commit, and a stack-address example
+  in history for `machine_code/taint.nim`. None is a real credential. They are
+  listed here rather than hidden.
+- Three "unused" routines are used by the sibling repo Tyr-Crypto: `runSpawner`,
+  `spawnerRequest`, `otterInstrument`. They stay.
+- The layout hint for `nim_parser.nim` (`isFunctionStartLine`, `parseImportBindings`,
+  `parseFunctionBlock`) cannot be followed as written. `isFunctionStartLine` is
+  called at line 227 by a routine above the one that uses it, and Nim needs a
+  routine declared before its first use. Only `parseImportBindings` could move.
+- Families `lengthOf`, `byLines`, `byInner` are reported as one family. They are a
+  measure and two sort comparators over different record types. One generic
+  routine would need an accessor argument and read worse.
+
+### Remaining work, in order
+
+1. **Decide on nine exported routines with no caller in the workspace.**
+   `timelineLines`, `otterShow`, `getLogPath`, `otterTraceFile`, `visEnter`,
+   `visLeave`, `visLoop`, `otterThreadsFromEnv`, `formatRiskTag`. Several look
+   like unfinished features. Keep or delete is the owner's call.
+2. **Parameter names (131).** Largest: `jobs.nim` (19), `nim_parser.nim` (18),
+   `catalog.nim` (15). Rename with their doc comments and named-argument callers.
+3. **Nesting (203 triple, 42 at depth 4).** No site is deeper than 4 now. The
+   largest groups at depth 4 are `extractCalls` (4 sites), `mapTouches` (4),
+   `universalTest` (4), `parseImportBindings` (2), and `detectUserInputSignals` (2).
+   The list is `jq -r '.nest.sites[] | select(.depth==4)' stats.json`.
+4. **Seam in `code_stats/state_writes.nim`** at about line 640: 21 routines
+   above, 31 below, and only 7 of the upper ones are used below. Split into two
+   modules and move those 7 to a shared file.
+5. **Oversized files:** `diff_review.nim` (372 code lines), `blast.nim` (322),
+   `role_inference.nim` (173), `linear_complexity.nim` (114), `fft.nim` (101).
+   The list changes as routines shrink, so it is not a clean measure yet.
+6. **Embedded HTML** in `src/clients/webui/web/app.js` and `app_layers.js`
+   (about 50 lines). Move each template into its own `.html` file.
+7. **Otter follow-ups found here:**
+   - the layout check should respect declaration order before suggesting a move;
+   - the family check groups routines by shape even when they share no job;
+   - nested field reads such as `C.config.defaultFlags` are still missed;
+   - an exact unused-import mode through `nim check` costs about one second per
+     file, so it is not on by default.
+
+### Limits of this pass
+
+- The compiler check ran in the default configuration. A warning that depends on
+  a define is seen only when that define is set.
+- Only Linux, x86-64, Nim 2.4.0 was used.
+- The sibling-repo search covered eleven named repositories, not every folder
+  in the workspace.
+
 ## Follow-up — 2026-10-30
 
 A second pass fixed the three statistical nesting hotspots and the path-helper
