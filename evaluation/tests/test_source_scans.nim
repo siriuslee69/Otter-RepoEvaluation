@@ -92,3 +92,45 @@ suite "source scans":
     check not isTestPath("src/protocols/test_ui/catalog.nim")
     check not isTestPath("/tmp/my_test_repo/src/core.nim")
     check isTestPath("test_core.nim")
+
+  # {.testKind: tkRegression, covers: "scanUnusedImports".}
+  test "a local import is used when one of the module's exported names appears":
+    var
+      types: string = dir / "src" / "types.nim"
+      user: string = dir / "src" / "user.nim"
+      idle: string = dir / "src" / "idle.nim"
+      R: seq[UnusedImportInfo] = @[]
+    writeFile(types, "type Frame* = object\n  n: int\n")
+    writeFile(user, "import ./types\n\nproc make(): Frame =\n  discard\n")
+    writeFile(idle, "import ./types\n\nproc noop() =\n  discard\n")
+    R = scanUnusedImports(dir, @[types, user, idle])
+    check R.len == 1
+    check R[0].path == "src/idle.nim"
+    check R[0].line == 1
+
+  # {.testKind: tkRegression, covers: "scanUnusedImports".}
+  test "a name inside a longer identifier does not count as a use":
+    var
+      types: string = dir / "src" / "types.nim"
+      loose: string = dir / "src" / "loose.nim"
+      R: seq[UnusedImportInfo] = @[]
+    writeFile(types, "type Frame* = object\n  n: int\n")
+    writeFile(loose, "import ./types\n\nvar FrameCount = 0\n")
+    R = scanUnusedImports(dir, @[types, loose])
+    check R.len == 1
+    check R[0].path == "src/loose.nim"
+
+  # {.testKind: tkRegression, covers: "scanUnusedImports".}
+  test "a module that re-exports and an outside module are never reported":
+    var
+      types: string = dir / "src" / "types.nim"
+      hub: string = dir / "src" / "hub.nim"
+      after: string = dir / "src" / "after.nim"
+      outside: string = dir / "src" / "outside.nim"
+      R: seq[UnusedImportInfo] = @[]
+    writeFile(types, "type Frame* = object\n  n: int\n")
+    writeFile(hub, "export types\n")
+    writeFile(after, "import ./hub\n\nproc noop() =\n  discard\n")
+    writeFile(outside, "import std/strutils\n\nproc noop() =\n  discard\n")
+    R = scanUnusedImports(dir, @[types, hub, after, outside])
+    check R.len == 0
