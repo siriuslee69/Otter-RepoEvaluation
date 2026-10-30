@@ -168,12 +168,33 @@ proc skipPragma(n: NimNode): bool {.compileTime, role: parser, tag: "tracing".} 
         "importcpp", "exportc", "noreturn", "asmNoStackFrame", "error"]:
       return true
 
+proc valueBody(n: NimNode): NimNode {.compileTime, role: truthBuilder,
+    tag: "tracing".} =
+  ## n: routine to wrap. Assign an implicit value before its exit trace runs.
+  ## Statement bodies that set result or return directly keep their own control
+  ## flow. Without this assignment, a try expression can yield after finally,
+  ## so finally sees the default result even though the caller gets the value.
+  var
+    B: NimNode = n.body
+    r: NimNode = ident("result")
+  if not returnsValue(n):
+    return B
+  result = quote do:
+    when compiles(block:
+      `r` = block:
+        `B`
+    ):
+      `r` = block:
+        `B`
+    else:
+      `B`
+
 proc traceRoutine(n: NimNode, loc: string): NimNode {.compileTime, role: truthBuilder,
     tag: "tracing".} =
   ## n: one proc/func/method/converter; its body wrapped with enter/exit.
   var
     name: NimNode = newLit(n.name.repr)
-    body: NimNode = n.body
+    body: NimNode = valueBody(n)
     shown: NimNode = genSym(nskVar, "otterShown")
     res: NimNode = if returnsValue(n): newCall(bindSym"otterShow", ident"result") else: newLit("")
     args: NimNode = paramPairs(n.params)

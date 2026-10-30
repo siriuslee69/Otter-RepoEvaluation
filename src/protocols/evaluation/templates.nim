@@ -1,240 +1,170 @@
-## ============================================================
-## | NIST Eval Template Tests                                |
-## | -> Non-overlapping and overlapping template matching    |
-## ============================================================
-
-import runePragmas
+## Template tests <- count bit patterns per block, then score the counts.
+## Non-overlapping matches skip the matched bits; overlapping matches share them.
+## A final incomplete block is ignored. The existing probability model is retained.
 
 import std/math
-
+import runePragmas
+import var_invariants
 import ./constants
 import ./math_utils
 import ./types
 
+type
+  TemplatePlan {.role: preparedData.} = object
+    ## One non-overlapping test's block dimensions and expected counts.
+    width, blockSize, blocks: int
+    mean, variance, alpha: float64
+
+const
+  maxTemplateBits = sizeof(int) * 8 - 2
+    ## The positive integer range must hold 2^width as well as the patterns.
 
 proc buildTemplateList*(m, c: int): seq[int] {.role: truthBuilder.} =
-  ## m: template size in bits.
-  ## c: maximum number of templates to include (0 for default limit).
+  ## m: width in 1..(sizeof(int)*8-2); c: maximum patterns, <=0 uses the default.
+  ## Enumerate the same positive integer patterns as before. Invalid widths yield [].
   var
-    ts: seq[int] = @[]
-    maxVal: int = 0
-    v: int = 0
     limit: int = c
-  if m <= 0:
-    result = ts
-  else:
-    maxVal = 1 shl m
-    if limit <= 0:
-      if m == 9:
-        limit = 148
-      else:
-        limit = 16
-    if limit > maxVal - 1:
-      limit = maxVal - 1
-    v = 1
-    while v < maxVal and ts.len < limit:
-      ts.add(v)
-      v = v + 1
-    result = ts
+    last: int = 0
+    v: int = 1
+  result = @[]
+  if m <= 0 or m > maxTemplateBits:
+    return
+  last = (1 shl m) - 1
+  if limit <= 0:
+    limit = (if m == 9: 148 else: 16)
+  limit = min(limit, last)
+  while v <= limit:
+    result.add(v)
+    inc v
 
+proc bitWindow(B: openArray[uint8], m, o: int): int {.inline, role: math,
+    needsRun: m > 0 and m <= maxTemplateBits and o >= 0 and
+      o <= B.len and m <= B.len - o.} =
+  ## B: bits; m: window width; o: first bit. Most significant bit is read first.
+  var
+    i: int = 0
+  result = 0
+  while i < m:
+    result = (result shl 1) or int(B[o + i])
+    inc i
 
-proc nonOverlappingCount(Bs: openArray[uint8], t, m, o, b: int): int {.role: math.} =
-  ## Bs: input bit sequence (0/1).
-  ## t: template bits as integer.
-  ## m: template size in bits.
-  ## o: block offset in bits.
-  ## b: block size in bits.
+proc nonOverlappingCount(B: openArray[uint8], v, m, o, b: int): int
+    {.role: math, needsRun: m > 0 and m <= maxTemplateBits and b >= m and
+      o >= 0 and o <= B.len and b <= B.len - o.} =
+  ## B: bits; v: pattern; m: pattern width; o/b: block start and length.
   var
     pos: int = 0
-    window: int = 0
-    mask: int = 0
-    j: int = 0
-    count: int = 0
-    idx: int = 0
-  if m <= 0 or b < m:
-    result = 0
-  else:
-    mask = (1 shl m) - 1
-    pos = 0
-    window = 0
-    j = 0
-    while j < m:
-      window = (window shl 1) or int(Bs[o + j])
-      j = j + 1
-    while true:
-      if window == t:
-        count = count + 1
-        pos = pos + m
-        if pos > b - m:
-          break
-        window = 0
-        j = 0
-        while j < m:
-          idx = o + pos + j
-          window = (window shl 1) or int(Bs[idx])
-          j = j + 1
-      else:
-        pos = pos + 1
-        if pos > b - m:
-          break
-        idx = o + pos + m - 1
-        window = ((window shl 1) and mask) or int(Bs[idx])
-    result = count
+    window: int = bitWindow(B, m, o)
+    mask: int = (1 shl m) - 1
+    matched: bool = false
+  result = 0
+  while pos <= b - m:
+    matched = window == v
+    if matched:
+      inc result
+    pos += (if matched: m else: 1)
+    if pos > b - m:
+      break
+    if matched:
+      window = bitWindow(B, m, o + pos)
+    else:
+      window = ((window shl 1) and mask) or int(B[o + pos + m - 1])
 
+proc templatePlan(m, b, n: int, a: float64): TemplatePlan {.role: truthBuilder.} =
+  ## m/b: pattern and block widths; n: complete blocks; a: pass threshold.
+  var
+    p: float64 = pow(2.0, -m.float64)
+  result = TemplatePlan(width: m, blockSize: b, blocks: n, alpha: a,
+    mean: (b - m + 1).float64 * p,
+    variance: b.float64 * (p - (2 * m - 1).float64 * p * p))
+
+proc templateResult(B: openArray[uint8], p: TemplatePlan, v, i: int): NistResult
+    {.role: math.} =
+  ## B: bits; p: dimensions and expected counts; v: pattern; i: result index.
+  var
+    j: int = 0
+    w: int = 0
+    delta: float64 = 0.0
+    chi: float64 = 0.0
+  while j < p.blocks:
+    w = nonOverlappingCount(B, v, p.width, j * p.blockSize, p.blockSize)
+    delta = w.float64 - p.mean
+    chi += delta * delta / p.variance
+    inc j
+  result = makeResult("non_overlapping_m" & $p.width & "_t" & $i, chi,
+    regularizedGammaQ(p.blocks.float64 / 2.0, chi / 2.0), p.alpha)
 
 proc nonOverlappingTemplateTests*(Bs: openArray[uint8], m, b, c: int,
     a: float64 = defaultAlpha): seq[NistResult] {.role: math.} =
-  ## Bs: input bit sequence (0/1).
-  ## m: template size in bits.
-  ## b: block size in bits.
-  ## c: maximum number of templates to test (0 for default).
-  ## a: alpha threshold.
+  ## Bs: bits; m: representable pattern width; b: block length; c: pattern limit.
+  ## a: pass threshold. Invalid dimensions or no complete blocks yield [].
   var
-    rs: seq[NistResult] = @[]
-    n: int = Bs.len
-    nBlocks: int = 0
-    templates: seq[int] = @[]
-    tIndex: int = 0
-    tpl: int = 0
+    T: seq[int] = @[]
+    p: TemplatePlan = TemplatePlan()
+  result = @[]
+  if m <= 0 or m > maxTemplateBits or b < m or b > Bs.len:
+    return
+  T = buildTemplateList(m, c)
+  p = templatePlan(m, b, Bs.len div b, a)
+  if p.variance <= 0.0:
+    return
+  for i, v in T:
+    result.add(templateResult(Bs, p, v, i))
+
+proc overlappingCount(B: openArray[uint8], m, o, b: int): int {.role: math,
+    needsRun: m > 0 and b >= m and o >= 0 and o <= B.len and b <= B.len - o.} =
+  ## B: bits; m: all-ones pattern width; o/b: block start and length.
+  var
+    pos: int = o
+    run: int = 0
+  result = 0
+  while pos < o + b:
+    run = (if B[pos] == 1'u8: run + 1 else: 0)
+    if run >= m:
+      inc result
+    inc pos
+
+proc overlappingCounts(B: openArray[uint8], m, b: int): array[6, int]
+    {.role: math.} =
+  ## B: bits; m/b: pattern and block lengths. Categories are 0,1,2,3,4,5+.
+  var
     i: int = 0
     w: int = 0
-    mu: float64 = 0.0
-    variance: float64 = 0.0
-    chi: float64 = 0.0
-    p: float64 = 0.0
-    name: string = ""
-    expected: float64 = 0.0
-  if m <= 0 or b <= 0 or b < m:
-    result = rs
-  else:
-    nBlocks = n div b
-    if nBlocks == 0:
-      result = rs
-    else:
-      templates = buildTemplateList(m, c)
-      if templates.len == 0:
-        result = rs
-      else:
-        mu = float64(b - m + 1) / float64(1 shl m)
-        variance = float64(b) * (1.0 / float64(1 shl m) -
-          float64(2 * m - 1) / float64(1 shl (2 * m)))
-        if variance <= 0.0:
-          result = rs
-        else:
-          tIndex = 0
-          while tIndex < templates.len:
-            tpl = templates[tIndex]
-            chi = 0.0
-            i = 0
-            while i < nBlocks:
-              w = nonOverlappingCount(Bs, tpl, m, i * b, b)
-              expected = mu
-              chi = chi + ((float64(w) - expected) * (float64(w) - expected)) / variance
-              i = i + 1
-            p = regularizedGammaQ(float64(nBlocks) / 2.0, chi / 2.0)
-            name = "non_overlapping_m" & $m & "_t" & $tIndex
-            rs.add(makeResult(name, chi, p, a))
-            tIndex = tIndex + 1
-          result = rs
+  result = default(array[6, int])
+  while i < B.len div b:
+    w = overlappingCount(B, m, i * b, b)
+    inc result[min(w, 5)]
+    inc i
 
-
-proc overlappingCount(Bs: openArray[uint8], m, o, b: int): int {.role: math.} =
-  ## Bs: input bit sequence (0/1).
-  ## m: template size in bits.
-  ## o: block offset in bits.
-  ## b: block size in bits.
+proc overlapProbabilities(x: float64): array[6, float64] {.role: math.} =
+  ## x: half the expected match count. Retain the existing Poisson categories.
   var
-    count: int = 0
-    pos: int = 0
-    run: int = 0
-  if m <= 0 or b < m:
-    result = 0
-  else:
-    pos = 0
-    run = 0
-    while pos < b:
-      if Bs[o + pos] == 1'u8:
-        run = run + 1
-        if run >= m:
-          count = count + 1
-      else:
-        run = 0
-      pos = pos + 1
-    result = count
-
+    i: int = 1
+    sum: float64 = 0.0
+  result = default(array[6, float64])
+  result[0] = exp(-x)
+  sum = result[0]
+  while i < 5:
+    result[i] = result[i - 1] * x / i.float64
+    sum += result[i]
+    inc i
+  result[5] = 1.0 - sum
 
 proc overlappingTemplateTest*(Bs: openArray[uint8], m, b: int,
     a: float64 = defaultAlpha): NistResult {.role: math.} =
-  ## Bs: input bit sequence (0/1).
-  ## m: template size in bits.
-  ## b: block size in bits.
-  ## a: alpha threshold.
+  ## Bs: bits; m/b: pattern and block lengths; a: pass threshold.
+  ## Invalid dimensions or a numerically degenerate model fail with p=0.
   var
-    n: int = Bs.len
-    nBlocks: int = 0
-    i: int = 0
-    w: int = 0
-    v0: int = 0
-    v1: int = 0
-    v2: int = 0
-    v3: int = 0
-    v4: int = 0
-    v5: int = 0
-    lambda: float64 = 0.0
-    eta: float64 = 0.0
-    pi0: float64 = 0.0
-    pi1: float64 = 0.0
-    pi2: float64 = 0.0
-    pi3: float64 = 0.0
-    pi4: float64 = 0.0
-    pi5: float64 = 0.0
+    C: array[6, int] = default(array[6, int])
+    P: array[6, float64] = default(array[6, float64])
     chi: float64 = 0.0
-    p: float64 = 0.0
-    expEta: float64 = 0.0
-  if m <= 0 or b <= 0 or b < m:
-    result = makeResult("overlapping_template_m" & $m, 0.0, 0.0, a)
-  else:
-    nBlocks = n div b
-    if nBlocks == 0:
-      result = makeResult("overlapping_template_m" & $m, 0.0, 0.0, a)
-    else:
-      i = 0
-      while i < nBlocks:
-        w = overlappingCount(Bs, m, i * b, b)
-        case w
-        of 0:
-          v0 = v0 + 1
-        of 1:
-          v1 = v1 + 1
-        of 2:
-          v2 = v2 + 1
-        of 3:
-          v3 = v3 + 1
-        of 4:
-          v4 = v4 + 1
-        else:
-          v5 = v5 + 1
-        i = i + 1
-      lambda = float64(b - m + 1) / float64(1 shl m)
-      eta = lambda / 2.0
-      expEta = exp(-eta)
-      pi0 = expEta
-      pi1 = expEta * eta
-      pi2 = expEta * eta * eta / 2.0
-      pi3 = expEta * eta * eta * eta / 6.0
-      pi4 = expEta * eta * eta * eta * eta / 24.0
-      pi5 = 1.0 - (pi0 + pi1 + pi2 + pi3 + pi4)
-      chi = ((float64(v0) - float64(nBlocks) * pi0) *
-        (float64(v0) - float64(nBlocks) * pi0)) / (float64(nBlocks) * pi0)
-      chi = chi + ((float64(v1) - float64(nBlocks) * pi1) *
-        (float64(v1) - float64(nBlocks) * pi1)) / (float64(nBlocks) * pi1)
-      chi = chi + ((float64(v2) - float64(nBlocks) * pi2) *
-        (float64(v2) - float64(nBlocks) * pi2)) / (float64(nBlocks) * pi2)
-      chi = chi + ((float64(v3) - float64(nBlocks) * pi3) *
-        (float64(v3) - float64(nBlocks) * pi3)) / (float64(nBlocks) * pi3)
-      chi = chi + ((float64(v4) - float64(nBlocks) * pi4) *
-        (float64(v4) - float64(nBlocks) * pi4)) / (float64(nBlocks) * pi4)
-      chi = chi + ((float64(v5) - float64(nBlocks) * pi5) *
-        (float64(v5) - float64(nBlocks) * pi5)) / (float64(nBlocks) * pi5)
-      p = regularizedGammaQ(2.5, chi / 2.0)
-      result = makeResult("overlapping_template_m" & $m, chi, p, a)
+    name: string = "overlapping_template_m" & $m
+  result = makeResult(name, 0.0, 0.0, a)
+  if m <= 0 or b < m or b > Bs.len:
+    return
+  P = overlapProbabilities((b - m + 1).float64 * pow(2.0, -m.float64) / 2.0)
+  if not positiveProbabilities(P):
+    return
+  C = overlappingCounts(Bs, m, b)
+  chi = chiSquare(C, P, Bs.len div b)
+  result = makeResult(name, chi, regularizedGammaQ(2.5, chi / 2.0), a)

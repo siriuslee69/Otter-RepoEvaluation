@@ -678,6 +678,10 @@ The first 8 calls of each routine are shown, then only counted; the last
 line lists how often each routine ran. Built with `-d:otterTrace`;
 without it `otterTraceFile` returns the code unchanged.
 
+Implicit return values are assigned before the exit trace runs. Explicit
+`result` assignments and `return` statements keep their control flow, and a
+routine body is evaluated once. This also applies to generic and inferred types.
+
 ### Before writing a call: how can it end
 
 ```sh
@@ -1201,6 +1205,13 @@ The shared WebUI now uses qlacier-style floating menu shells: repo root search o
 - Statistical results need adequate input sizes:
   - use the NIST parameter ranges appropriate for the supplied byte stream;
   - short streams intentionally produce failed or empty test outcomes.
+  - non-overlapping template widths must be in `1..(sizeof(int)*8-2)`;
+    invalid dimensions yield an empty result. Overlapping tests with a degenerate
+    probability model fail with p=0. Invalid matrix ranges return rank zero.
+- Path-helper named arguments follow the short-name conventions:
+  - use `listNimFiles(dir = root, b = true)`; `toModulePath` uses `dir` and `p`.
+    Positional argument order is unchanged. See the dated follow-up in
+    [the self-review](docs/self-review.md) for the refactoring and test results.
 - VS Code packaging is not built in this shell:
   - the extension is source-only to avoid a local Node toolchain requirement here.
 - Test UI routines must take no parameters:
@@ -1222,6 +1233,9 @@ The shared WebUI now uses qlacier-style floating menu shells: repo root search o
   a callee is reported only when that callee is checked by name.
 - `ct` reads x86-64, System V (Linux) only; Windows' calling convention
   puts arguments in other registers.
+- Optimized source locations are approximate. A real secret branch can be
+  assigned to a source line without a branch word, or to a neighboring routine.
+  Inspect the reported instruction and trail; the census still marks it SECRET.
 - An instruction missing from `machine_code/instructions.nim` is read
   cautiously and counted under "not in the table"; add it there when
   one shows up often.

@@ -212,7 +212,7 @@ proc calledNamesOf(dir: string, A: seq[FunctionInfo]): HashSet[string]
       result.incl(name.toLowerAscii())
     known.incl(fn.name.toLowerAscii())
     perFile.mgetOrPut(fn.sourcePath, @[]).add(fn)
-  for p in listNimFiles(dir, bIncludeTests = true):
+  for p in listNimFiles(dir, b = true):
     lines = readLinesSafe(p)
     for name in pragmaNamesIn(lines):
       result.incl(name.toLowerAscii())

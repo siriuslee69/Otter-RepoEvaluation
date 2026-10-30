@@ -540,7 +540,7 @@ proc carrierFieldOf*(rootDir, tName: string): string {.role: parser,
       bare = bare[wrapper.len .. ^1].strip(chars = {']', ' '})
   if bare.len == 0:
     return
-  for p in listNimFiles(rootDir, bIncludeTests = false):
+  for p in listNimFiles(rootDir, b = false):
     for st in objectTypesIn(p, readLinesSafe(p)):
       if st.name != bare:
         continue

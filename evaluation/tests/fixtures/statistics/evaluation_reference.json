@@ -1,0 +1,194 @@
+[
+  {
+    "name": "non_overlapping_m3_t0",
+    "statistic": 17.333333333333332,
+    "pValue": 0.3643507570995955,
+    "passed": true
+  },
+  {
+    "name": "non_overlapping_m3_t1",
+    "statistic": 25.99999999999999,
+    "pValue": 0.05402824867544004,
+    "passed": true
+  },
+  {
+    "name": "non_overlapping_m3_t2",
+    "statistic": 17.333333333333336,
+    "pValue": 0.36435075709959397,
+    "passed": true
+  },
+  {
+    "name": "non_overlapping_m3_t3",
+    "statistic": 12.666666666666671,
+    "pValue": 0.6969558452294828,
+    "passed": true
+  },
+  {
+    "name": "overlapping_template_m3",
+    "statistic": 9.873976178581907,
+    "pValue": 0.07888584748951469,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_x-4",
+    "statistic": 5.627099819519644,
+    "pValue": 0.3442101149168355,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_x-3",
+    "statistic": 3.24720000186109,
+    "pValue": 0.6619345290793891,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_x-2",
+    "statistic": 2.9917695473251027,
+    "pValue": 0.7012548098781348,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_x-1",
+    "statistic": 3.0,
+    "pValue": 0.6999858384453861,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_x1",
+    "statistic": 3.6666666666666665,
+    "pValue": 0.5983321916425887,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_x2",
+    "statistic": 3.814814814814815,
+    "pValue": 0.5763742721188495,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_x3",
+    "statistic": 3.6999999994360016,
+    "pValue": 0.5933639658508529,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_x4",
+    "statistic": 4.857142857142858,
+    "pValue": 0.43356247473301446,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_variant_x-9",
+    "statistic": 12.0,
+    "pValue": 0.552452904881778,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_variant_x-8",
+    "statistic": 12.0,
+    "pValue": 0.5270892568655381,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_variant_x-7",
+    "statistic": 14.0,
+    "pValue": 0.4280144499347553,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_variant_x-6",
+    "statistic": 14.0,
+    "pValue": 0.38888541180776504,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_variant_x-5",
+    "statistic": 12.0,
+    "pValue": 0.41421617824252516,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_variant_x-4",
+    "statistic": 9.0,
+    "pValue": 0.4874532903640349,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_variant_x-3",
+    "statistic": 10.0,
+    "pValue": 0.36131042852617884,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_variant_x-2",
+    "statistic": 12.0,
+    "pValue": 0.15729920705028513,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_variant_x-1",
+    "statistic": 5.0,
+    "pValue": 0.3074341659273953,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_variant_x1",
+    "statistic": 4.0,
+    "pValue": 0.41421617824252505,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_variant_x2",
+    "statistic": 9.0,
+    "pValue": 0.28884436634648486,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_variant_x3",
+    "statistic": 10.0,
+    "pValue": 0.36131042852617884,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_variant_x4",
+    "statistic": 11.0,
+    "pValue": 0.39606582070893787,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_variant_x5",
+    "statistic": 12.0,
+    "pValue": 0.41421617824252516,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_variant_x6",
+    "statistic": 12.0,
+    "pValue": 0.4601809354471203,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_variant_x7",
+    "statistic": 12.0,
+    "pValue": 0.49690584756476797,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_variant_x8",
+    "statistic": 12.0,
+    "pValue": 0.5270892568655381,
+    "passed": true
+  },
+  {
+    "name": "random_excursions_variant_x9",
+    "statistic": 12.0,
+    "pValue": 0.552452904881778,
+    "passed": true
+  },
+  {
+    "name": "rank",
+    "statistic": 2.1908994708994847,
+    "pValue": 0.3343891887303614,
+    "passed": true
+  }
+]

@@ -48,6 +48,7 @@ const
     ## full of published test vectors and author addresses.
 
 proc normalizeSlashes*(s: string): string {.inline, role: helper.} =
+  ## s: path text. Replace Windows separators with forward slashes.
   result = s.replace('\\', '/')
 
 proc extensionOf*(p: string): string {.inline, role: parser.} =
@@ -61,35 +62,35 @@ proc extensionOf*(p: string): string {.inline, role: parser.} =
     result = p[at + 1 .. ^1].toLowerAscii()
 
 
-proc isIgnoredPath*(relPath: string, bIncludeTests: bool): bool {.role: parser,
+proc isIgnoredPath*(p: string, b: bool): bool {.role: parser,
     tag: "graph".} =
-  ## relPath: one path below the repository root, either slash style.
-  ## bIncludeTests: keep `tests/` when true.
+  ## p: one path below the repository root, either slash style.
+  ## b: keep `tests/` when true.
   ## True when the path belongs to something this repository did not write.
   var
     t: string = ""
-  t = "/" & normalizeSlashes(relPath).toLowerAscii() & "/"
+  t = "/" & normalizeSlashes(p).toLowerAscii() & "/"
   for d in vendoredDirs:
     if d in t:
       return true
-  if not bIncludeTests and "/tests/" in t:
+  if not b and "/tests/" in t:
     return true
   result = false
 
-proc folderStep(rootDir, d: string, stack: var seq[string],
-    files: var seq[string]) {.role: dataFetcher, tag: "graph".} =
-  ## rootDir: the tree   d: one folder below it, "" for the top.
-  ## Its files go onto `files`; its own sub-folders onto `stack`, except
-  ## a vendored one (`vendoredDirs`), which is never stepped into.
-  for k, p in walkDir(rootDir / d, relative = true):
-    if k == pcDir and not isIgnoredPath(d / p, bIncludeTests = true):
-      stack.add(d / p)
+proc folderStep(dir, d: string, S0: var seq[string],
+    S1: var seq[string]) {.role: dataFetcher, tag: "graph".} =
+  ## dir: the tree; d: relative folder, "" for the top.
+  ## S0: pending folders; S1: collected file paths. Add only non-vendored
+  ## sub-folders to S0; `vendoredDirs` are never stepped into.
+  for k, p in walkDir(dir / d, relative = true):
+    if k == pcDir and not isIgnoredPath(d / p, b = true):
+      S0.add(d / p)
     if k == pcFile:
-      files.add(rootDir / (d / p))
+      S1.add(dir / (d / p))
 
-proc ownFiles*(rootDir: string): seq[string] {.role: dataFetcher,
+proc ownFiles*(dir: string): seq[string] {.role: dataFetcher,
     tag: "graph".} =
-  ## rootDir: the tree. Every file `walkDirRec(rootDir)` yields, in the
+  ## dir: the tree. Every file `walkDirRec(dir)` yields, in the
   ## same order, minus everything inside a vendored folder - which every
   ## caller dropped anyway, one file at a time:
   ##
@@ -102,29 +103,30 @@ proc ownFiles*(rootDir: string): seq[string] {.role: dataFetcher,
     stack: seq[string] = @[""]
   result = @[]
   while stack.len > 0:
-    folderStep(rootDir, stack.pop(), stack, result)
+    folderStep(dir, stack.pop(), stack, result)
 
-proc isScannablePath*(relPath: string): bool {.role: parser,
+proc isScannablePath*(p: string): bool {.role: parser,
     tag: "graph".} =
-  ## relPath: one path below the repository root.
+  ## p: one path below the repository root.
   ## True when the file is this repository's own, and of a kind a person
   ## writes by hand. This is the one question both the folder walk and
   ## the history reader ask, so they answer it the same way.
-  result = not isIgnoredPath(relPath, bIncludeTests = true) and
-    extensionOf(relPath) in sourceExts
+  result = not isIgnoredPath(p, b = true) and
+    extensionOf(p) in sourceExts
 
 
-proc listNimFiles*(rootDir: string, bIncludeTests: bool = false): seq[string] {.role: dataFetcher.} =
+proc listNimFiles*(dir: string, b: bool = false): seq[string] {.role: dataFetcher.} =
+  ## dir: repository root; b: include test folders when true. Paths are sorted.
   var
     rootNormalized: string = ""
     pNormalized: string = ""
     rel: string = ""
     s: string = ""
   result = @[]
-  if not dirExists(rootDir):
+  if not dirExists(dir):
     return
-  rootNormalized = normalizeSlashes(normalizedPath(rootDir)).toLowerAscii()
-  for p in ownFiles(rootDir):
+  rootNormalized = normalizeSlashes(normalizedPath(dir)).toLowerAscii()
+  for p in ownFiles(dir):
     s = normalizeSlashes(p)
     if not s.endsWith(".nim"):
       continue
@@ -134,50 +136,53 @@ proc listNimFiles*(rootDir: string, bIncludeTests: bool = false): seq[string] {.
       rel = pNormalized[rootNormalized.len .. ^1]
     if rel.startsWith("/"):
       rel = rel[1 .. ^1]
-    if isIgnoredPath(rel, bIncludeTests):
+    if isIgnoredPath(rel, b):
       continue
     result.add(p)
   result.sort(system.cmp[string])
 
 
-proc toModulePath*(rootDir, filePath: string): string {.role: helper.} =
+proc toModulePath*(dir, p: string): string {.role: helper.} =
+  ## dir: root; p: source path. Return the relative module name without .nim.
   var
     rootNormalized: string = ""
     fileNormalized: string = ""
-    p: string = ""
-  rootNormalized = normalizeSlashes(normalizedPath(rootDir))
-  fileNormalized = normalizeSlashes(normalizedPath(filePath))
-  p = fileNormalized
+    t: string = ""
+  rootNormalized = normalizeSlashes(normalizedPath(dir))
+  fileNormalized = normalizeSlashes(normalizedPath(p))
+  t = fileNormalized
   if fileNormalized.startsWith(rootNormalized):
-    p = fileNormalized[rootNormalized.len .. ^1]
-  if p.startsWith("/"):
-    p = p[1 .. ^1]
-  if p.endsWith(".nim"):
-    p = p[0 .. ^5]
-  result = p
+    t = fileNormalized[rootNormalized.len .. ^1]
+  if t.startsWith("/"):
+    t = t[1 .. ^1]
+  if t.endsWith(".nim"):
+    t = t[0 .. ^5]
+  result = t
 
 
-proc toImportModulePath*(modulePath: string): string {.role: helper.} =
+proc toImportModulePath*(p: string): string {.role: helper.} =
+  ## p: module name. Remove the standard source/evaluation prefix for imports.
   var
-    p: string = ""
-  p = normalizeSlashes(modulePath)
+    t: string = ""
+  t = normalizeSlashes(p)
   for prefix in ["evaluation/tests/", "evaluation/benchmarks/",
                  "evaluation/statistics/", "src/", "tests/", "tools/"]:
-    if p.startsWith(prefix):
-      p = p[prefix.len .. ^1]
+    if t.startsWith(prefix):
+      t = t[prefix.len .. ^1]
       break
-  result = p
+  result = t
 
 
-proc readLinesSafe*(filePath: string): seq[string] {.role: dataFetcher.} =
-  if not fileExists(filePath):
+proc readLinesSafe*(p: string): seq[string] {.role: dataFetcher.} =
+  ## p: file to read. A missing file yields an empty list.
+  if not fileExists(p):
     result = @[]
     return
-  result = readFile(filePath).splitLines()
+  result = readFile(p).splitLines()
 
 
-proc isTestPath*(path: string): bool {.role: parser.} =
-  ## path: one source path. Tests live under a tests folder or are
+proc isTestPath*(p: string): bool {.role: parser.} =
+  ## p: one source path. Tests live under a tests folder or are
   ## named for what they are.
   ##
   ## Match whole folder names, at any fixture depth. A test_ prefix under
@@ -190,7 +195,7 @@ proc isTestPath*(path: string): bool {.role: parser.} =
   ## test scanner and the history reader need it and neither may
   ## import the other.
   var
-    parts: seq[string] = normalizeSlashes(path).toLowerAscii().split('/')
+    parts: seq[string] = normalizeSlashes(p).toLowerAscii().split('/')
     i: int = 0
     inSource: bool = false
   result = false
@@ -207,14 +212,14 @@ proc isTestPath*(path: string): bool {.role: parser.} =
     (parts[^1].startsWith("test_") or parts[^1].endsWith("_test.nim"))
 
 
-proc isSrcPath*(path: string): bool {.role: parser.} =
-  ## path: one source path. Whether it belongs to the source of the
+proc isSrcPath*(p: string): bool {.role: parser.} =
+  ## p: one source path. Whether it belongs to the source of the
   ## program rather than to its tests. A file under a `tests` folder
   ## is a test even when that folder sits inside `src`, so the two
   ## answers never both claim the same file.
   var
-    p: string = normalizeSlashes(path)
-  result = (p.startsWith("src/") or "/src/" in p) and not isTestPath(p)
+    t: string = normalizeSlashes(p)
+  result = (t.startsWith("src/") or "/src/" in t) and not isTestPath(t)
 
 proc padTo*(s: string, n: int): string {.inline, role: helper.} =
   ## s: any text   n: the width of the column it sits in.

@@ -4,6 +4,7 @@
 ## ============================================================
 
 import runePragmas
+import var_invariants
 
 import std/math
 
@@ -11,6 +12,30 @@ const
   gammaItMax = 200
   gammaEps = 3.0e-7
   gammaFpMin = 1.0e-30
+
+proc positiveProbabilities*(P: openArray[float64]): bool {.role: math.} =
+  ## P: category probabilities. Each must be finite and in (0, 1].
+  ## Callers choose the distribution; this does not check that its sum is one.
+  result = P.len > 0
+  for p in P:
+    if not (p > 0.0 and p <= 1.0):
+      return false
+
+proc chiSquare*(C: openArray[int], P: openArray[float64], n: int): float64
+    {.role: math,
+    needsRun: C.len == P.len and n > 0 and positiveProbabilities(P).} =
+  ## C: observed category counts; P: their probabilities; n: observations.
+  ## Each term compares an observed count with n * probability.
+  var
+    i: int = 0
+    expected: float64 = 0.0
+    delta: float64 = 0.0
+  result = 0.0
+  while i < C.len:
+    expected = n.float64 * P[i]
+    delta = C[i].float64 - expected
+    result += delta * delta / expected
+    inc i
 
 
 proc normalCdf*(x: float64): float64 {.role: math.} =

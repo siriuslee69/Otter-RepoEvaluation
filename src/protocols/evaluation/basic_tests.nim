@@ -137,20 +137,6 @@ proc longestRunCounts(B: openArray[uint8], m, first, bins: int): seq[int]
     inc result[bucket]
     inc i
 
-proc longestRunChi(C: seq[int], P: seq[float64], n: int): float64
-    {.role: math.} =
-  ## C: observed counts; P: category probabilities; n: complete blocks.
-  var
-    i: int = 0
-    expected: float64 = 0.0
-    delta: float64 = 0.0
-  result = 0.0
-  while i < C.len:
-    expected = n.float64 * P[i]
-    delta = C[i].float64 - expected
-    result += delta * delta / expected
-    inc i
-
 proc longestRunOfOnesTest*(Bs: openArray[uint8], m: int,
     a: float64 = defaultAlpha): NistResult {.role: math.} =
   ## Bs: bits (0/1); m: 8, 128, or 10000; a: pass threshold.
@@ -169,7 +155,7 @@ proc longestRunOfOnesTest*(Bs: openArray[uint8], m: int,
   if n == 0:
     return
   C = longestRunCounts(Bs, m, model.first, model.P.len)
-  chi = longestRunChi(C, model.P, n)
+  chi = chiSquare(C, model.P, n)
   p = regularizedGammaQ((model.P.len - 1).float64 / 2.0, chi / 2.0)
   result = makeResult(name, chi, p, a)
 

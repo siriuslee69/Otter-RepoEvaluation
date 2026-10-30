@@ -9,7 +9,7 @@
 ##
 ## The second half needs `nim` and `objdump` on the PATH.
 
-import std/[os, sequtils, strutils, unittest]
+import std/[os, sequtils, strutils, tables, unittest]
 
 import runePragmas
 import ../../src/protocols/machine_code
@@ -125,12 +125,40 @@ suite "branch census":
     check branchWordsIn("acc = acc xor b") == 0
 
   # {.testKind: tkIntegration.}
-  test "samples: secret jumps sit on Nim branch lines, none added":
+  test "samples: the constant-time routine keeps its added jumps public":
     var
       r: CtReport = ctCheck(samples, @[])
       k: int = 0
     check r.censuses.len == r.results.len
     while k < r.results.len:
       check r.censuses[k].jumps >= r.results[k].findings.countIt(it.kind == fkBranch)
-      for a in r.censuses[k].added: check not a.secret
+      # Optimized line information can assign the early-exit comparison to a
+      # line without a branch word. Keep reporting that secret jump. The clean
+      # sample still has to have only public added jumps, regardless of location.
+      if r.results[k].spec.name == "xorAccumulateEqual":
+        check not r.censuses[k].added.anyIt(it.secret)
       k = k + 1
+
+  # {.testKind: tkRegression, covers: "censusOf|censusLines".}
+  test "a secret jump on a branch-free source line stays visible":
+    var
+      C: SourceCache = initTable[string, seq[string]]()
+      r: Routine = Routine(instrs: @[
+        Instr(file: "sample.nim", line: 1, mnemonic: "jne"),
+        Instr(file: "sample.nim", line: 2, mnemonic: "je"),
+        Instr(file: "sample.nim", line: 3, mnemonic: "jne"),
+        Instr(file: "sample.nim", line: 3, mnemonic: "jmp")])
+      x: RoutineResult = RoutineResult(findings: @[
+        Finding(file: "sample.nim", line: 1, kind: fkBranch),
+        Finding(file: "sample.nim", line: 2, kind: fkBranch)])
+      c: BranchCensus = BranchCensus()
+    C["sample.nim"] = @["if value > 0:", "result = value", "result = other"]
+    c = censusOf(r, x, C)
+    check c.nimBranches == 1
+    check c.jumps == 3
+    check c.added.len == 2
+    check c.added[0].line == 2
+    check c.added[0].secret
+    check c.added[1].line == 3
+    check not c.added[1].secret
+    check censusLines(c).join("\n").contains("SECRET sample.nim:2")

@@ -5,6 +5,77 @@ It is **not fully convention compliant**. Parameter names, deep nesting, and
 large modules still need work. The successful tests below do not clear those
 findings.
 
+## Follow-up — 2026-10-30
+
+A second pass fixed the three statistical nesting hotspots and the path-helper
+naming findings. These are source changes; no rule thresholds were relaxed.
+
+| Measurement | Before | After |
+| --- | --- | --- |
+| Naming candidates | 141 | 131 |
+| Triple nesting sites | 224 | 211 |
+| Deeper nesting sites | 97 | 80 |
+| `templates.nim` maximum depth / average code lines per routine | 6 / 39.6 | 2 / 12.7 |
+| `excursions.nim` maximum depth / average code lines per routine | 5 / 42.7 | 2 / 10.7 |
+| `rank.nim` maximum depth / average code lines per routine | 5 / 34.0 | 2 / 10.6 |
+
+Template matching now separates window reading, match counting, category counts,
+and scoring. Excursion counting shares one cycle-finalization step, resets its
+outputs explicitly, and scores each state separately. Matrix blocks are packed
+and reduced by the existing GF(2) implementation instead of a second elimination
+implementation. Four statistics modules share one checked chi-square calculation.
+The original pattern enumeration and probability models are retained.
+
+The pass also fixes undefined or non-finite results at input boundaries:
+
+- Non-overlapping pattern widths must fit their positive integer representation:
+  1 through `sizeof(int)*8-2` (62 on a 64-bit build). Invalid dimensions yield an
+  empty result. Computing moments uses floating-point powers, so a doubled-width
+  integer shift no longer wraps for otherwise valid wide patterns.
+- Overlapping tests return a finite failing result when their category model
+  underflows or produces a zero-probability category.
+- Matrix bounds are checked with division before dimensions are multiplied.
+  Invalid or incomplete direct rank ranges return zero. Large rank-probability
+  exponents use a factored logarithm instead of an overflowing exponential.
+- Runtime contracts check block bounds and the shared score's category dimensions
+  and positive, finite probabilities.
+
+Path helpers in `repo_graph/io_utils.nim` now use documented `dir`, `p`, and `b`
+parameters; every in-repository named call was updated. External callers using
+named arguments must use the new names, for example `listNimFiles(dir = root,
+b = true)` instead of `rootDir` / `bIncludeTests`. Positional argument order and
+path behavior are unchanged.
+
+Validation adds eleven cases, including all 64 two-row, three-column matrices,
+a packed-word boundary, cycle-tail and saturation counts, invalid dimensions,
+and large exponents. A fixed 257-bit xorshift stream matches the 32 saved results
+captured from commit `0087ec1` before refactoring, within numerical tolerance.
+The fixture is `evaluation/tests/fixtures/statistics/evaluation_reference.json`;
+its seed and bit-generation steps are explicit in the regression test.
+
+`nimble test` passes all 20 programs / 275 unittest cases plus shell regressions.
+The expanded statistical suite also passes in release mode. This follow-up used
+Nim 2.4.0 on Linux/x86-64.
+
+A separate machine-code regression fixes a brittle test expectation exposed by
+Nim 2.4.0: optimized line information can place a real secret comparison on a
+branch-free source line. The known constant-time sample must still stay clean.
+A fixed instruction/source fixture verifies that an added secret branch is
+reported as SECRET and is never hidden to satisfy that expectation. Production
+machine-code checks are unchanged. Changed-file checks pass.
+
+A real tracing defect exposed by the same compiler update is also fixed:
+implicit results were returned correctly but printed as zero by an early
+`finally` exit hook. Value bodies now assign their result before that hook runs.
+Statement bodies keep their explicit assignments and returns. The integration
+fixture checks the traced values, evaluation exactly once, early returns,
+generic/inferred types, exception flow, and compile-time calls. It passes in
+debug and release modes.
+
+Otter still reports 131 naming candidates and 291 sites at depth 3 or more;
+the older state-write, coupling, configuration, and UI-depth hotspots remain.
+There are no missing roles. The earlier measurements below are retained as history.
+
 ## Scope and method
 
 The shared Agent-Conventions Markdown files were read before the review.
@@ -77,9 +148,9 @@ read as a strict before/after coverage comparison.
     declare their purpose. Installation, configuration, and module ownership are
     explained in the README and contributing guide.
 
-## Remaining findings
+## Findings from 2026-10-29
 
-The final structural measurement covers 935 routines and 28,008 Nim source lines.
+The initial structural measurement covers 935 routines and 28,008 Nim source lines.
 
 | Finding | Observed result | Interpretation |
 | --- | --- | --- |
@@ -96,9 +167,9 @@ Work should start with these areas:
 
 - `code_stats/state_writes.nim`: separate field/source parsing from write/read
   analysis. Otter suggests a boundary around the start of its analysis helpers.
-- `evaluation/templates.nim`, `evaluation/excursions.nim`, and
-  `evaluation/rank.nim`: separate block calculations from the surrounding loops
-  and use early returns for invalid dimensions.
+- Completed in the follow-up: `evaluation/templates.nim`, `evaluation/excursions.nim`,
+  and `evaluation/rank.nim` now separate block calculations and reject invalid
+  dimensions before division or indexing.
 - `code_stats/config_touch.nim`, `coupling.nim`, and `ui_depth.nim`: give the
   deepest search steps named helpers with explicit inputs and results.
 - Parameter naming: the largest reported groups are `repo_graph/nim_parser.nim`

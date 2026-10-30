@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: review Otter with itself; fix checker reliability and split source scans
+Commit Message: simplify statistical checks and fix traced return values
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.
@@ -11,6 +11,19 @@ Features (Planned):
 - Parent-repo adoption of the pragma-driven test UI after Otter example validation.
 
 Features (Done):
+- Tracing captures implicit results before the finally hook, fixing zero-valued
+  exit logs on Nim 2.4.0. Fixtures cover one evaluation, early/explicit returns,
+  generic/inferred result types, func/no-raise routines, and compile-time use.
+- 2026-10-30 follow-up: templates, excursions, and matrix rank modules reduced
+  to maximum nesting depth 2, with separate counting and scoring steps. Matrix
+  blocks use the existing GF(2) reducer; four modules share chi-square scoring.
+- Guarded template widths and matrix ranges before shifts, division, or indexing;
+  factored rank logarithms avoid overflowing exponentials. Contracts check block
+  ranges and scoring inputs. Invalid statistical dimensions fail finitely.
+- Ten path-helper naming findings fixed with documented short parameter names;
+  internal named calls updated. External named callers must use dir/p/b.
+- Eleven new statistical cases cover 32 pre-refactor numerical results, every
+  2x3 binary matrix, word crossings, cycle tails, saturation, and invalid sizes.
 - Self-review documented in docs/self-review.md, including unresolved naming,
   nesting/layout work and confirmed false reports. Full gate still reports findings.
 - Build-hook content fingerprints, atomic cache replacement, and failure propagation;
@@ -188,18 +201,31 @@ Features (Done):
 - Added wildcard safe defaults, separate compile/run timing, horizontally scrollable version tabs, and repeated-click card deselection.
 
 Features (In Progress):
-- Convention follow-up: 141 naming candidates and 321 nesting sites at depth 3+;
+- Convention follow-up: 131 naming candidates and 291 nesting sites at depth 3+;
   state-write module split and other large-module refactors remain.
 - Broader parent-repo integration patterns beyond single-file auto-wrapping.
 - Deeper sample-object generation for harder Nim types and more private-function cases.
 - Keep extending parent-repo test metadata and runtime flag coverage as new suites are adopted.
 
 Notes:
+- The updated compiler also exposed incorrect implicit-result values in trace
+  logs. Explicit value capture before finally fixes the ordering; statement
+  bodies keep their control flow. Expanded integration checks pass in both modes.
+- Nim 2.4.0 exposed an existing machine-code test assumption about optimized
+  source locations. The test now keeps the constant-time sample strict and uses
+  a fixed regression fixture to require reporting a secret added branch. No
+  production machine-code findings were suppressed or changed.
+- Latest follow-up: 30 deeply nested sites and 10 naming candidates removed without
+  changing checker thresholds. Remaining findings are explicit in docs/self-review.md.
+- Follow-up validation: 20 programs / 275 unittest cases plus shell regressions;
+  expanded statistical tests also pass in release mode. Existing probability
+  models and valid-input results are preserved within numerical tolerance.
 - Latest review: Otter's own heuristics produced false positives, and the build hook
   could report success using a stale binary. Both reliability problems were fixed
   with regression coverage. See docs/self-review.md for candidate-by-candidate
   interpretation, remaining work, and reproduction commands.
-- Validation: 20 test programs / 263 unittest cases plus shell-hook regressions;
+- Initial review validation (2026-10-29): 20 test programs / 263 unittest cases
+  plus shell-hook regressions;
   matching release builds and CLI/WebUI builds. An isolated copy built and ran
   evaluation/statistics with pinned direct dependencies and no sibling repositories.
 - The full convention gate is not clean: nesting, layout, naming, and known detector

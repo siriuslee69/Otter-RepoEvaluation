@@ -809,7 +809,7 @@ proc statesIn(rootDir: string): StateSources
     globals: seq[tuple[name, typ: string]] = @[]
   result = StateSources(states: @[],
     globals: initTable[string, seq[tuple[name, typ: string]]]())
-  for p in listNimFiles(rootDir, bIncludeTests = false):
+  for p in listNimFiles(rootDir, b = false):
     lines = readLinesSafe(p)
     for st in objectTypesIn(p, lines):
       if st.entries.len > 0:

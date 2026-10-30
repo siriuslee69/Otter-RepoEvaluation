@@ -2,8 +2,28 @@
 ## Otter Evaluation Tests <- statistical math and stable benchmarks
 ## ------------------------------------------------------------------
 
-import std/[sequtils, strutils, unittest]
+import std/[json, math, os, sequtils, strutils, unittest]
+import runePragmas
+import var_invariants
 import otter_repo_evaluation
+
+proc pairRank(v: int): int {.role: math.} =
+  ## v: two three-bit rows. Two nonzero unequal vectors are independent over GF(2).
+  var
+    a: int = v and 7
+    b: int = v shr 3
+  if a == 0 and b == 0: return 0
+  if a == 0 or b == 0 or a == b: return 1
+  result = 2
+
+proc pairBits(v: int): seq[uint8] {.role: truthBuilder.} =
+  ## v: packed pair of three-bit rows; return six consecutive matrix bits.
+  var
+    i: int = 0
+  result = newSeq[uint8](6)
+  while i < result.len:
+    result[i] = uint8((v shr i) and 1)
+    inc i
 
 suite "otter evaluation":
   # {.testKind: tkUnit.}
@@ -121,3 +141,154 @@ suite "otter evaluation":
       R = longestRunOfOnesTest(B, row.m)
       expected = 2.0 * (1.0 / row.last - 1.0)
       check abs(R.statistic - expected) < 1.0e-10
+
+  # {.testKind: tkRegression, covers: "nonOverlappingTemplateTests|overlappingTemplateTest|randomExcursionsTests|randomExcursionsVariantTests|matrixRankTest".}
+  test "statistical refactors preserve the recorded results on a fixed bit stream":
+    var
+      B: seq[uint8] = newSeq[uint8](257)
+      state: uint32 = 0x716bc241'u32
+      i: int = 0
+      R: seq[NistResult] = @[]
+      path: string = currentSourcePath().parentDir / "fixtures" / "statistics" /
+        "evaluation_reference.json"
+      expected: JsonNode = parseFile(path)
+    while i < B.len:
+      state = state xor (state shl 13)
+      state = state xor (state shr 17)
+      state = state xor (state shl 5)
+      B[i] = uint8(state and 1)
+      inc i
+    R.add(nonOverlappingTemplateTests(B, 3, 16, 4))
+    R.add(overlappingTemplateTest(B, 3, 32))
+    R.add(randomExcursionsTests(B))
+    R.add(randomExcursionsVariantTests(B))
+    R.add(matrixRankTest(B, 4, 4))
+    check R.len == expected.len
+    i = 0
+    while i < min(R.len, expected.len):
+      check R[i].name == expected[i]["name"].getStr()
+      check abs(R[i].statistic - expected[i]["statistic"].getFloat()) <=
+        1.0e-10 * max(1.0, abs(expected[i]["statistic"].getFloat()))
+      check abs(R[i].pValue - expected[i]["pValue"].getFloat()) < 1.0e-10
+      check R[i].passed == expected[i]["passed"].getBool()
+      inc i
+
+  # {.testKind: tkEdgeCase, covers: "buildTemplateList|nonOverlappingTemplateTests|overlappingTemplateTest".}
+  test "invalid and unrepresentable template dimensions yield finite failures":
+    var
+      B: seq[uint8] = newSeq[uint8](128)
+    check buildTemplateList(0, 1).len == 0
+    check buildTemplateList(sizeof(int) * 8, 1).len == 0
+    check buildTemplateList(int.high, 1).len == 0
+    check nonOverlappingTemplateTests(B, int.high, int.high, 1).len == 0
+    check nonOverlappingTemplateTests(B, 3, 0, 1).len == 0
+    check nonOverlappingTemplateTests(B, 3, 129, 1).len == 0
+    check overlappingTemplateTest(B, 3, 0).pValue == 0.0
+    check overlappingTemplateTest(B, 0, 16).pValue == 0.0
+    check overlappingTemplateTest(B, int.high, int.high).pValue == 0.0
+    B = newSeq[uint8](2048)
+    check overlappingTemplateTest(B, 1200, 2048).statistic == 0.0
+    check overlappingTemplateTest(B, 1200, 2048).pValue == 0.0
+
+  # {.testKind: tkRegression, covers: "nonOverlappingTemplateTests".}
+  test "wide representable templates avoid a doubled-width integer shift":
+    when sizeof(int) >= 8:
+      var
+        R: seq[NistResult] = nonOverlappingTemplateTests(newSeq[uint8](128), 40, 64, 1)
+      check R.len == 1
+      check R[0].statistic > 0.0
+      check R[0].statistic < Inf
+      check R[0].pValue >= 0.0 and R[0].pValue <= 1.0
+
+  # {.testKind: tkUnit, covers: "buildTemplateList".}
+  test "pattern enumeration keeps its positive order and default limits":
+    check buildTemplateList(2, 10) == @[1, 2, 3]
+    check buildTemplateList(9, 0).len == 148
+    check buildTemplateList(8, 0).len == 16
+    check buildTemplateList(3, 2) == @[1, 2]
+
+  # {.testKind: tkRegression, covers: "nonOverlappingTemplateTests|overlappingTemplateTest".}
+  test "a final partial block does not change template results":
+    var
+      B: seq[uint8] = pairBits(13) & pairBits(54) & pairBits(21) & pairBits(38)
+      short: seq[NistResult] = nonOverlappingTemplateTests(B, 3, 12, 3)
+      extra: seq[NistResult] = nonOverlappingTemplateTests(B & @[1'u8], 3, 12, 3)
+    check short == extra
+    check overlappingTemplateTest(B, 2, 12) == overlappingTemplateTest(B & @[1'u8], 2, 12)
+
+  # {.testKind: tkRegression, covers: "computeExcursionsCounts".}
+  test "cycle bins include the unfinished tail and reset reused outputs":
+    var
+      C: array[9, array[6, int]] = default(array[9, array[6, int]])
+      V: array[19, int] = default(array[19, int])
+      n: int = 17
+    C[0][0] = 99
+    V[0] = 99
+    computeExcursionsCounts(@[1'u8, 1, 0, 0, 0, 1, 1], n, C, V)
+    check n == 3
+    check C[5] == [1, 1, 1, 0, 0, 0]
+    check C[6] == [2, 1, 0, 0, 0, 0]
+    check C[3] == [2, 1, 0, 0, 0, 0]
+    check C[4] == default(array[6, int])
+    check C[0] == [3, 0, 0, 0, 0, 0]
+    check V[10] == 3
+    check V[11] == 1
+    check V[8] == 1
+    check V[9] == 0
+    check V[0] == 0
+    computeExcursionsCounts(@[], n, C, V)
+    check n == 0
+    check C == default(array[9, array[6, int]])
+    check V == default(array[19, int])
+    check randomExcursionsTests(@[]).len == 0
+    check randomExcursionsVariantTests(@[]).len == 0
+
+  # {.testKind: tkEdgeCase, covers: "computeExcursionsCounts".}
+  test "a cycle with at least five visits lands in the final bin":
+    var
+      C: array[9, array[6, int]] = default(array[9, array[6, int]])
+      V: array[19, int] = default(array[19, int])
+      n: int = 0
+    computeExcursionsCounts(@[1'u8, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0], n, C, V)
+    check n == 1
+    check C[5] == [0, 0, 0, 0, 0, 1]
+    check C[6] == [0, 0, 0, 0, 0, 1]
+
+  # {.testKind: tkProperty, covers: "binaryMatrixRank".}
+  test "all 64 two-row binary matrices have the expected independent row count":
+    for v in 0 ..< 64:
+      check binaryMatrixRank(pairBits(v), 2, 3, 0) == pairRank(v)
+
+  # {.testKind: tkEdgeCase, covers: "binaryMatrixRank|matrixRankTest".}
+  test "matrix bounds and packed-word crossings are checked":
+    var
+      B: seq[uint8] = newSeq[uint8](132)
+    B[65] = 1
+    B[66] = 1
+    check binaryMatrixRank(B, 2, 65, 1) == 2
+    check binaryMatrixRank(B, 0, 65, 1) == 0
+    check binaryMatrixRank(B, 2, 65, -1) == 0
+    check binaryMatrixRank(B, 2, 65, 3) == 0
+    check binaryMatrixRank(B, int.high, int.high, 0) == 0
+    check matrixRankTest(B, int.high, int.high).pValue == 0.0
+    check matrixRankTest(B, 1, 1).pValue == 0.0
+
+  # {.testKind: tkRegression, covers: "rankProbability".}
+  test "large rank exponents remain finite":
+    var
+      p: float64 = rankProbability(1024, 1024, 1024)
+    check p > 0.28 and p < 0.30
+    check rankProbability(0, 2, 1) == 0.0
+    check rankProbability(2, 3, 3) == 0.0
+
+  # {.testKind: tkEdgeCase, covers: "chiSquare|positiveProbabilities".}
+  test "the shared score checks category widths and positive finite probabilities":
+    check chiSquare([2, 2], [0.5, 0.5], 4) == 0.0
+    check chiSquare([4, 0], [0.5, 0.5], 4) == 4.0
+    check not positiveProbabilities([0.0, 1.0])
+    check not positiveProbabilities([NaN])
+    check not positiveProbabilities([Inf])
+    expect ContractDefect:
+      discard chiSquare([1], [0.5, 0.5], 1)
+    expect ContractDefect:
+      discard chiSquare([1, 0], [1.0, 0.0], 1)
