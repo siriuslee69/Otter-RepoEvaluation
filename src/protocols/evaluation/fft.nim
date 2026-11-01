@@ -11,6 +11,32 @@ import ./bits
 import ./constants
 import ./types
 
+proc fftBlock(S: var seq[Complex64], start, half: int,
+    wlen: Complex64) {.role: math, inline.} =
+  ## S: samples; start: block offset; half: butterfly count; wlen: phase step.
+  var
+    j: int = 0
+    w: Complex64 = complex64(1.0, 0.0)
+    u, v: Complex64 = default(Complex64)
+  while j < half:
+    u = S[start + j]
+    v = S[start + j + half] * w
+    S[start + j] = u + v
+    S[start + j + half] = u - v
+    w = w * wlen
+    inc j
+
+proc fftStage(S: var seq[Complex64], width: int) {.role: math.} =
+  ## S: samples; width: number of samples in each butterfly block.
+  var
+    half: int = width shr 1
+    ang: float64 = -2.0 * PI / float64(width)
+    wlen: Complex64 = complex64(cos(ang), sin(ang))
+    i: int = 0
+  while i < S.len:
+    fftBlock(S, i, half, wlen)
+    i = i + width
+
 
 proc fftRadix2*(Xs: seq[Complex64]): seq[Complex64] {.role: math.} =
   ## Xs: input complex samples (length must be power of two).
@@ -21,12 +47,7 @@ proc fftRadix2*(Xs: seq[Complex64]): seq[Complex64] {.role: math.} =
     i: int = 0
     j: int = 0
     l: int = 0
-    half: int = 0
-    ang: float64 = 0.0
-    wlen: Complex64 = default(Complex64)
-    w: Complex64 = default(Complex64)
     u: Complex64 = default(Complex64)
-    v: Complex64 = default(Complex64)
     t: int = 0
   rs = Xs
   if n <= 1:
@@ -46,21 +67,7 @@ proc fftRadix2*(Xs: seq[Complex64]): seq[Complex64] {.role: math.} =
       i = i + 1
     l = 2
     while l <= n:
-      half = l shr 1
-      ang = -2.0 * PI / float64(l)
-      wlen = complex64(cos(ang), sin(ang))
-      i = 0
-      while i < n:
-        w = complex64(1.0, 0.0)
-        j = 0
-        while j < half:
-          u = rs[i + j]
-          v = rs[i + j + half] * w
-          rs[i + j] = u + v
-          rs[i + j + half] = u - v
-          w = w * wlen
-          j = j + 1
-        i = i + l
+      fftStage(rs, l)
       l = l shl 1
     result = rs
 

@@ -57,16 +57,40 @@ proc chooseTargetIndex(fs: seq[FunctionInfo], callerIdx: int,
   result = idxs[0]
 
 
+proc addCalls(fs: seq[FunctionInfo], caller: int,
+    names: Table[string, seq[int]], seen: var HashSet[string],
+    edges: var seq[CallEdge], unresolved: var seq[string])
+    {.role: truthBuilder.} =
+  ## fs: functions; caller: source index; names: candidate indices by name.
+  ## seen: existing edges; edges and unresolved: results to append to.
+  var
+    target: int = -1
+    key: string = ""
+    e: CallEdge = default(CallEdge)
+  for callName in fs[caller].calls:
+    target = chooseTargetIndex(fs, caller, names.getOrDefault(callName, @[]),
+      callName)
+    if target < 0:
+      unresolved.add(fs[caller].id & "::" & callName)
+      continue
+    if target == caller:
+      continue
+    key = fs[caller].id & "->" & fs[target].id
+    if key in seen:
+      continue
+    seen.incl(key)
+    e = default(CallEdge)
+    e.callerId = fs[caller].id
+    e.calleeId = fs[target].id
+    e.callName = callName
+    edges.add(e)
+
 proc buildCallGraph*(fs: seq[FunctionInfo]): tuple[edges: seq[CallEdge],
     unresolved: seq[string]] {.role: truthBuilder, tag: "graph|resolution".} =
   var
     nameMap: Table[string, seq[int]] = default(Table[string, seq[int]])
     edgeSet: HashSet[string] = default(HashSet[string])
     callerIdx: int = 0
-    idxs: seq[int] = @[]
-    calleeIdx: int = -1
-    edgeKey: string = ""
-    e: CallEdge = default(CallEdge)
   result.edges = @[]
   result.unresolved = @[]
   nameMap = initTable[string, seq[int]]()
@@ -76,18 +100,5 @@ proc buildCallGraph*(fs: seq[FunctionInfo]): tuple[edges: seq[CallEdge],
       nameMap[f.name] = @[]
     nameMap[f.name].add(i)
   while callerIdx < fs.len:
-    for callName in fs[callerIdx].calls:
-      idxs = nameMap.getOrDefault(callName, @[])
-      calleeIdx = chooseTargetIndex(fs, callerIdx, idxs, callName)
-      if calleeIdx >= 0 and calleeIdx != callerIdx:
-        edgeKey = fs[callerIdx].id & "->" & fs[calleeIdx].id
-        if edgeKey notin edgeSet:
-          edgeSet.incl(edgeKey)
-          e = default(CallEdge)
-          e.callerId = fs[callerIdx].id
-          e.calleeId = fs[calleeIdx].id
-          e.callName = callName
-          result.edges.add(e)
-      elif calleeIdx < 0:
-        result.unresolved.add(fs[callerIdx].id & "::" & callName)
+    addCalls(fs, callerIdx, nameMap, edgeSet, result.edges, result.unresolved)
     callerIdx = callerIdx + 1

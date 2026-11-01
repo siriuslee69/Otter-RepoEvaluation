@@ -5,6 +5,29 @@ It is **not fully convention compliant**. Parameter names, deep nesting, and
 large modules still need work. The successful tests below do not clear those
 findings.
 
+## Otter on Otter — 2026-11-01
+
+The forced gate found 203 depth-three and 42 depth-four sites. The FFT
+butterfly, graph edge collection, universal block reader, guard search,
+conditional CSS scan and contested-setting scan now have shallower steps.
+The gate then reported 199 depth-three and 33 depth-four sites; its depth
+counts can move between buckets when a block is flattened. The FFT and
+graph-builder files no longer appear in its oversized-file list; the
+universal test now appears there because its remaining routine is long.
+
+Added checks cover a known complex FFT, repeated universal-test blocks,
+and graph edge deduplication, local resolution and missing calls.
+`nimble runStatistics` still reports 131 parameter naming candidates.
+The forced gate also retains 27 layout candidates, 42 embedded-language
+strings and other findings. These remain work, not a clean result.
+
+The six secret candidates are examples in tests or the `stack@rsp+0x10`
+address in a comment. The example feed intentionally demonstrates a lost
+write. `OtterUiConfig.defaultFlags` is read by the catalog, including via
+`C.config.defaultFlags`; the state report misses that read. Family and
+layout findings are suggestions and need checking against purpose and Nim's
+declaration order before moving or merging code.
+
 ## Otter on Otter — 2026-10-30, third pass
 
 This pass ran Otter on its own tree, then checked each finding by hand or

@@ -2,10 +2,11 @@
 ## Otter Evaluation Tests <- statistical math and stable benchmarks
 ## ------------------------------------------------------------------
 
-import std/[json, math, os, sequtils, strutils, unittest]
+import std/[complex, json, math, os, sequtils, strutils, unittest]
 import runePragmas
 import var_invariants
 import otter_repo_evaluation
+import ../../src/protocols/evaluation/fft
 
 proc pairRank(v: int): int {.role: math.} =
   ## v: two three-bit rows. Two nonzero unequal vectors are independent over GF(2).
@@ -26,6 +27,32 @@ proc pairBits(v: int): seq[uint8] {.role: truthBuilder.} =
     inc i
 
 suite "otter evaluation":
+  # {.testKind: tkRegression, covers: "fftRadix2".}
+  test "radix two transform preserves complex butterfly results":
+    var
+      X: seq[Complex64] = @[complex64(1, 0), complex64(2, 0),
+        complex64(3, 0), complex64(4, 0)]
+      Y: seq[Complex64] = fftRadix2(X)
+      expected: seq[Complex64] = @[complex64(10, 0), complex64(-2, 2),
+        complex64(-2, 0), complex64(-2, -2)]
+    check Y.len == expected.len
+    for i in 0 ..< expected.len:
+      check abs(Y[i].re - expected[i].re) < 1.0e-12
+      check abs(Y[i].im - expected[i].im) < 1.0e-12
+    check fftRadix2(@[]).len == 0
+    check fftRadix2(@[complex64(7, -3)]) == @[complex64(7, -3)]
+
+  # {.testKind: tkRegression, covers: "universalTest".}
+  test "universal test measures repeated block distances":
+    var
+      B: seq[uint8] = @[0'u8, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1,
+        0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1]
+      r: NistResult = universalTest(B, 6, 2)
+    check abs(r.statistic - 1.0) < 1.0e-12
+    check r.pValue >= 0.0 and r.pValue <= 1.0
+    check universalTest(B, 5, 2).pValue == 0.0
+    check universalTest(B, 6, 4).pValue == 0.0
+
   # {.testKind: tkUnit.}
   test "binary matrix rank probabilities match reference values":
     var

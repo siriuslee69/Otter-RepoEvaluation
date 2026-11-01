@@ -193,6 +193,20 @@ proc routeBack(id, at: string, came: Table[string, string],
     cur = came[cur]
   result.reverse()
 
+proc guardInLayer(id: string, layer: seq[string],
+    M: Table[string, seq[string]], guards: HashSet[string],
+    names: Table[string, string], seen: var HashSet[string],
+    came: var Table[string, string], next: var seq[string]):
+    tuple[found: bool, at: string, route: seq[string]] {.role: parser.} =
+  ## id: starting door; layer: current callers; M: call graph; guards: sanitizers.
+  ## names: display names; seen and came: traversal state; next: next layer.
+  for caller in layer:
+    for callee in newCallees(caller, M, seen, came):
+      if callee in guards:
+        return (found: true, at: names.getOrDefault(callee, callee),
+          route: routeBack(id, callee, came, names))
+      next.add(callee)
+
 proc findGuard*(id: string, M: Table[string, seq[string]],
     guards: HashSet[string], names: Table[string, string], hops: int):
     tuple[found: bool, at: string, route: seq[string]] {.role: parser,
@@ -212,12 +226,9 @@ proc findGuard*(id: string, M: Table[string, seq[string]],
   seen.incl(id)
   while step < hops and now.len > 0:
     next = @[]
-    for caller in now:
-      for callee in newCallees(caller, M, seen, came):
-        if callee in guards:
-          return (found: true, at: names.getOrDefault(callee, callee),
-            route: routeBack(id, callee, came, names))
-        next.add(callee)
+    result = guardInLayer(id, now, M, guards, names, seen, came, next)
+    if result.found:
+      return
     now = next
     step = step + 1
 

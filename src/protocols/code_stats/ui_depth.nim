@@ -195,11 +195,11 @@ proc withoutAtRules*(css: string): string {.role: sanitizer,
         depth = depth + 1
       if css[i] == '}':
         depth = depth - 1
-        if depth == 0:
-          # Blank the block rather than cutting it, so every later
-          # index still lines up with the original text.
-          blankRange(result, skipFrom, i)
-          skipFrom = -1
+      if css[i] == '}' and depth == 0:
+        # Blank the block rather than cutting it, so every later
+        # index still lines up with the original text.
+        blankRange(result, skipFrom, i)
+        skipFrom = -1
     i = i + 1
 
 proc hiddenClassesIn*(css: string): HashSet[string] {.role: parser,

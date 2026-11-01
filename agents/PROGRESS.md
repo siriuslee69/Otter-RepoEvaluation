@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: Record the Otter-on-Otter pass and its remaining work
+Commit Message: Reduce nesting in statistical and graph analysis
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.
@@ -11,6 +11,13 @@ Features (Planned):
 - Parent-repo adoption of the pragma-driven test UI after Otter example validation.
 
 Features (Done):
+- 2026-11-01 self-check: extracted FFT stages and graph-edge collection,
+  flattened the universal test, guard search, CSS and contested settings.
+  Added FFT, universal block and graph resolution regression checks.
+  The forced gate went from 203 depth-three / 42 depth-four sites to
+  199 / 33. `nimble test` and individual Nim convention checks passed;
+  `nimble runStatistics` and the forced gate still report findings.
+  See docs/self-review.md for false positives and remaining work.
 - 2026-10-30 Otter on Otter (docs/self-review.md, "third pass"). Running Otter
   on itself found false positives in Otter, which were fixed: the unused-import
   check now reads local module exports (279 -> 0; the compiler agrees), doc
@@ -211,8 +218,8 @@ Features (Done):
 - Added wildcard safe defaults, separate compile/run timing, horizontally scrollable version tabs, and repeated-click card deselection.
 
 Features (In Progress):
-- Convention follow-up (see docs/self-review.md, "Remaining work"): 131 naming
-  candidates; 245 nesting sites at depth 3+ (203 triple, 42 at depth 4); a seam
+- Convention follow-up (see docs/self-review.md): 131 naming
+  candidates; 232 nesting sites at depth 3+ (199 triple, 33 at depth 4); a seam
   in code_stats/state_writes.nim; six oversized files; 42 embedded-language
   strings (webui HTML in app.js); nine exported routines with no caller in the
   workspace, awaiting an owner decision.

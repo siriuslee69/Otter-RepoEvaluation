@@ -6,8 +6,24 @@
 import std/[json, os, sets, strutils, tables, unittest]
 
 import otter_repo_evaluation
+import ../../src/protocols/repo_graph/graph_builder
 
 suite "otter repo graph":
+  # {.testKind: tkRegression, covers: "buildCallGraph".}
+  test "graph keeps one edge per pair and records unresolved calls":
+    var
+      F: seq[FunctionInfo] = @[
+        FunctionInfo(id: "main", name: "main", modulePath: "a",
+          calls: @["target", "target", "main", "missing"]),
+        FunctionInfo(id: "other", name: "target", modulePath: "b"),
+        FunctionInfo(id: "local", name: "target", modulePath: "a")]
+      graph: tuple[edges: seq[CallEdge], unresolved: seq[string]] =
+        buildCallGraph(F)
+    check graph.edges.len == 1
+    check graph.edges[0].callerId == "main"
+    check graph.edges[0].calleeId == "local"
+    check graph.unresolved == @["main::missing"]
+
   # {.testKind: tkIntegration.}
   test "analyze repo and build orchestrator groups":
     var

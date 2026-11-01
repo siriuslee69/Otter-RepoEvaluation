@@ -544,16 +544,18 @@ proc contestedPairs*(A: seq[ConfigField]): seq[ConfigConflict]
       continue
     j = i + 1
     while j < A.len:
-      if A[j].writeCount >= 2:
-        shared = sharedWriters(A[i], A[j])
-        if shared >= 2:
-          result.add(ConfigConflict(a: A[i].name, b: A[j].name,
-            kind: "contested",
-            detail: "both are written by " & $shared &
-              " of the same routines, so which value survives depends " &
-              "on the order those routines run in",
-            path: A[i].path, line: A[i].line,
-            certainty: 0.4 + 0.1 * shared.float))
+      if A[j].writeCount < 2:
+        j = j + 1
+        continue
+      shared = sharedWriters(A[i], A[j])
+      if shared >= 2:
+        result.add(ConfigConflict(a: A[i].name, b: A[j].name,
+          kind: "contested",
+          detail: "both are written by " & $shared &
+            " of the same routines, so which value survives depends " &
+            "on the order those routines run in",
+          path: A[i].path, line: A[i].line,
+          certainty: 0.4 + 0.1 * shared.float))
       j = j + 1
     i = i + 1
 
