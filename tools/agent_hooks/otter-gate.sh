@@ -180,6 +180,12 @@ report=$(REPO="$root" CHANGED="$changed" THRESH="$THRESHOLD" FORCED="$force" "$q
 queryStatus=$?
 [ "$queryStatus" -eq 0 ] || exit 2
 
+# What a single file and the call graph cannot show: borders, pins, leftovers,
+# copies, open ends (repo-check.sh), and the UI rules (ui-check.sh).
+extra=$(OTTER_REPORT_LOG=off "$here/repo-check.sh" "$root" 2>/dev/null; OTTER_REPORT_LOG=off "$here/ui-check.sh" "$root" 2>/dev/null)
+[ -n "${extra//[[:space:]]/}" ] && report="$report
+
+$extra"
 printf '%s\n' "$report" | bash "$here/report-once.sh" --root "$root"
 reportStatus=$?
 [ "$reportStatus" -eq 2 ] && exit 2

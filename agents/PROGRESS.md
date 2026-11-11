@@ -1,6 +1,45 @@
 # Progress
 
-Commit Message: Reduce nesting in statistical and graph analysis
+Commit Message: Agent harness: repo-check, ui-check, done-check and a stop hook that refuses unfinished hand-overs
+
+## 2026-11-11 A harness for agents (tools/agent_hooks)
+
+What was asked: the same feedback loops kept being done by hand (wrong repo for a
+feature, half-finished reports, tasks that did not start, copies, unpushed pins).
+Otter should catch them, and the conventions should stop them at the prompt.
+
+Found by reading the user's requests in older chats and the PROGRESS files:
+
+```text
+  what kept happening                              now caught by
+  ───────────────────────────────────────────────  ─────────────────────────────
+  a feature built on the wrong side of a border    repo-check BORDERS (agents/BORDERS.md)
+  a submodule re-written locally                   repo-check LOCAL COPY
+  "why was X not pushed", a clone that cannot      repo-check PINS
+    build
+  reports with "not done" lists                    repo-check OPEN ENDS, the stop hook
+  a nimble task or test that did not run           done-check tests / examples
+  "" meaning success, helpers copied thrice        repo-check ERROR STYLE, COPIES
+  *.trash and *_backup left behind                 repo-check LEFTOVERS
+  UI: colours typed in widgets, no focus style,    ui-check
+    swallowed clicks, stretching rows
+```
+
+Built:
+- repo-check.sh, ui-check.sh, done-check.sh, claude-stop-hook.sh; otter-gate.sh
+  appends the first two to its report.
+- evaluation/tests/test_repo_checks.sh: a fake repo with one of each mistake, then
+  repaired; run by `nimble test` beside test_agent_hooks.sh.
+- Rules: Agent-Conventions/WORKFLOW.md (new), TOOLS.md, UI.md.
+
+Known limits:
+- nim-check.sh misreads some multi-line values inside a `var` block in test files
+  as "var without a default"; done-check therefore blocks only on findings in src/.
+- ui-check cannot see a screen. It finds causes a script can read; the checklist in
+  UI.md ("Checking a UI before handing it over") covers the rest.
+- Open (needs your decision): should PINS block a hand-over once pushing is allowed
+  by default? Today it is a note, because a push needs your yes.
+
 
 Features (Planned):
 - Compile-time instrumentation blocks for parent repos.

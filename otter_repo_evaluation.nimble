@@ -51,6 +51,7 @@ task test, "Run the complete test list, excluding deliberate failure examples":
     exec "nim c --path:src -r " & quoteShell("evaluation/tests/" & name & ".nim")
   when defined(posix):
     exec "bash evaluation/tests/test_agent_hooks.sh"
+    exec "bash evaluation/tests/test_repo_checks.sh"
 
 task runTests, "Run the same selected tests as nimble test":
   exec "nimble test"
