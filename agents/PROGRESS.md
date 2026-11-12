@@ -1,6 +1,35 @@
 # Progress
 
-Commit Message: Agent harness: repo-check, ui-check, done-check and a stop hook that refuses unfinished hand-overs
+Commit Message: PROGRESS: the harness run on the UI repos and on Otter itself
+
+## 2026-11-12 The harness run on the UI repos, and on Otter
+
+Run on Avalon-PWManager, Atlas-Taskbar, Atlas-Explorer, Atlas-RightClickMenu, Nebel
+and Otter. What the runs showed, and what was changed because of it:
+
+```text
+  what the run showed                              change
+  ───────────────────────────────────────────────  ─────────────────────────────────
+  CLICKS blamed paste and key handlers             only page-wide press/click listeners
+                                                     (document, window, body) are read
+  PROCESSES blamed a test supervisor (app.nim)     file filter no longer matches "app."
+  UNFINISHED blamed text ABOUT the TODO search     TODO must start the comment
+  ERROR STYLE blamed `"" when it is not a ...`     only wording that means "it worked"
+  a program was asked for examples/                charter `may be imported by: nobody`
+  nothing said "this repo has a second job"        SIZE: over 15 000 lines of Nim needs
+                                                     `planned cut:` in agents/BORDERS.md
+  reference designs counted as UI                  /ref1.. folders are skipped
+```
+
+Charters written: Otter, Atlas-Taskbar, Atlas-Explorer, Avalon-PWManager.
+
+What done-check still says about Otter itself (older debt, see docs/self-review.md):
+nesting (199 triple, 33 deeper), 7 SECRETS candidates that are test fixtures, four
+test files no task runs, 144 colours typed in the web UI's style sheet.
+
+- Open (needs your decision): three repos are over the size limit (Atlas-Taskbar
+  43 000, Nebel 26 000, Otter 23 000). Each charter holds a recommended cut. Say
+  yes or name another cut, and the line becomes `planned cut: <what> -> <where>`.
 
 ## 2026-11-11 A harness for agents (tools/agent_hooks)
 
