@@ -55,7 +55,7 @@ rc=0; printf '%s' "$payload" | OTTER_STOP_HOOK=off bash "$hooks/claude-stop-hook
 # Repaired: every heading is gone.
 rm notes.md.trash evaluation/tests/test_two.nim src/demo/b.nim src/demo/e.nim
 mkdir -p docs
-printf "# UI plan\n\nsave    30   A\nopen    12   A\ntheme   0.01 C\n" > docs/ui-plan.md
+printf "# UI plan\n\ngoal: a user can save a row\nkeep: the list of a similar program\nwalk: open, save\nsettings: theme\npeople complain about slow saving\n\nsave    30   A\nopen    12   A\ntheme   0.01 C\n" > docs/ui-plan.md
 mkdir -p examples
 printf 'echo 1\n' > examples/demo.nim
 printf '# Demo\n## Installation\nx\n## Issue playbook\nnone\n' > README.md
