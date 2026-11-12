@@ -64,3 +64,10 @@ An item that is done is removed here and named in PROGRESS.md.
   done when: the check lives in one shared place (Otter or Maya-Themes), the taskbar imports it, and ui-hints calls it.
   needs: nobody
   plan: move contrast.nim / contrastcheck.nim into Maya-Themes (it owns the colours), keep the taskbar's test as its first caller, let `otter` expose it as a command.
+
+- [ ] The README names the test-window catalog `evaluation/tests/test_otter_catalog.nim`, and repo-check lists exactly that name under ORPHAN TESTS in every repo that follows it.
+  why: the catalog is not a test (it starts `nimble test` itself), so adding it to the test task would make the suite start itself; the finding stays a FIX line in every repo.
+  start: ../Otter-RepoEvaluation/tools/agent_hooks/repo-check.sh ../Bifrost-ExchangeProtocols  (before 2026-11-12 it printed the line; Bifrost renamed the file) and read README.md lines 212 and 232
+  done when: the README names a file that repo-check does not call a test, and the repos that still use the old name (grep -rl test_otter_catalog ../*/evaluation/tests) are renamed.
+  needs: nobody
+  plan: the test window walks the whole evaluation/tests folder for the `otterUiTest` marker (src/protocols/test_ui/catalog.nim, discoverOtterUiTests), so any file name there works. Write `evaluation/tests/otter_catalog.nim` in the README (not outside evaluation/tests: the window would find nothing). Bifrost did this on 2026-11-12: `discoverOtterUiTests` still finds all five entries of its catalog at the new name (checked by calling it; the window itself was not opened).
