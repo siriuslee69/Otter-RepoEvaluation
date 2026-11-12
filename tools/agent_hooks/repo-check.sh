@@ -20,6 +20,7 @@
 #   ORPHAN TESTS   test files no nimble task runs                 TOOLS.md
 #   UNFINISHED     TODO / FIXME / "not built yet" in src          WORKFLOW.md 5
 #   OPEN ENDS      what the newest PROGRESS entry leaves open     WORKFLOW.md 5
+#   SIZE           more than 15 000 lines and no planned cut      WORKFLOW.md 2
 #   HANDOFF        no examples, README parts missing, stale       PROJECTS.md
 #                  PROGRESS
 set -uo pipefail
@@ -101,7 +102,7 @@ style=$(srcs | xargs -r awk '
   FNR == 1 { p = 0 }
   /^proc [A-Za-z0-9_`]+\*/ { p = FNR; name = $2; sub(/\*.*/, "", name); s = 0 }
   p && FNR - p <= 4 && /\): string \{\./ { s = FNR }
-  s && FNR - s <= 6 && name !~ /(Error|Reason|Text|Name)$/ && /^  ##.*("" (or|when|if) (what|why|it |recorded|ready|nothing)|or why not|"" = ok|"" means)/ { printf "  %s:%d  %s\n", FILENAME, p, name; p = 0; s = 0 }
+  s && FNR - s <= 6 && name !~ /(Error|Reason|Text|Name)$/ && /^  ##.*("" (or|when|if) (what went|why|it worked|it was|recorded|ready|nothing went|nothing is wrong|ok|fine|done)|"" on success|or why not|else why|"" = ok|"" means (ok|success|it worked|no error))/ { printf "  %s:%d  %s\n", FILENAME, p, name; p = 0; s = 0 }
 ' 2>/dev/null | head -8)
 [ -n "$style" ] && { add "ERROR STYLE — exported routines that answer \"\" for success. A caller reads \`if x.len == 0\` as \"nothing came back\". Answer with ok/err (tuple[ok: bool, err: string], or the repo's Outcome)."; add "$style"; }
 
@@ -117,7 +118,7 @@ if grep -qE '^task test\b|ownTasks.*"test"' ./*.nimble 2>/dev/null; then
 fi
 
 # --- UNFINISHED ----------------------------------------------------------------
-todo=$(srcs | xargs -r grep -nE '(#|##)[^"]*\b(TODO|FIXME|XXX|not (built|implemented|done) yet|not yet (built|implemented|done)|later work)\b' 2>/dev/null | cut -c1-140 | head -8)
+todo=$(srcs | xargs -r grep -nE '(#+ *(TODO|FIXME|XXX)\b|#[^"]*\b(not (built|implemented|done) yet|not yet (built|implemented|done)|later work)\b)' 2>/dev/null | cut -c1-140 | head -8)
 [ -n "$todo" ] && { add "UNFINISHED — the source says work is missing. Finish it, or name the routine ph_ and list it in the README's issue playbook."; add "$(printf '%s' "$todo" | sed 's/^/  /')"; }
 
 # --- OPEN ENDS: the newest PROGRESS entry --------------------------------------
@@ -134,7 +135,19 @@ else
 fi
 
 # --- HANDOFF: what a reader needs first ----------------------------------------
-[ -n "$(ls examples/*.nim 2>/dev/null | head -1)" ] || add "HANDOFF — no examples/*.nim. Write the example first; it is the API the user will judge (PROJECTS.md)."
+# --- SIZE: a repo this large has usually gained a second job --------------------
+# Quiet once the charter holds a `planned cut:` line: what moves out, and where to.
+limit="${OTTER_SIZE_LIMIT:-15000}"
+lines=$(git ls-files 'src/*.nim' 2>/dev/null | while read -r f; do [ -f "$f" ] && cat "$f"; done | wc -l)
+if [ "$lines" -gt "$limit" ] && ! grep -qi '^planned cut:' "$charter" 2>/dev/null; then
+  add "SIZE — src/ holds $lines lines of Nim (limit $limit). Before adding more: name the second job that grew here and the repo it should move to, tell the user, and write the answer into $charter as 'planned cut: <what> -> <where>' (WORKFLOW.md 2)."
+fi
+
+# A program nothing imports (charter: "may be imported by: nobody") has no API to
+# show; its usage guide is the README. Everything else shows its calls in examples/.
+app=0
+grep -qiE '^may be imported by: *(nobody|none|nothing|-)' "$charter" 2>/dev/null && app=1
+[ "$app" -eq 1 ] || [ -n "$(ls examples/*.nim 2>/dev/null | head -1)" ] || add "HANDOFF — no examples/*.nim. Write the example first; it is the API the user will judge (PROJECTS.md)."
 if [ -f README.md ]; then
   grep -qi '^#.*installation' README.md || add "HANDOFF — README.md has no Installation section at the top."
   grep -qi 'issue playbook' README.md || add "HANDOFF — README.md has no Issue playbook."

@@ -26,6 +26,8 @@ printf 'proc pad(s: string): string =\n  result = s\nproc save*(p: string): stri
 for i in 1 2 3 4 5 6 7 8 9 10; do printf '  paint(row, "#11223%s")\n' "$((i % 10))"; done > src/clients/gtk/row.nim
 printf '.a:hover { color: red; }\n.b:hover { color: red; }\n.c:hover { color: red; }\n' > src/clients/gtk/style.css
 printf 'old\n' > notes.md.trash
+mkdir -p src/clients/webui
+printf 'function closeMenus(e) {\n  e.stopPropagation();\n}\ndocument.addEventListener("pointerdown", closeMenus);\nfunction onPaste(e) {\n  e.preventDefault();\n}\n' > src/clients/webui/app.js
 git add -A . && git commit -qm first
 
 out=$(bash "$hooks/repo-check.sh" "$r" || true)
@@ -33,9 +35,11 @@ for h in "BORDERS — this repo imports" "LEFTOVERS" "COPIES" "ERROR STYLE" "ORP
   printf '%s' "$out" | grep -q "$h" || { echo "repo-check missed: $h"; printf '%s\n' "$out"; exit 1; }
 done
 ui=$(bash "$hooks/ui-check.sh" "$r" || true)
-for h in "COLOURS" "HOVER" "MOTION"; do
+for h in "COLOURS" "HOVER" "MOTION" "app.js:2:"; do
   printf '%s' "$ui" | grep -q "$h" || { echo "ui-check missed: $h"; printf '%s\n' "$ui"; exit 1; }
 done
+# A paste handler that stops its own event is not a swallowed click.
+if printf '%s' "$ui" | grep -q "app.js:6:"; then echo "ui-check blamed a paste handler"; exit 1; fi
 
 # The stop hook refuses a hand-over with FIX lines, once, and says why.
 payload=$(printf '{"cwd":"%s","stop_hook_active":false}' "$r")
@@ -54,6 +58,19 @@ printf '# Demo\n## Installation\nx\n## Issue playbook\nnone\n' > README.md
 printf '# Progress\n\n## today\n- Open (needs your decision): should the second half exist at all?\n' > agents/PROGRESS.md
 printf 'proc pad*(s: string): string =\n  result = s\n' > src/demo/a.nim
 printf 'import ./a\nproc save*(p: string): tuple[ok: bool, err: string] =\n  ## p: the path.\n  result = (pad(p).len > 0, "")\n' > src/demo/c.nim
+printf 'function closeMenus(e) {\n  hideAll();\n}\ndocument.addEventListener("pointerdown", closeMenus);\n' > src/clients/webui/app.js
+# A repo over the size limit is told to plan a cut, until the charter holds one.
+out=$(OTTER_SIZE_LIMIT=1 bash "$hooks/repo-check.sh" "$r" || true)
+if ! printf "%s" "$out" | grep -q "^SIZE"; then echo "repo-check missed: SIZE"; exit 1; fi
+printf 'planned cut: the rows -> Demo-Rows\n' >> agents/BORDERS.md
+out=$(OTTER_SIZE_LIMIT=1 bash "$hooks/repo-check.sh" "$r" || true)
+if printf "%s" "$out" | grep -q "^SIZE"; then echo "SIZE ignores a planned cut"; exit 1; fi
+# A program nothing imports needs no examples folder.
+printf 'may be imported by: nobody\n' >> agents/BORDERS.md
+mv examples examples.off
+out=$(bash "$hooks/repo-check.sh" "$r" || true)
+if printf "%s" "$out" | grep -q "no examples"; then echo "an app was asked for examples"; exit 1; fi
+mv examples.off examples
 printf 'const rowTint* = "#112233"\n' > src/clients/gtk/row.nim
 printf '.a:hover, .a:focus { color: red; transition: color 0.3s; }\n' > src/clients/gtk/style.css
 git add -A . && git commit -qm repaired

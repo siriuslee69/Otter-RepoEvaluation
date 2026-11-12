@@ -20,7 +20,7 @@ set -uo pipefail
 root="${1:-$PWD}"
 root=$(git -C "$root" rev-parse --show-toplevel 2>/dev/null) || exit 2
 cd "$root" || exit 2
-skip='nimcache|/build/|/build\.|node_modules|/submodules/|_backup/|\.stale'
+skip='nimcache|/build/|/build\.|node_modules|/submodules/|_backup/|\.stale|/ref[0-9]'
 css=$(git ls-files '*.css' 2>/dev/null | grep -vE "$skip")
 ui=$(git ls-files 'src/*.nim' 'src/*.js' 'src/*.html' 'assets/*.js' 'assets/*.html' 2>/dev/null | grep -vE "$skip" | grep -iE 'client|gtk|webui|owl|ui|menu|panel|assets' )
 [ -n "$css$ui" ] || exit 2
@@ -49,12 +49,33 @@ stretch=$(printf '%s\n' "$ui" | xargs -r grep -cE '\b(hexpand|vexpand) *[=:] *tr
 [ -n "$stretch" ] && { add "STRETCH — many widgets are told to expand. A list row or a button that expands fills the whole panel. Rows get a fixed height; only the one container that should grow expands."; add "$stretch"; }
 
 # --- PROCESSES ---------------------------------------------------------------------
-procs=$(printf '%s\n' "$ui" | grep -iE 'launch|menu|quick|apps?[_./]|start|desktop_entry' | xargs -r grep -HnE '\b(startProcess|execCmd|execShellCmd|execProcess)\(' 2>/dev/null | grep -vE 'poDaemon|setsid|nohup|systemd-run|detached' | cut -c1-140 | head -5)
+procs=$(printf '%s\n' "$ui" | grep -iE 'launch|menu|quick|start|desktop_entry' | xargs -r grep -HnE '\b(startProcess|execCmd|execShellCmd|execProcess)\(' 2>/dev/null | grep -vE 'poDaemon|setsid|nohup|systemd-run|detached' | cut -c1-140 | head -5)
 [ -n "$procs" ] && { add "PROCESSES — programs the user launches, started without being detached. They die with the UI and write into its terminal. Start them in their own session (setsid / systemd-run --user / poDaemon)."; add "$(printf '%s' "$procs" | sed 's/^/  /')"; }
 
 # --- CLICKS -----------------------------------------------------------------------
-clicks=$(printf '%s\n' "$ui" | xargs -r grep -nE 'pointerdown|mousedown' 2>/dev/null | cut -d: -f1 | sort -u | xargs -r grep -HnE 'preventDefault\(\)|stopPropagation\(\)' 2>/dev/null | cut -c1-140 | head -5)
-[ -n "$clicks" ] && { add "CLICKS — a press handler stops the event. An open menu must close AND let the click reach what it was aimed at (UI.md, \"Open menus never swallow a click\")."; add "$(printf '%s' "$clicks" | sed 's/^/  /')"; }
+# Only the handlers that close things are looked at: a press or click listener on
+# the whole page (document / window / body). A key or paste handler that stops its
+# own event is not a swallowed click.
+#   pass 1 (NR == FNR)  collect the names of the page-wide listeners
+#   pass 2              inside such a listener (25 lines), report a stopped event
+clickScan='
+  function listener(line,   t) {
+    if (!match(line, /(document|window|body)[A-Za-z.]*\.addEventListener\( *["\x27](pointerdown|mousedown|click)["\x27] *, */)) return ""
+    t = substr(line, RSTART + RLENGTH)
+    if (t ~ /^(function|async)[ (]/ || t ~ /^\(/ || t ~ /^[A-Za-z_$][A-Za-z0-9_$]* *=>/) return "+"
+    if (match(t, /^[A-Za-z_$][A-Za-z0-9_$]*/)) return substr(t, RSTART, RLENGTH)
+    return "+"
+  }
+  NR == FNR { t = listener($0); if (t != "" && t != "+") names[t] = 1; next }
+  { t = listener($0)
+    if (t == "+") { left = 25; next }
+    if (match($0, /function +[A-Za-z_$][A-Za-z0-9_$]*/)) {
+      n = substr($0, RSTART, RLENGTH); sub(/function +/, "", n)
+      left = (n in names) ? 25 : 0; next }
+    if (left > 0) { left--
+      if ($0 ~ /preventDefault\(\)|stopPropagation\(\)/) printf "%s:%d:%s\n", FILENAME, FNR, $0 } }'
+clicks=$(printf '%s\n' "$ui" | grep -E '\.(js|html)$' | while read -r f; do awk "$clickScan" "$f" "$f"; done | cut -c1-140 | head -5)
+[ -n "$clicks" ] && { add "CLICKS — a page-wide press handler stops the event. An open menu must close AND let the click reach what it was aimed at (UI.md, \"Open menus never swallow a click\")."; add "$(printf '%s' "$clicks" | sed 's/^/  /')"; }
 
 # --- MOTION -------------------------------------------------------------------------
 if [ -n "$css" ] && ! printf '%s\n' "$css" | xargs -r grep -qE 'transition' 2>/dev/null; then

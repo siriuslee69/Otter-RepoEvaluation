@@ -9,6 +9,8 @@
 ## and the literals 1, 2 and 7, which is what its `int` parameter really
 ## holds.
 
+import runePragmas
+
 import std/strutils
 
 proc pad*(s: string): string {.role: helper.} =
