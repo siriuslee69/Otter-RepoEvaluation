@@ -45,7 +45,7 @@ OTTER_REPORT_LOG=off "$here/repo-check.sh" "$root" > "$log/repo" 2>&1; rc=$?
 # those are shown, and must be named in the report, but do not block.
 must=$(grep -cE "^(BORDERS|LEFTOVERS|LOCAL COPY|ORPHAN TESTS|UNFINISHED|OPEN ENDS|HANDOFF) — " "$log/repo" 2>/dev/null || true)
 if [ $rc -eq 1 ] && [ "${must:-0}" -gt 0 ]; then line repo FIX "$must heading(s) to fix"; keep repo "$log/repo" 60
-elif [ $rc -eq 1 ]; then line repo note "$(grep -oE "^(PINS|ERROR STYLE|COPIES)" "$log/repo" | sort -u | tr "\n" " ")— name these in the report"; keep repo "$log/repo" 30
+elif [ $rc -eq 1 ]; then line repo note "$(grep -oE "^(PINS|ERROR STYLE|COPIES|TWINS|SAME SHAPE|SIZE)" "$log/repo" | sort -u | tr "\n" " ")— name these in the report"; keep repo "$log/repo" 30
 else line repo ok "nothing to report"; fi
 
 "$here/ui-check.sh" "$root" > "$log/ui" 2>&1; rc=$?
@@ -84,6 +84,12 @@ if [ "$quick" = 0 ]; then
   fi
 fi
 
+todo=$(grep -cE '^- \[ \]' agents/TODO.md 2>/dev/null || true)
+[ "${todo:-0}" -gt 0 ] && line todo note "$todo open item(s) in agents/TODO.md — read them; do the ones this task touches"
+if [ "$quick" = 0 ]; then
+  "$here/dup-check.sh" --workspace "$root" 2>/dev/null | awk '/^ELSEWHERE/ {on = 1} on' > "$log/else"
+  [ -s "$log/else" ] && { line elsewhere note "$(grep -c 'lines, written' "$log/else") routine(s) a neighbour repo holds too — name this in the report"; keep elsewhere "$log/else" 24; }
+fi
 ahead=$(git rev-list --count '@{u}..HEAD' 2>/dev/null || echo "?")
 line unpushed note "$ahead commit(s) ahead of the remote — name this in the report"
 

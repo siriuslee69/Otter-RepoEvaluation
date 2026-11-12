@@ -15,6 +15,8 @@
 #   PINS           a submodule pin that is not pushed             WORKFLOW.md 6
 #   LEFTOVERS      *.trash, stray folders below submodules/       GUIDELINES.md
 #   COPIES         one helper written out in three or more files  CONVENTIONS.md
+#   TWINS          one routine body in two or more places         CONVENTIONS.md
+#   SAME SHAPE     routines that differ only in variable names    CONVENTIONS.md
 #   LOCAL COPY     a file that also exists in a submodule         WORKFLOW.md 2
 #   ERROR STYLE    exported routines where "" means success       WORKFLOW.md 4
 #   ORPHAN TESTS   test files no nimble task runs                 TOOLS.md
@@ -24,6 +26,7 @@
 #   HANDOFF        no examples, README parts missing, stale       PROJECTS.md
 #                  PROGRESS
 set -uo pipefail
+here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
 root="${1:-$PWD}"
 root=$(git -C "$root" rev-parse --show-toplevel 2>/dev/null) || exit 2
@@ -84,6 +87,10 @@ copies=$(srcs | xargs -r grep -E '^proc [a-zA-Z0-9_]+\(' 2>/dev/null | grep -v '
   | awk '{i = index($0, ":"); file = substr($0, 1, i - 1); sig = substr($0, i + 1); n[sig]++; f[sig] = f[sig] " " file}
          END {for (k in n) if (n[k] >= 3) printf "  %s\n      in %d files:%s\n", substr(k, 1, 90), n[k], f[k]}' | cut -c1-220 | head -12)
 [ -n "$copies" ] && { add "COPIES — the same helper is written out in three or more files. Put it in ONE module and import it."; add "$copies"; }
+
+# --- TWINS, SAME SHAPE: routines compared by their bodies (dup-check.sh) -----
+dups=$("$here/dup-check.sh" "$root" 2>/dev/null)
+[ -n "$dups" ] && add "$dups"
 
 # --- LOCAL COPY: a file that also lives in a submodule -----------------------
 local=""

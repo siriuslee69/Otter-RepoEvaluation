@@ -26,16 +26,18 @@ printf 'proc pad(s: string): string =\n  result = s\nproc save*(p: string): stri
 for i in 1 2 3 4 5 6 7 8 9 10; do printf '  paint(row, "#11223%s")\n' "$((i % 10))"; done > src/clients/gtk/row.nim
 printf '.a:hover { color: red; }\n.b:hover { color: red; }\n.c:hover { color: red; }\n' > src/clients/gtk/style.css
 printf 'old\n' > notes.md.trash
+printf 'proc trimmed(s: string): string =\n  var\n    t: string = s\n  while t.len > 0 and t[0] == " "[0]:\n    t = t[1 .. ^1]\n  result = t\n' > src/demo/d.nim
+sed "s/trimmed/cut/" src/demo/d.nim > src/demo/e.nim
 mkdir -p src/clients/webui
 printf 'function closeMenus(e) {\n  e.stopPropagation();\n}\ndocument.addEventListener("pointerdown", closeMenus);\nfunction onPaste(e) {\n  e.preventDefault();\n}\n' > src/clients/webui/app.js
 git add -A . && git commit -qm first
 
 out=$(bash "$hooks/repo-check.sh" "$r" || true)
-for h in "BORDERS — this repo imports" "LEFTOVERS" "COPIES" "ERROR STYLE" "ORPHAN TESTS" "UNFINISHED" "OPEN ENDS" "no examples" "no README.md"; do
+for h in "BORDERS — this repo imports" "LEFTOVERS" "COPIES" "ERROR STYLE" "ORPHAN TESTS" "UNFINISHED" "OPEN ENDS" "no examples" "no README.md" "TWINS"; do
   printf '%s' "$out" | grep -q "$h" || { echo "repo-check missed: $h"; printf '%s\n' "$out"; exit 1; }
 done
 ui=$(bash "$hooks/ui-check.sh" "$r" || true)
-for h in "COLOURS" "HOVER" "MOTION" "app.js:2:"; do
+for h in "PLAN" "COLOURS" "HOVER" "MOTION" "app.js:2:"; do
   printf '%s' "$ui" | grep -q "$h" || { echo "ui-check missed: $h"; printf '%s\n' "$ui"; exit 1; }
 done
 # A paste handler that stops its own event is not a swallowed click.
@@ -51,7 +53,9 @@ rc=0; printf '%s' "$payload" | OTTER_STOP_HOOK=off bash "$hooks/claude-stop-hook
 [ "$rc" -eq 0 ]
 
 # Repaired: every heading is gone.
-rm notes.md.trash evaluation/tests/test_two.nim src/demo/b.nim
+rm notes.md.trash evaluation/tests/test_two.nim src/demo/b.nim src/demo/e.nim
+mkdir -p docs
+printf "# UI plan\n\nsave  30 presses a day\n" > docs/ui-plan.md
 mkdir -p examples
 printf 'echo 1\n' > examples/demo.nim
 printf '# Demo\n## Installation\nx\n## Issue playbook\nnone\n' > README.md

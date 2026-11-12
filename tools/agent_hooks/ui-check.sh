@@ -7,6 +7,7 @@
 #
 #   heading      what it found                                      UI.md
 #   -----------  -------------------------------------------------  ----------------
+#   PLAN         no docs/ui-plan.md with a press budget             Planning a UI
 #   COLOURS      colour values outside the theme files              UI Theming
 #   HOVER        :hover rules with no :focus twin (Tab shows        keyboard use
 #                nothing), hover colour equal to the base colour
@@ -27,6 +28,11 @@ ui=$(git ls-files 'src/*.nim' 'src/*.js' 'src/*.html' 'assets/*.js' 'assets/*.ht
 out=""
 add() { out="${out}$1
 "; }
+
+# --- PLAN: the press budget is written before the UI ----------------------------
+if ! grep -qiE "press" docs/ui-plan.md 2>/dev/null; then
+  add "PLAN — no docs/ui-plan.md with a press budget. Before UI code: list every button, say how often it is pressed, and give the most-pressed ones the most room and the shortest way (UI.md, \"Planning a UI\")."
+fi
 
 # --- COLOURS: one place defines them ------------------------------------------
 themed='theme|palette|colou?rs?|contrast|tint|tokens'

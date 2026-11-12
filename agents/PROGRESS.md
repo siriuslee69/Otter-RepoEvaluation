@@ -1,6 +1,32 @@
 # Progress
 
-Commit Message: PROGRESS: the harness run on the UI repos and on Otter itself
+Commit Message: dup-check (TWINS, SAME SHAPE, ELSEWHERE), PLAN finding, todo line; agents/TODO.md
+
+## 2026-11-12 Twins, the split test, the UI plan, agents/TODO.md
+
+Asked: a rule for when a repo is split and how the pieces meet; better detection
+of routines written twice; more UI guidance; open items where the next agent finds them.
+
+```text
+  built                                   where
+  ──────────────────────────────────────  ─────────────────────────────────────────
+  dup-check.sh: TWINS, SAME SHAPE,        tools/agent_hooks; repo-check runs it,
+    ELSEWHERE (--workspace)                 done-check runs the workspace form
+  PLAN finding (docs/ui-plan.md)          ui-check.sh
+  todo line (open items in TODO.md)       done-check.sh
+  the split test, how pieces meet         Agent-Conventions/WORKFLOW.md 2 (Def. 3-5)
+  agents/TODO.md, its item format         WORKFLOW.md 8, Proto-RepoTemplate
+  press budget, walks, states, shared     Agent-Conventions/UI.md, "Planning a UI"
+    edges, popup or full page
+```
+
+dup-check compares routine BODIES (comments and spacing removed). SAME SHAPE replaces
+variable names by numbers but keeps calls and fields, so `x.len` and `x.high` differ.
+TWINS, SAME SHAPE, COPIES, SIZE and ELSEWHERE are notes in done-check, not FIX lines:
+older repos hold many, and each is a task of its own (see each repo's TODO.md).
+
+What is left is in agents/TODO.md, here and in Nebel, Atlas-Taskbar, Atlas-Explorer,
+Atlas-RightClickMenu and Avalon-PWManager.
 
 ## 2026-11-12 The harness run on the UI repos, and on Otter
 
@@ -27,9 +53,6 @@ What done-check still says about Otter itself (older debt, see docs/self-review.
 nesting (199 triple, 33 deeper), 7 SECRETS candidates that are test fixtures, four
 test files no task runs, 144 colours typed in the web UI's style sheet.
 
-- Open (needs your decision): three repos are over the size limit (Atlas-Taskbar
-  43 000, Nebel 26 000, Otter 23 000). Each charter holds a recommended cut. Say
-  yes or name another cut, and the line becomes `planned cut: <what> -> <where>`.
 
 ## 2026-11-11 A harness for agents (tools/agent_hooks)
 
