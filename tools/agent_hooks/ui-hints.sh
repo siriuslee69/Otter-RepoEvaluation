@@ -14,6 +14,7 @@
 #
 #   hint            what was seen                                   UI.md
 #   --------------  ----------------------------------------------  ----------------
+#   PLAN PARTS      docs/ui-plan.md lacks one of the five ways      2.1 Five ways
 #   CONTRAST        text and background in one rule, ratio < 4.5;   6. Colour
 #                   a text colour that reads on no background of
 #                   its theme
@@ -66,6 +67,22 @@ rules() { for f in $css; do
 tmp=$(mktemp "${TMPDIR:-/tmp}/otter-ui.XXXXXX") || exit 2
 trap 'rm -f "$tmp"' EXIT
 rules > "$tmp"
+
+# --- PLAN PARTS: the five ways of thinking, each with its part in the plan ------------------------------
+if [ -f docs/ui-plan.md ]; then
+  lacks=""
+  grep -qiE 'goal|intention|a user can'            docs/ui-plan.md || lacks="${lacks}way 1, intention: no goals (\"A user can ...\")
+"
+  grep -qiE 'prune|keep|extend|struck|neighbour'   docs/ui-plan.md || lacks="${lacks}way 2, copy, extend, prune: no list taken from a similar program
+"
+  grep -qiE 'walk'                                 docs/ui-plan.md || lacks="${lacks}way 3, walk: no walks with what each step needs
+"
+  grep -qiE 'parameter|setting'                    docs/ui-plan.md || lacks="${lacks}way 4, parameters: no table of settings
+"
+  grep -qiE 'complain|praise|review|issue|people'  docs/ui-plan.md || lacks="${lacks}way 5, other people's experience: no complaints, praise or common use
+"
+  hint "PLAN PARTS" "docs/ui-plan.md does not show all five ways of thinking (UI.md 2.1). Each finds what the others miss." "$lacks"
+fi
 
 # --- CONTRAST ------------------------------------------------------------------
 #   how bright a colour is:  each of red, green, blue is made linear, then
@@ -228,7 +245,7 @@ if [ -n "$uifiles" ] && printf '%s\n' "$uifiles" | grep -qiE 'setting|prefs|conf
   for k in $keys; do printf '%s\n' "$uifiles" | xargs -r grep -qF "$k" 2>/dev/null || settings="${settings}configs/default.toml: ${k} has no control in the UI
 "; done
 fi
-hint SETTINGS "settings that may be missing (found by what the program has; UI.md 8, the three sweeps). Each is built through all six steps, or struck out in docs/ui-plan.md with a reason." "$(printf '%s' "$settings" | head -6)"
+hint SETTINGS "settings that may be missing (found by what the program has; UI.md 2.1 and 8). Each is built through all six steps, or struck out in docs/ui-plan.md with a reason." "$(printf '%s' "$settings" | head -6)"
 
 [ -n "${out//[[:space:]]/}" ] || exit 0
 printf '%s' "$out"
