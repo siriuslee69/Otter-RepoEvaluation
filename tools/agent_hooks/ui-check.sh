@@ -16,7 +16,10 @@
 #   CLICKS       handlers that stop a click from reaching its       open menus never
 #                target                                             swallow a click
 #   MOTION       no transition anywhere in the styles               0.3 s animations
+#   MAYBE ...    guesses from ui-hints.sh: contrast, sizes, glyphs,  (see that file)
+#                settings, padding ... They do not stop a hand-over.
 set -uo pipefail
+here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
 root="${1:-$PWD}"
 root=$(git -C "$root" rev-parse --show-toplevel 2>/dev/null) || exit 2
@@ -33,7 +36,9 @@ add() { out="${out}$1
 # Only where something is drawn: a style sheet, a page, a GTK or web client. A
 # command line has no buttons to give room to.
 drawn=$(printf "%s\n%s\n" "$css" "$ui" | grep -ciE "\.(css|js|html)$|/(gtk|owl[^/]*|webui[^/]*|desktop|android[^/]*)/")
-if [ "${drawn:-0}" -gt 0 ] && ! grep -qiE "press" docs/ui-plan.md 2>/dev/null; then
+# A plan is a TABLE: at least three buttons, each with a rate and a tier (A, B, C).
+rows=$(grep -cE "[0-9.]+ +[ABC]([ ,]|$)" docs/ui-plan.md 2>/dev/null || true)
+if [ "${drawn:-0}" -gt 0 ] && [ "${rows:-0}" -lt 3 ]; then
   add "PLAN — no docs/ui-plan.md with a press budget. Before UI code: list every button, say how often it is pressed, and give the most-pressed ones the most room and the shortest way (UI.md, \"Planning a UI\")."
 fi
 
@@ -91,6 +96,10 @@ if [ -n "$css" ] && ! printf '%s\n' "$css" | xargs -r grep -qE 'transition' 2>/d
   add "MOTION — no transition in any style sheet. Hover, open and close want a short one (UI.md)."
 fi
 
+# --- MAYBE: guesses that never stop a hand-over (ui-hints.sh) ----------------------
+hints=$("$here/ui-hints.sh" "$root" 2>/dev/null)
+[ -n "$hints" ] && out="${out}${hints}
+"
 [ -n "${out//[[:space:]]/}" ] || exit 0
 printf '%s' "$out"
 exit 1

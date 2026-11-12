@@ -55,7 +55,7 @@ rc=0; printf '%s' "$payload" | OTTER_STOP_HOOK=off bash "$hooks/claude-stop-hook
 # Repaired: every heading is gone.
 rm notes.md.trash evaluation/tests/test_two.nim src/demo/b.nim src/demo/e.nim
 mkdir -p docs
-printf "# UI plan\n\nsave  30 presses a day\n" > docs/ui-plan.md
+printf "# UI plan\n\nsave    30   A\nopen    12   A\ntheme   0.01 C\n" > docs/ui-plan.md
 mkdir -p examples
 printf 'echo 1\n' > examples/demo.nim
 printf '# Demo\n## Installation\nx\n## Issue playbook\nnone\n' > README.md
@@ -76,7 +76,7 @@ out=$(bash "$hooks/repo-check.sh" "$r" || true)
 if printf "%s" "$out" | grep -q "no examples"; then echo "an app was asked for examples"; exit 1; fi
 mv examples.off examples
 printf 'const rowTint* = "#112233"\n' > src/clients/gtk/row.nim
-printf '.a:hover, .a:focus { color: red; transition: color 0.3s; }\n' > src/clients/gtk/style.css
+printf '.a:hover, .a:focus { color: var(--text); transition: color 0.15s; }\n' > src/clients/gtk/style.css
 git add -A . && git commit -qm repaired
 rc=0; out=$(bash "$hooks/repo-check.sh" "$r") || rc=$?
 [ "$rc" -eq 0 ] || { echo "repo-check still reports:"; printf '%s\n' "$out"; exit 1; }
@@ -88,4 +88,14 @@ rc=0; bash "$hooks/done-check.sh" --quick "$r" > "$fx/done" || rc=$?
 # A folder that is no repo with a .nimble is left alone.
 rc=0; bash "$hooks/repo-check.sh" "$fx" > /dev/null 2>&1 || rc=$?
 [ "$rc" -eq 2 ]
+# Hints: guesses that are printed, and never stop a hand-over.
+printf '.btn { color: #777777; background: #888888; font-size: 8px; transition: all 0.8s; }\n.menu:hover .tools { display: block; }\n' > src/clients/gtk/hints.css
+git add -A . && git commit -qm hints
+ui=$(bash "$hooks/ui-check.sh" "$r" || true)
+for h in "MAYBE CONTRAST" "MAYBE SMALL TEXT" "MAYBE SLOW" "MAYBE HOVER ONLY"; do
+  printf '%s' "$ui" | grep -q "$h" || { echo "ui-hints missed: $h"; printf '%s\n' "$ui"; exit 1; }
+done
+rc=0; bash "$hooks/done-check.sh" --quick "$r" > "$fx/done" || rc=$?
+[ "$rc" -eq 0 ] || { echo "hints stopped a hand-over"; cat "$fx/done"; exit 1; }
+
 printf 'repo check regressions passed\n'

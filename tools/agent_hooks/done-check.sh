@@ -49,7 +49,9 @@ elif [ $rc -eq 1 ]; then line repo note "$(grep -oE "^(PINS|ERROR STYLE|COPIES|T
 else line repo ok "nothing to report"; fi
 
 "$here/ui-check.sh" "$root" > "$log/ui" 2>&1; rc=$?
-[ $rc -eq 1 ] && { line ui FIX "$(grep -cE '^[A-Z]+ — ' "$log/ui") heading(s)"; keep ui "$log/ui" 40; }
+must=$(grep -cE "^[A-Z]+ — " "$log/ui" 2>/dev/null || true); maybe=$(grep -c "^MAYBE " "$log/ui" 2>/dev/null || true)
+if [ $rc -eq 1 ] && [ "${must:-0}" -gt 0 ]; then line ui FIX "$must heading(s), $maybe hint(s)"; keep ui "$log/ui" 60
+elif [ $rc -eq 1 ]; then line ui note "$maybe hint(s) — look at each place; change it or say why it is right"; keep ui "$log/ui" 50; fi
 [ $rc -eq 0 ] && line ui ok "nothing to report"
 
 base=$(git merge-base HEAD origin/HEAD 2>/dev/null || git rev-parse HEAD~10 2>/dev/null || echo HEAD)

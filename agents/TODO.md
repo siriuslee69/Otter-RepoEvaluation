@@ -57,3 +57,10 @@ An item that is done is removed here and named in PROGRESS.md.
   done when: ui-check reports rows of data that are centred (CSS: text-align/justify-content center inside a list row; GTK: halign center on a label in a row).
   needs: nobody
   plan: start with the CSS case; count only selectors that also appear inside a repeated row (li, .row, .entry, listbox row). Report a file only above five hits, as COLOURS does.
+
+- [ ] Atlas-Taskbar holds a contrast test that knows which rule wins (src/protocols/level1/contrastcheck.nim, `nimble checkContrast`); ui-hints.sh CONTRAST is a rough copy in awk.
+  why: every UI repo needs the real test, and two contrast checkers drift.
+  start: read Atlas-Taskbar/docs/menus.md, "Readable text, checked by itself"
+  done when: the check lives in one shared place (Otter or Maya-Themes), the taskbar imports it, and ui-hints calls it.
+  needs: nobody
+  plan: move contrast.nim / contrastcheck.nim into Maya-Themes (it owns the colours), keep the taskbar's test as its first caller, let `otter` expose it as a command.

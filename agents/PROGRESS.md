@@ -1,6 +1,23 @@
 # Progress
 
-Commit Message: dup-check (TWINS, SAME SHAPE, ELSEWHERE), PLAN finding, todo line; agents/TODO.md
+Commit Message: ui-hints.sh: MAYBE hints for web, owlkettle and Kotlin UIs; PLAN wants a table
+
+## 2026-11-12 UI hints (ui-hints.sh) and the stricter plan
+
+Asked: a quick checker for owlkettle, web and Kotlin UIs that says "this might not be
+a good idea"; UI.md overhauled along the four UIs that work (Avalon Cards, Atlas-Taskbar,
+Irrlicht, Eris).
+
+- tools/agent_hooks/ui-hints.sh: sixteen MAYBE hints (list in its header and in TOOLS.md).
+  ui-check.sh prints them below its findings; done-check shows them as a note, never FIX.
+- CONTRAST works out the ratio for a rule that sets text and background, and for
+  theme variables: a text colour is reported when it reads on NONE of its theme's backgrounds.
+- SETTINGS: a table "the program has X -> the UI should name Y" plus the keys of
+  configs/default.toml that no UI file names.
+- PLAN now wants a table: three or more rows with a rate and a tier.
+- Known limits: the hints read text, not the screen. See-through backgrounds are not
+  measured; Kotlin and owlkettle get fewer hints than CSS; SETTINGS matches English and
+  a few German words.
 
 ## 2026-11-12 Twins, the split test, the UI plan, agents/TODO.md
 
