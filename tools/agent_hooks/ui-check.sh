@@ -30,7 +30,10 @@ add() { out="${out}$1
 "; }
 
 # --- PLAN: the press budget is written before the UI ----------------------------
-if ! grep -qiE "press" docs/ui-plan.md 2>/dev/null; then
+# Only where something is drawn: a style sheet, a page, a GTK or web client. A
+# command line has no buttons to give room to.
+drawn=$(printf "%s\n%s\n" "$css" "$ui" | grep -ciE "\.(css|js|html)$|/(gtk|owl[^/]*|webui[^/]*|desktop|android[^/]*)/")
+if [ "${drawn:-0}" -gt 0 ] && ! grep -qiE "press" docs/ui-plan.md 2>/dev/null; then
   add "PLAN — no docs/ui-plan.md with a press budget. Before UI code: list every button, say how often it is pressed, and give the most-pressed ones the most room and the shortest way (UI.md, \"Planning a UI\")."
 fi
 
