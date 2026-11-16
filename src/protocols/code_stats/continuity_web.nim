@@ -49,6 +49,8 @@ import runePragmas
 import ../repo_graph/io_utils
 import ./continuity_types
 import ./continuity_page
+import ./continuity_style
+import ./continuity_score
 
 const
   pressEvents: array[5, string] = ["click", "pointerdown", "mousedown",
@@ -67,6 +69,8 @@ type
     vars: Table[string, string]
     funcs: Table[string, JsFunction]
     hideClasses: HashSet[string]
+    rules: seq[StyleRule]
+    screens: Table[string, int]
 
   Reach = object
     hide: seq[int]
@@ -152,7 +156,7 @@ proc firstLiteral(S: string, start, limit: int): tuple[text: string,
   while i < min(S.len, start + limit):
     if S[i] in {'\'', '"', '`'}:
       stop = skipQuoted(S, i)
-      result = (text: S[i + 1 ..< stop - 1], next: stop)
+      result = (text: S[i + 1 ..< max(i + 1, stop - 1)], next: stop)
       return
     i = i + 1
 
@@ -568,19 +572,81 @@ proc roomTaker(C: WebContext, shown: seq[int], x: int): int
 proc verdictOf(C: WebContext, R: Reach, p, x: int): tuple[v: ContinuityVerdict,
     taker: int] {.role: parser, tag: "stats".} =
   ## C: the page   R: what the press hides and shows   p: the pressed
-  ## button   x: one element it hides. Where the button stands to it.
+  ## button   x: one element it hides. Where the button stands to it, and what
+  ## takes the room (none for a floating or a small thing).
+  var
+    floating: bool = isFloating(C.E[x].id & " " & C.E[x].classes.join(" "))
   result = (v: cvStays, taker: -1)
+  if not floating and C.E[x].size >= bigSize:
+    result.taker = roomTaker(C, R.show, x)
   if not isInside(C.E, p, x):
     return
-  if isFloating(C.E[x].id & " " & C.E[x].classes.join(" ")):
+  if floating:
     result.v = cvClose
   elif C.E[x].size < bigSize:
     result.v = cvSmall
   elif not onScreenAtStart(C.E, p):
     result.v = cvReturn
   else:
-    result.taker = roomTaker(C, R.show, x)
     result.v = (if result.taker >= 0: cvGoes else: cvClose)
+
+proc lookOfElement(C: WebContext, i: int): Look {.role: parser, tag: "stats".} =
+  ## C: the page and its style sheets   i: one element.
+  ## What the style sheets say about it.
+  result = lookOf(C.rules, C.E[i].tag, C.E[i].id, C.E[i].classes)
+
+proc faceOf(C: WebContext, i: int): Look {.role: parser, tag: "stats".} =
+  ## C: the page and its style sheets   i: one element.
+  ## What the style sheets say about it and about the boxes directly inside it:
+  ## the edge a panel shows the button is often drawn by its first child.
+  result = lookOfElement(C, i)
+  for k in i + 1 ..< min(C.E.len, i + min(C.E[i].size, 400)):
+    if C.E[k].parent == i:
+      result = mergeLook(result, lookOfElement(C, k))
+
+proc countElement(T: var CountTable[string], C: WebContext, k: int)
+    {.role: actor, tag: "stats".} =
+  ## T: what has been counted   C: the page   k: one element.
+  ## Counts its tag, its classes and its colours.
+  T.inc("t:" & C.E[k].tag)
+  for c in C.E[k].classes:
+    T.inc("c:" & c)
+  for c in lookOfElement(C, k).colours:
+    T.inc("k:" & c)
+
+proc bagOf(C: WebContext, i: int): CountTable[string] {.role: parser,
+    tag: "stats".} =
+  ## C: the page   i: one element. What it holds, counted by kind: the tags,
+  ## classes and colours of everything inside it (the first 2000 elements).
+  result = initCountTable[string]()
+  for k in i ..< min(C.E.len, i + min(C.E[i].size, 2000)):
+    countElement(result, C, k)
+
+proc secondsOf(C: WebContext, p, x, y: int): float {.role: parser,
+    tag: "stats".} =
+  ## C: the page   p: the pressed button   x: the old thing   y: the new one.
+  ## The longest transition the style sheets give any of them; not measured
+  ## when no style sheet was read.
+  result = notMeasured
+  if C.rules.len > 0:
+    result = max(lookOfElement(C, p).seconds,
+      max(faceOf(C, x).seconds, faceOf(C, y).seconds))
+
+proc partsOf(C: WebContext, p, x, y: int, teleport: bool): ScoreParts
+    {.role: parser, tag: "stats".} =
+  ## C: the page   p: the pressed button   x: the old thing   y: the new one
+  ## teleport: the button goes with the old thing.
+  ## What the three metrics are made of, counted from the page and its styles.
+  var
+    button: Look = lookOfElement(C, p)
+    panel: Look = faceOf(C, y)
+  result = noParts()
+  result.kept = keptOf(C.E[x].size, C.screens.getOrDefault(C.E[x].path))
+  result.alike = likeness(bagOf(C, x), bagOf(C, y))
+  result.joined = joinedOf(button.colours, panel.colours, button.known)
+  result.near = nearOf(hopsBetween(C.E, p, y))
+  result.seconds = secondsOf(C, p, x, y)
+  result.teleport = teleport
 
 proc pressFor(C: WebContext, H: Handler, R: Reach, p, x: int):
     ContinuityPress {.role: truthBuilder, tag: "stats".} =
@@ -594,6 +660,8 @@ proc pressFor(C: WebContext, H: Handler, R: Reach, p, x: int):
     hiddenSize: C.E[x].size, replacedBy: "", verdict: got.v)
   if got.taker >= 0:
     result.replacedBy = nameOf(C.E[got.taker])
+    result.scored = true
+    result.score = scoreOf(partsOf(C, p, x, got.taker, got.v == cvGoes))
 
 proc pressesFor(C: WebContext, H: Handler, R: Reach, p: int):
     seq[ContinuityPress] {.role: parser, tag: "stats".} =
@@ -652,7 +720,8 @@ proc contextOf(dir: string, files: seq[string]): tuple[C: WebContext,
     refs: Table[string, seq[string]] = initTable[string, seq[string]]()
     rel: string = ""
   result.C = WebContext(E: @[], vars: initTable[string, string](),
-    funcs: initTable[string, JsFunction](), hideClasses: hidden)
+    funcs: initTable[string, JsFunction](), hideClasses: hidden, rules: @[],
+    screens: initTable[string, int]())
   result.scripts = @[]
   for w in hideWords:
     result.C.hideClasses.incl(w)
@@ -669,6 +738,8 @@ proc contextOf(dir: string, files: seq[string]): tuple[C: WebContext,
       result.scripts.add(Script(path: rel, line: 1, text: readText(p),
         pages: refs.getOrDefault(rel)))
   sizesOf(result.C.E)
+  result.C.screens = screensOf(result.C.E)
+  result.C.rules = styleRulesOf(files)
   for s in result.scripts:
     result.C.noteNames(s.text)
 

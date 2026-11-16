@@ -23,6 +23,7 @@ import runePragmas
 import ../repo_graph/io_utils
 import ./ui_depth
 import ./continuity_types
+import ./continuity_style
 
 const
   voidTags: array[14, string] = ["input", "img", "br", "hr", "meta", "link",
@@ -264,3 +265,41 @@ proc noteRefs*(R: var Table[string, seq[string]], pagePath: string,
     if pagePath notin R[key]:
       R[key].add(pagePath)
 
+
+proc screensOf*(E: seq[Element]): Table[string, int] {.role: parser,
+    tag: "stats".} =
+  ## E: every element. For each page, how many elements are on screen as it opens
+  ## (not hidden, and nothing around them hidden): the whole screen a press is
+  ## measured against.
+  result = initTable[string, int]()
+  for i in 0 ..< E.len:
+    if onScreenAtStart(E, i):
+      result[E[i].path] = result.getOrDefault(E[i].path) + 1
+
+proc hopsBetween*(E: seq[Element], a, b: int): int {.role: parser,
+    tag: "stats".} =
+  ## E: every element   a, b: two of them.
+  ## The boxes on the way from a up to what holds both and down to b: 2 for
+  ## neighbours, 0 for the same box, 10 when no box holds both (two pages).
+  var
+    chain: seq[int] = @[]
+    k: int = a
+    j: int = 0
+  result = 10
+  while k >= 0 and chain.len < 64:
+    chain.add(k)
+    k = E[k].parent
+  k = b
+  while k >= 0 and j < 64:
+    if k in chain:
+      return chain.find(k) + j
+    k = E[k].parent
+    j = j + 1
+
+proc styleRulesOf*(files: seq[string]): seq[StyleRule] {.role: parser,
+    input: thirdParty, tag: "stats".} =
+  ## files: every source file. The rules of every style sheet among them.
+  result = @[]
+  for p in files:
+    if extensionOf(p) == "css" and result.len < maxRules:
+      result.add(styleRulesIn(readText(p)))

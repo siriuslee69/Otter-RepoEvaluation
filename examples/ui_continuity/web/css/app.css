@@ -2,3 +2,9 @@
 .hidden { display: none; }
 [hidden] { display: none; }
 .modal { position: fixed; inset: 20% 30%; }
+
+/* Colours are named once. The opener and the edge of what it opens share one. */
+:root { --green: #2e8b57; --paper: #f4f4f0; }
+.col { background: var(--paper); }
+.opener-green { background: var(--green); }
+.panel-green { border-left: 4px solid var(--green); transition: opacity 0.15s ease; }

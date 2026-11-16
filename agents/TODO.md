@@ -92,3 +92,17 @@ An item that is done is removed here and named in PROGRESS.md.
   done when: twenty runs in a row pass.
   needs: nobody
   plan: look at atomicWrite in src/protocols/test_ui/jobs.nim: the temp file name ends in a counter or pid, and the lease folder may be removed by the previous test while the next one still writes into it.
+
+- [ ] The continuity score weighs every press the same; the press budget of docs/ui-plan.md knows which presses are pressed all day.
+  why: a jump on a tier A button costs the user far more than a jump on a button pressed once a month.
+  start: `$(tools/agent_hooks/otter-build.sh) continuity .` in a repo that has docs/ui-plan.md with a press table
+  done when: the UI-wide score is a mean weighted by presses per day, and a repo without a table keeps the plain mean.
+  needs: nobody
+  plan: read the rows of the plan table (`name  rate  tier`), match each to a press by its control name or aria-label, weight by the rate; print both numbers.
+
+- [ ] `continuity` does not read style rules that live inside Nim strings (wayle_css*.nim in Atlas-Taskbar), so colour `joined` and style transitions are `-` or 0 for those views.
+  why: owlkettle UIs that build their sheet in code look as if they have no colour tie and no fade.
+  start: `$(tools/agent_hooks/otter-build.sh) continuity ../Atlas-Taskbar`  (tie 11, move 25)
+  done when: a `const` string that holds a style sheet is read like a .css file, and the Atlas-Taskbar tie shows its real colours.
+  needs: nobody
+  plan: in continuity_page.styleRulesOf also take every Nim string constant with 3 or more `{ ... }` rules and a `.class` selector; keep the 20 000 rule cap.

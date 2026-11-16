@@ -46,6 +46,7 @@ proc frameTabs(M: Memory): Widget {.role: helper.} =
       orient = OrientX
       Button:
         text = "Settings"
+        style = [StyleClass("open-green")]
         proc clicked() =
           M.toggleView(vSettings)
 
@@ -134,6 +135,7 @@ proc reportView(M: Memory): Widget {.role: helper.} =
 proc settingsView(M: Memory): Widget {.role: helper.} =
   result = gui:
     ScrolledWindow:
+      style = [StyleClass("pane-green")]
       Box:
         orient = OrientY
         spacing = 6

@@ -37,6 +37,10 @@
 #   TELEPORT        a press that hides the big thing its own        3. Continuity
 #                   button sits in (js/html and owlkettle; read
 #                   by Otter: `otter-repo-graph continuity`)
+#   JUMP            a press that keeps its button but scores under   3. Measuring
+#                   50 (stay, tie, move; read by the same command)   continuity
+#   SEED            two or more separate add buttons: a list that    8. The seed
+#                   can grow wants a seed, not a + in a header
 #   PLATFORM DIALOG the system's alert, toast or spinner            8. The parts
 #   SETTINGS        the program has a thing (a password, data,      8. Settings
 #                   sync, roles) and no control for it
@@ -224,14 +228,36 @@ hint "DEAD BUTTON" "a control whose press does nothing. A setting or button is w
 #   owlkettle, the `if` / `case` that decides what is drawn. Without a built Otter the hint is skipped and the rest
 #   of this file still prints.
 teleport=""
+jump=""
 if [ -n "$html$owl" ] && otterbin=$("$here/otter-build.sh" 2>/dev/null); then
-  teleport=$(timeout "${OTTER_TIMEOUT:-240}" "$otterbin" continuity "$root" 2>/dev/null | awk '
-    /^  TELEPORT/ { if (row != "") print row; row = substr($0, 13); next }
-    /what goes:/ { sub(/^ *what goes: /, ""); sub(/; the button stands inside it/, ""); sub(/, [^ ]*\)$/, ")"); row = row "  hides " $0; next }
+  cont=$(timeout "${OTTER_TIMEOUT:-240}" "$otterbin" continuity "$root" 2>/dev/null | awk '
+    function flush() { if (row != "") print mode "|" row; row = "" }
+    /^  TELEPORT/ { flush(); mode = "T"; row = substr($0, 13); next }
+    /^  JUMP/ { flush(); mode = "J"; row = substr($0, 8); next }
+    /what goes:/ { line = $0; room = ""
+      if (match(line, /; takes the room: .*/)) { room = substr(line, RSTART + 17); line = substr(line, 1, RSTART - 1) }
+      sub(/^ *what goes: /, "", line); sub(/; the button stands inside it/, "", line); sub(/, [^ ]*\)$/, ")", line)
+      row = row "  hides " line; if (room != "") row = row "  room: " room; next }
     /takes the room:/ { sub(/^ *takes the room: /, ""); row = row "  room: " $0; next }
-    END { if (row != "") print row }')
+    /^      score / { sub(/^ */, ""); row = row "  " $0; next }
+    /^  the rest:/ { flush(); mode = "" }
+    END { flush() }')
+  teleport=$(printf '%s\n' "$cont" | sed -n 's/^T|//p')
+  jump=$(printf '%s\n' "$cont" | sed -n 's/^J|//p')
 fi
 hint TELEPORT "a press hides the big thing its own button sits in. The user loses the button just pressed and has to look around again. The pressed thing stays and the rest makes room (UI.md 3, Continuity)." "$teleport"
+hint JUMP "a press keeps its button but the user still loses their place: the continuity score is under 50. Give the pressed thing and the new one a colour in common, put them side by side, and give the change 0.04 to 0.3 s (UI.md 3, Measuring continuity)." "$jump"
+
+# --- SEED: separate add buttons ------------------------------------------------------------------------------
+#   A list that can grow gets a seed: an empty element of the list (same box, a plus, a soft accent colour) at the
+#   end where new elements appear. Two or more plus buttons in headers or menus are the sign of a list without one.
+addweb=$(printf '%s\n%s\n' "$html" "$js" | grep -v '^$' | xargs -r grep -HnoiE '<button[^>]*(class|id|aria-label|title)="[^"]*(^|[^a-z])(add|new|plus|create)([^a-z]|$)[^"]*"[^>]*>|<button[^>]*>[[:space:]]*(\+|＋)[[:space:]]*</button>' 2>/dev/null)
+addowl=$(printf '%s\n' "$owl" | grep -v '^$' | xargs -r grep -HnE 'text = "\+"$|glyphWidget\([^)]*"(plus|add)"|tooltip = "(Add|New|Create)[ "]|StyleClass\("[^"]*-(add|plus|new)[^"]*"\)' 2>/dev/null)
+addkt=$(printf '%s\n%s\n' "$kt" "$xml" | grep -v '^$' | xargs -r grep -HnE 'FloatingActionButton|text *= *"\+"|android:text="\+"' 2>/dev/null)
+adds=$(printf '%s\n%s\n%s\n' "$addweb" "$addowl" "$addkt" | grep -v '^$' | cut -c1-140)
+if [ "$(printf '%s\n' "$adds" | grep -c .)" -ge 2 ]; then
+  hint SEED "separate add buttons (a + in a header or a menu). A list that can grow gets a SEED instead: an empty element of the list, same box as the others, a plus, a soft accent colour, fixed at the end where new elements appear. It also shows what the plus will make (UI.md 8, The seed)." "$adds"
+fi
 
 # --- PLATFORM DIALOG ---------------------------------------------------------------------------------------
 plat=$(printf '%s\n%s\n' "$kt" "$js" | grep -v '^$' | xargs -r grep -HnE 'AlertDialog\.Builder|Toast\.makeText|ProgressDialog|(^|[^.A-Za-z_])(alert|confirm|prompt)\(' 2>/dev/null | grep -vE '^\S+:[0-9]+: *(//|\*)' | cut -c1-130)

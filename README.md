@@ -848,11 +848,15 @@ takes the room.
 ```
 
 ```text
-  continuity: 10 press(es) hide something big, 3 of them take their own button along
-    TELEPORT  web/js/app.js:16  #open-settings  hides #overview
+  continuity: 12 press(es) hide something big, 3 of them take their own button along
+    continuity score 48 (stay 58, tie 45, move 44) over 9 press(es) that replace one thing with another
+    TELEPORT  web/js/app.js:17  #open-settings  hides #overview
         what goes: #overview (13 elements, web/index.html:13); the button stands inside it
         takes the room: #settings
-    the rest: 3 stay (the frame is outside what is hidden), 2 return, 1 close, 1 small
+        score 23 (stay 70, tie 0, move 0)
+    JUMP  web/js/app.js:22  #tab-reports  hides #overview
+        score 34 (stay 64, tie 38, move 0)
+    the rest: 5 stay (the frame is outside what is hidden), 2 return, 1 close, 1 small
 ```
 
 **How the web is read.** The page is read as a tree of boxes (html), the
@@ -880,6 +884,47 @@ are written down (`continuity_walk.nim`) and worked out with the view set to
 what the click sets (`continuity_guard.nim`; three answers: true, false,
 unknown). A condition on something else (a search text, a flag) is unknown and
 never counts as "hidden".
+
+**The score.** Every press that replaces one big thing with another also gets
+the three metrics of UI.md 3, "Measuring continuity", each 0 to 100, and the
+mean of them. The whole UI gets the mean of its presses.
+
+```text
+  metric  made of                          counted from                      weight
+  ------  -------------------------------  --------------------------------  ------
+  stay    kept  = 1 - old / whole screen    elements (web), widgets (owl)       0.6
+          alike = what old and new share   tags, classes, colours / widget    0.4
+                                             kinds, style classes, colours
+  tie     joined = one colour in common    fills and edges in the .css files   0.5
+          near   = boxes between them      tree distance; 1 up to 2 boxes,     0.5
+                                             0 from 10
+  move    seconds of a transition          css transition / animation; in      -
+                                             owlkettle also Revealer, Stack,
+                                             Crossfade (0.2 s when not written)
+```
+
+A part nobody could measure is left out, not counted as 0: a page with no style
+sheet is not a page with no colour. A press that takes its own button along has
+no tie and is capped at 39. The metrics come out as `-` when not measured.
+
+```text
+  the example, press by press                          stay  tie  move  score
+  ---------------------------------------------------  ----  ---  ----  -----
+  green opener, panel next to it, 0.15 s fade (web)       47   94   100     80
+  green Settings in the frame, owl view with a fade       51   94   100     82
+  a tab swap with a hard cut, no colour between them      64   38     0     34
+  the button that is inside the view it replaces          70    0     0     23
+```
+
+`ui-check.sh` also prints a press under 50 that is no teleport as `MAYBE JUMP`:
+the user keeps their button and still loses their place.
+
+**The seed.** UI.md 8, "The seed", asks that adding to a list is an element of
+the list (same box, a plus, a soft accent colour, fixed at the end where new
+elements appear) and not a + in a header. `ui-check.sh` names two or more
+separate add buttons as `MAYBE SEED` (a guess from the source: `<button>+</button>`,
+classes and labels that say add, new or plus, owlkettle `text = "+"` or a plus
+glyph, `FloatingActionButton`). It does not look at lists; it counts plus buttons.
 
 `ui-check.sh` prints the same finding as `MAYBE TELEPORT`. It is a guess: a
 login screen that gives way to the app is reported too, and may be right.
@@ -1319,6 +1364,13 @@ The shared WebUI now uses qlacier-style floating menu shells: repo root search o
 - `continuity` sees the end of a press, not its motion: it cannot tell whether
   the pressed thing slides to its place or jumps. A finding is a strong sign of
   a teleport; no finding is no promise of a smooth one.
+- The continuity score counts boxes and widgets, not pixels: `near` is a tree
+  distance, `alike` compares what two things hold, not how they look when drawn.
+  A real window would give the pixels; this does not open one.
+- Colours and times are read from `.css` files. A rule written inside a Nim string
+  (owlkettle apps that build their style sheet in code) is not read, so its colour
+  is `-` and its transition is found only through the motion widgets of the view.
+  Rules with a pseudo class and `@media` blocks are left out on purpose.
 - `continuity` cannot see boxes a script builds (`createElement`, `innerHTML`),
   a listener on the whole page that reads `event.target`, a function whose name
   comes from a variable, or an owlkettle button built by a helper that is handed

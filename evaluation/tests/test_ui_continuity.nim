@@ -23,6 +23,8 @@ import std/[os, sets, strutils, tables, times, unittest]
 import ../../src/protocols/code_stats/continuity_types
 import ../../src/protocols/code_stats/continuity_guard
 import ../../src/protocols/code_stats/continuity_walk
+import ../../src/protocols/code_stats/continuity_style
+import ../../src/protocols/code_stats/continuity_score
 import ../../src/protocols/code_stats/continuity
 import ../../src/protocols/code_stats/ui_depth
 import ../../src/protocols/code_stats/inventory
@@ -73,6 +75,7 @@ suite "continuity: the example page and menu":
     check r.verdictOfControl("web", "#back") == cvReturn
     check r.verdictOfControl("web", "#dismiss-note") == cvSmall
     check r.verdictOfControl("web", "#close-about") == cvClose
+    check r.verdictOfControl("web", "#open-b") == cvStays
 
   # {.testKind: tkIntegration.}
   test "the menu: two teleports, a frame that stays, a back that returns":
@@ -103,12 +106,12 @@ suite "continuity: the example page and menu":
       r = continuityOf(exampleRoot(), listAllSourceFiles(exampleRoot()))
       text: string = ""
     text = continuityLines(r).join("\n")
-    check r.webPresses == 6
+    check r.webPresses == 7
     check r.owlPresses == 4
     check r.teleports().len == 3
     check "TELEPORT" in text
     check "takes the room: #settings" in text
-    check "6 click handler(s)" in text
+    check "7 click handler(s)" in text
 
 suite "continuity: when is a condition true":
 
@@ -284,9 +287,13 @@ suite "continuity: files written by a stranger":
       scripts: seq[string] = @[".addEventListener(", ".addEventListener('click',",
         ".addEventListener('click', () => {", ".hidden=true", "x.hidden=",
         "document.getElementById(", "forEach(", ".forEach(p =>", "=>",
+        "x.addEventListener('", "a.hidden='", ".style.display='",
         "function (", "function a(", ".onclick", ".onclick =",
         repeat("(", 5000), repeat("=> {", 3000), "a.classList.add(",
         "'", "\"\\", "const x = ", "const = ;", ".style.display="]
+      sheets: seq[string] = @["{", "{{{{", ".a{transition:", ".a{background:var(--", "#",
+        ".a, {} .b{", "}}}}", "--x:", ":root{--a:1;--a:", ".a{transition: 1e999s}",
+        repeat(".a{background:#abc}\n", 3000), " {", "\\", ".\\.\\"]
       nims: seq[string] = @["import owlkettle\nproc clicked(", "= enum",
         "import owlkettle\ntype\n  V = enum", "import owlkettle\nif", "of",
         "import owlkettle\ncase", "import owlkettle\nproc clicked() = M.v =",
@@ -300,6 +307,8 @@ suite "continuity: files written by a stranger":
       files.add((path: "s" & $i & ".js", text: scripts[i]))
     for i in 0 ..< nims.len:
       files.add((path: "n" & $i & ".nim", text: nims[i]))
+    for i in 0 ..< sheets.len:
+      files.add((path: "c" & $i & ".css", text: sheets[i]))
     root = tree("garbage", files)
     var r = continuityOf(root, listAllSourceFiles(root))
     check r.error.len == 0
@@ -349,3 +358,202 @@ suite "continuity: files written by a stranger":
     removeDir(getTempDir() / "otter_continuity_cuthtml")
     removeDir(getTempDir() / "otter_continuity_cutjs")
     removeDir(getTempDir() / "otter_continuity_cutnim")
+
+proc scoreOfControl(r: ContinuityReport, kind, control: string):
+    ContinuityScore {.testKind: tkUnit, covers: "continuityOf".} =
+  ## r: the answer   kind: web or owl   control: the button's name.
+  ## The score of the first scored press by that button.
+  result = ContinuityScore(stay: -1, tie: -1, move: -1, overall: -1)
+  for p in r.presses:
+    if p.kind == kind and p.control == control and p.scored:
+      return p.score
+  doAssert false, "no scored press by " & control
+
+suite "continuity: the score and its three metrics":
+
+  # {.testKind: tkUnit.}
+  test "each part, on the scale of UI.md 3":
+    check keptOf(13, 70) > 0.8 and keptOf(13, 70) < 0.82
+    check keptOf(70, 70) == 0.0
+    check keptOf(5, 0) < 0.0
+    check nearOf(2) == 1.0
+    check nearOf(6) == 0.5
+    check nearOf(10) == 0.0
+    check nearOf(-1) < 0.0
+    check moveOf(0.0) == 0.0
+    check moveOf(0.15) == 1.0
+    check moveOf(0.3) == 1.0
+    check moveOf(0.45) > 0.6 and moveOf(0.45) < 0.7
+    check moveOf(0.9) == 0.1
+    check moveOf(-1.0) < 0.0
+
+  # {.testKind: tkUnit.}
+  test "alike is what two things share over everything they hold":
+    var
+      a: CountTable[string] = initCountTable[string]()
+      b: CountTable[string] = initCountTable[string]()
+    a.inc("t:div", 2)
+    a.inc("c:col", 2)
+    b.inc("t:div", 1)
+    b.inc("c:panel", 1)
+    check likeness(a, a) == 1.0
+    check likeness(a, b) == 1.0 / 5.0
+    check likeness(initCountTable[string](), initCountTable[string]()) < 0.0
+
+  # {.testKind: tkUnit.}
+  test "a shared colour joins, a colour that differs does not, no sheet says nothing":
+    var
+      green = toHashSet(["var:green", "#2e8b57"])
+      alsoGreen = toHashSet(["#2e8b57"])
+      blue = toHashSet(["#3b6fb6"])
+    check joinedOf(green, alsoGreen, true) == 1.0
+    check joinedOf(green, blue, true) == 0.0
+    check joinedOf(green, alsoGreen, false) < 0.0
+
+  # {.testKind: tkUnit.}
+  test "the bundle is the mean of what was measured, and a teleport is capped":
+    var
+      good = noParts()
+      cut = noParts()
+    good.kept = 0.7
+    good.alike = 0.5
+    good.joined = 1.0
+    good.near = 1.0
+    good.seconds = 0.15
+    check scoreOf(good).stay == 62
+    check scoreOf(good).tie == 100
+    check scoreOf(good).move == 100
+    check scoreOf(good).overall == 87
+    cut = good
+    cut.teleport = true
+    cut.kept = 1.0
+    cut.alike = 1.0
+    check scoreOf(cut).tie == 0
+    check scoreOf(cut).overall <= teleportCap
+
+  # {.testKind: tkEdgeCase.}
+  test "a part nobody measured is left out, not counted as zero":
+    var p = noParts()
+    p.kept = 1.0
+    check scoreOf(p).stay == 100
+    check scoreOf(p).tie == -1
+    check scoreOf(p).move == -1
+    check scoreOf(p).overall == 100
+    check scoreOf(noParts()).overall == -1
+    check meanScore(@[ContinuityScore(stay: 80, tie: -1, move: 100, overall: 90),
+      ContinuityScore(stay: 40, tie: 20, move: -1, overall: 30)]).tie == 20
+
+suite "continuity: what a style sheet says":
+
+  # {.testKind: tkUnit.}
+  test "colours are found by name and by value, and a variable meets its value":
+    var
+      css: string = ":root { --green: #2E8B57; }\n" &
+        ".opener { background: var(--green); }\n" &
+        ".edge { border-left: 4px solid #2e8b57; transition: opacity 150ms; }\n"
+      R = styleRulesIn(css)
+      a = lookOf(R, "button", "", @["opener"])
+      b = lookOf(R, "div", "", @["edge"])
+    check "#2e8b57" in a.colours
+    check "var:green" in a.colours
+    check card(a.colours * b.colours) > 0
+    check b.seconds > 0.14 and b.seconds < 0.16
+    check a.seconds == 0.0
+    check a.known
+
+  # {.testKind: tkEdgeCase.}
+  test "text colour, hover rules and media blocks say nothing about the look":
+    var
+      css: string = ".a { color: #ff0000; }\n.b:hover { background: #00ff00; }\n" &
+        "@media (max-width: 40rem) { .c { background: #0000ff; } }\n"
+      R = styleRulesIn(css)
+    check lookOf(R, "", "", @["a"]).colours.len == 0
+    check lookOf(R, "", "", @["b"]).colours.len == 0
+    check lookOf(R, "", "", @["c"]).colours.len == 0
+
+  # {.testKind: tkEdgeCase.}
+  test "no style sheet at all is not the same as a style sheet with nothing in it":
+    check not lookOf(@[], "div", "", @["x"]).known
+    check lookOf(styleRulesIn(".y { margin: 0; }"), "div", "", @["x"]).known
+
+suite "continuity: the example, press by press":
+
+  # {.testKind: tkIntegration.}
+  test "the green opener with a fade beside it scores as calm":
+    var
+      r = continuityOf(exampleRoot(), listAllSourceFiles(exampleRoot()))
+      s: ContinuityScore = ContinuityScore()
+    s = r.scoreOfControl("web", "#open-b")
+    check s.overall >= 80
+    check s.tie >= 90
+    check s.move == 100
+
+  # {.testKind: tkIntegration.}
+  test "a press that takes its button along has no tie and is capped":
+    var
+      r = continuityOf(exampleRoot(), listAllSourceFiles(exampleRoot()))
+      s: ContinuityScore = ContinuityScore()
+      o: ContinuityScore = ContinuityScore()
+    s = r.scoreOfControl("web", "#open-settings")
+    check s.tie == 0
+    check s.overall <= teleportCap
+    o = r.scoreOfControl("owl", "\"Report\"")
+    check o.tie == 0
+    check o.overall <= teleportCap
+
+  # {.testKind: tkIntegration.}
+  test "the same opener in owlkettle: colour, closeness and a fade all count":
+    ## The frame's Settings button has the style class open-green, the
+    ## settings view has pane-green; menu.css gives both one colour and the
+    ## view a 150 ms transition.
+    var
+      r = continuityOf(exampleRoot(), listAllSourceFiles(exampleRoot()))
+      best: ContinuityScore = ContinuityScore(stay: -1, tie: -1, move: -1,
+        overall: -1)
+    for p in r.presses:
+      if p.kind == "owl" and p.verdict == cvStays and p.scored:
+        best = p.score
+    check best.overall >= 80
+    check best.tie >= 90
+    check best.move == 100
+
+  # {.testKind: tkIntegration.}
+  test "a cut between tabs is a jump, and the report names it":
+    var
+      r = continuityOf(exampleRoot(), listAllSourceFiles(exampleRoot()))
+      s = r.scoreOfControl("web", "#tab-reports")
+      text: string = continuityLines(r).join("\n")
+    check s.move == 0
+    check s.overall < jumpBelow
+    check "JUMP  web/js/app.js:22" in text
+    check "JUMP  web/js/app.js:47" notin text
+
+  # {.testKind: tkIntegration.}
+  test "the whole UI has one number, the mean of its presses":
+    var r = continuityOf(exampleRoot(), listAllSourceFiles(exampleRoot()))
+    check r.scoredPresses >= 9
+    check r.score.overall > 0 and r.score.overall < 100
+    check "continuity score " & $r.score.overall in
+      continuityLines(r).join("\n")
+
+  # {.testKind: tkEdgeCase.}
+  test "a page with no style sheet has no tie colour and no move, only stay":
+    ## pins: no sheet at all read as "no colour and a cut", which scored a
+    ## page nobody had measured as a jump.
+    var
+      cells: string = repeat("<i>x</i>", 12)
+      root: string = tree("nosheet", @[
+        (path: "index.html", text: "<section id=\"a\"><button id=\"go\">Go" &
+          "</button>" & cells & "</section><section id=\"b\" hidden><p>1</p>" &
+          "<p>2</p></section><button id=\"out\">Out</button>" &
+          "<script src=\"app.js\"></script>"),
+        (path: "app.js", text: "document.getElementById('out')." &
+          "addEventListener('click', () => {\n" &
+          "  document.getElementById('a').hidden = true;\n" &
+          "  document.getElementById('b').hidden = false;\n});\n")])
+      r = continuityOf(root, listAllSourceFiles(root))
+    check r.presses.len == 1
+    check r.presses[0].scored
+    check r.presses[0].score.move == -1
+    check r.presses[0].score.stay >= 0
+    removeDir(root)

@@ -1,0 +1,4 @@
+/* The Settings opener in the frame is green; the settings view opens with a green edge
+   and a short fade. The two Teleport presses have neither. */
+.open-green { background: #2e8b57; }
+.pane-green { border-left: 4px solid #2e8b57; transition: opacity 150ms ease; }

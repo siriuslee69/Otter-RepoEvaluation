@@ -99,12 +99,22 @@ done
 # a press whose button is outside what it hides is not.
 cells=$(printf '<i>x</i>%.0s' $(seq 12))
 printf '<section id="a"><button id="go">Go</button>%s</section><section id="b" hidden><p>1</p><p>2</p></section><button id="out">Out</button><script src="tele.js"></script>\n' "$cells" > src/clients/webui/tele.html
-printf "document.getElementById('go').addEventListener('click', () => {\n  document.getElementById('a').hidden = true;\n  document.getElementById('b').hidden = false;\n});\n" > src/clients/webui/tele.js
+printf "document.getElementById('go').addEventListener('click', () => {\n  document.getElementById('a').hidden = true;\n  document.getElementById('b').hidden = false;\n});\ndocument.getElementById('out').addEventListener('click', () => {\n  document.getElementById('a').hidden = true;\n  document.getElementById('b').hidden = false;\n});\n" > src/clients/webui/tele.js
 git add -A . && git commit -qm teleport
 ui=$(bash "$hooks/ui-check.sh" "$r" || true)
 printf '%s' "$ui" | grep -q "MAYBE TELEPORT" || { echo "ui-hints missed: TELEPORT"; printf '%s\n' "$ui"; exit 1; }
 printf '%s' "$ui" | grep -q "#go" || { echo "TELEPORT did not name the button"; printf '%s\n' "$ui"; exit 1; }
-if printf '%s' "$ui" | grep -q "#out"; then echo "TELEPORT named a button that stays"; exit 1; fi
+tele=$(printf '%s\n' "$ui" | awk '/^MAYBE TELEPORT/ { on = 1; next } /^MAYBE/ { on = 0 } on')
+if printf '%s' "$tele" | grep -q "#out"; then echo "TELEPORT named a button that stays"; exit 1; fi
+# The button that stays still loses the place when the change is a cut with no colour in common: a JUMP.
+jumps=$(printf '%s\n' "$ui" | awk '/^MAYBE JUMP/ { on = 1; next } /^MAYBE/ { on = 0 } on')
+printf '%s' "$jumps" | grep -q "#out" || { echo "ui-hints missed: JUMP for #out"; printf '%s\n' "$ui"; exit 1; }
+printf '%s' "$jumps" | grep -q "score " || { echo "JUMP shows no score"; exit 1; }
+# Two separate plus buttons are named SEED.
+printf '<ul><li>a</li></ul><button class="add-item">+</button><button class="add-other" aria-label="Add other">+</button>\n' > src/clients/webui/seed.html
+git add -A . && git commit -qm seed
+ui=$(bash "$hooks/ui-check.sh" "$r" || true)
+printf '%s' "$ui" | grep -q "MAYBE SEED" || { echo "ui-hints missed: SEED"; printf '%s\n' "$ui"; exit 1; }
 rc=0; bash "$hooks/done-check.sh" --quick "$r" > "$fx/done" || rc=$?
 [ "$rc" -eq 0 ] || { echo "hints stopped a hand-over"; cat "$fx/done"; exit 1; }
 

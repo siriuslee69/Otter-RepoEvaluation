@@ -604,9 +604,13 @@ proc continuityJson*(r: ContinuityReport): JsonNode {.role: dataWriter,
     presses.add(%*{"kind": p.kind, "path": p.path, "line": p.line,
       "control": p.control, "action": p.action, "hidden": p.hidden,
       "hiddenAt": p.hiddenAt, "hiddenSize": p.hiddenSize,
-      "replacedBy": p.replacedBy, "verdict": verdictName(p.verdict)})
+      "replacedBy": p.replacedBy, "verdict": verdictName(p.verdict),
+      "scored": p.scored, "stay": p.score.stay, "tie": p.score.tie,
+      "move": p.score.move, "score": p.score.overall})
   result = %*{
     "presses": presses, "teleports": r.teleports().len,
+    "score": {"overall": r.score.overall, "stay": r.score.stay,
+      "tie": r.score.tie, "move": r.score.move, "scored": r.scoredPresses},
     "webHandlers": r.webPresses, "owlHandlers": r.owlPresses,
     "error": r.error
   }

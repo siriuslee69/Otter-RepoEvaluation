@@ -7,6 +7,7 @@
 //   back             #settings    #overview    yes, but it starts hidden: a return
 //   dismiss-note     #note        nothing      yes, but small and replaced by nothing
 //   close-about      #about-box   nothing      a floating box
+//   open-b           #col-a, #col-c  #detail-b   no (button stays): green, next to it, a fade
 
 const overview = document.getElementById('overview');
 const settings = document.getElementById('settings');
@@ -40,4 +41,11 @@ document.getElementById('dismiss-note').addEventListener('click', () => {
 document.getElementById('close-about').addEventListener('click', () => {
   aboutBox.hidden = true;
   overview.hidden = false;
+});
+
+// The button of column b stays; the other columns go and its details open beside it.
+document.getElementById('open-b').addEventListener('click', () => {
+  document.getElementById('col-a').hidden = true;
+  document.getElementById('col-c').hidden = true;
+  document.getElementById('detail-b').hidden = false;
 });

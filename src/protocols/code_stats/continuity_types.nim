@@ -45,6 +45,16 @@ const
     ## How far a bracket is followed to find its other half.
   maxTrails*: int = 200
     ## How many ways up through the builders are followed for one button.
+  teleportCap*: int = 39
+    ## A press that takes its own button along scores no more than this.
+  weightKept*: float = 0.6
+  weightAlike*: float = 0.4
+  weightJoined*: float = 0.5
+  weightNear*: float = 0.5
+    ## Inside stay (kept, alike) and inside tie (joined, near); see UI.md 3,
+    ## "Measuring continuity". The three metrics then count one third each.
+  jumpBelow*: int = 50
+    ## A press that is not a teleport but scores under this is a jump.
   floatingWords*: array[7, string] = [
     "modal", "dialog", "popover", "dropdown", "tooltip", "toast", "popup"
   ]
@@ -58,6 +68,14 @@ type
     cvReturn,   ## the button was not on screen at the start: it is a way back
     cvClose,    ## nothing else takes the room: a close
     cvSmall     ## what goes is too small to lose the user's place
+
+  ContinuityScore* {.role: preparedData, tag: "stats".} = object
+    ## The three metrics and their bundle for one press, each 0 to 100.
+    ## A metric nothing could be measured for is -1.
+    stay*: int
+    tie*: int
+    move*: int
+    overall*: int
 
   ContinuityPress* {.role: preparedData, tag: "stats".} = object
     ## One press that hides something big (or that was too small to).
@@ -77,9 +95,15 @@ type
     replacedBy*: string
       ## What takes the room; empty when nothing does.
     verdict*: ContinuityVerdict
+    scored*: bool
+      ## True when the press has an old and a new thing to compare.
+    score*: ContinuityScore
 
   ContinuityReport* {.role: truthState, tag: "stats".} = object
     presses*: seq[ContinuityPress]
+    score*: ContinuityScore
+      ## The mean over every scored press: the continuity of the whole UI.
+    scoredPresses*: int
     webPresses*: int
       ## How many click handlers the web reader looked at.
     owlPresses*: int

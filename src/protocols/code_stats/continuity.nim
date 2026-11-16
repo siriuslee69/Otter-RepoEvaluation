@@ -27,6 +27,7 @@ import std/[algorithm]
 
 import runePragmas
 import ./continuity_types
+import ./continuity_score
 import ./continuity_web
 import ./continuity_owl
 
@@ -46,11 +47,19 @@ proc continuityOf*(dir: string, files: seq[string]): ContinuityReport
       handlers: 0)
     owl: tuple[presses: seq[ContinuityPress], handlers: int] = (presses: @[],
       handlers: 0)
+    scores: seq[ContinuityScore] = @[]
   web = webPressesOf(dir, files)
   owl = owlPressesOf(dir, files)
   result = ContinuityReport(presses: web.presses & owl.presses,
-    webPresses: web.handlers, owlPresses: owl.handlers, error: "")
+    webPresses: web.handlers, owlPresses: owl.handlers, error: "",
+    score: ContinuityScore(stay: -1, tie: -1, move: -1, overall: -1),
+    scoredPresses: 0)
   result.presses.sort(byPlace)
+  for p in result.presses:
+    if p.scored:
+      scores.add(p.score)
+  result.score = meanScore(scores)
+  result.scoredPresses = scores.len
 
 proc unitOf(p: ContinuityPress): string {.role: helper, tag: "stats".} =
   ## p: one press. What its size is counted in.
@@ -63,6 +72,24 @@ proc countOf(r: ContinuityReport, v: ContinuityVerdict): int {.role: parser,
   for p in r.presses:
     if p.verdict == v:
       result = result + 1
+
+proc scoreText*(s: ContinuityScore): string {.role: dataWriter, tag: "stats".} =
+  ## s: one score. `score 27 (stay 70, tie 0, move 0)`; a metric that was not
+  ## measured is written `-`.
+  proc n(v: int): string =
+    result = (if v < 0: "-" else: $v)
+  result = "score " & n(s.overall) & " (stay " & n(s.stay) & ", tie " &
+    n(s.tie) & ", move " & n(s.move) & ")"
+
+proc jumps(r: ContinuityReport): seq[ContinuityPress] {.role: parser,
+    tag: "stats".} =
+  ## r: the answer. The scored presses that are no teleport and still score
+  ## under `jumpBelow`: the user keeps their button but loses their place.
+  result = @[]
+  for p in r.presses:
+    if p.scored and p.verdict != cvGoes and p.score.overall >= 0 and
+        p.score.overall < jumpBelow:
+      result.add(p)
 
 proc continuityLines*(r: ContinuityReport): seq[string] {.role: dataWriter,
     tag: "stats".} =
@@ -78,15 +105,31 @@ proc continuityLines*(r: ContinuityReport): seq[string] {.role: dataWriter,
     "big, " & $bad.len & " of them take their own button along")
   result.add("  looked at: " & $r.webPresses & " click handler(s) in html/js, " &
     $r.owlPresses & " owlkettle click handler(s) that set a view")
+  if r.scoredPresses > 0:
+    result.add("  continuity " & scoreText(r.score) & " over " & $r.scoredPresses &
+      " press(es) that replace one thing with another")
+  else:
+    result.add("  continuity score: not measured (no press replaces one big " &
+      "thing with another)")
   for p in bad:
     result.add("  TELEPORT  " & p.path & ":" & $p.line & "  " & p.control &
       "  " & p.action)
     result.add("      what goes: " & p.hidden & " (" & $p.hiddenSize & " " &
       unitOf(p) & ", " & p.hiddenAt & "); the button stands inside it")
     result.add("      takes the room: " & p.replacedBy)
+    result.add("      " & scoreText(p.score))
+  for p in r.jumps():
+    result.add("  JUMP  " & p.path & ":" & $p.line & "  " & p.control & "  " & p.action)
+    result.add("      what goes: " & p.hidden & " (" & $p.hiddenSize & " " &
+      unitOf(p) & "); takes the room: " & p.replacedBy)
+    result.add("      " & scoreText(p.score))
   result.add("  the rest: " & $r.countOf(cvStays) & " stay (the frame is " &
     "outside what is hidden), " & $r.countOf(cvReturn) & " return, " &
     $r.countOf(cvClose) & " close, " & $r.countOf(cvSmall) & " small")
+  if r.jumps().len > 0:
+    result.add("  A jump keeps the button but not the place: give the pressed thing " &
+      "and the new one a colour in common, put them side by side, and give " &
+      "the change 0.04 to 0.3 s (UI.md 3, \"Measuring continuity\").")
   if bad.len > 0:
     result.add("  Keep the pressed thing on screen and make room around it " &
       "(UI.md 3, \"Continuity\").")

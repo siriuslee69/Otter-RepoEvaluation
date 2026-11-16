@@ -1,6 +1,74 @@
 # Progress
 
-Commit Message: continuity: a press that hides the big thing its own button sits in (TELEPORT), for js/html and owlkettle
+Commit Message: continuity score (stay, tie, move) per press and for a UI; MAYBE SEED and MAYBE JUMP hints
+
+## 2026-11-16 Continuity score and the seed
+
+Asked: measure continuity as a number across the UI: size replaced, whether old and new look
+alike, whether the pressed thing is joined to the new content (colour, distance), and short
+transitions, each its own metric and then bundled. Also: an add button that looks like an
+element of the list it adds to (named "seed" in UI.md 8), fixed first or last.
+
+Plan (what goes where):
+
+```text
+  part                                           where
+  ---------------------------------------------  --------------------------------------
+  the rules, formulas, scale, the seed           Agent-Conventions/UI.md 3 and 8 (done)
+  style sheet reader: colours + times of a        src/protocols/code_stats/continuity_style.nim
+    class, id or tag
+  the three metrics and the bundle (pure)         continuity_score.nim
+  web: elements, css, js give the inputs          continuity_web.nim (+ page)
+  owlkettle: builders, StyleClass, motion widgets continuity_owl.nim
+  text + json: score per press and for the UI     continuity.nim, json_out.nim
+  MAYBE JUMP (press under 50, not a teleport)      tools/agent_hooks/ui-hints.sh
+  MAYBE SEED (many separate + buttons)             tools/agent_hooks/ui-hints.sh
+  examples first: an opener with a colour,         examples/ui_continuity/ (web + owl)
+    an adjacent panel, a transition
+  tests                                           evaluation/tests/test_ui_continuity.nim
+```
+
+How each metric is measured from source (proxies, said so in UI.md):
+
+```text
+  stay  kept  = 1 - old size / whole screen at the start       elements (web), widgets (owl)
+        alike = what old and new hold in common                 tags + classes + colours / widget
+                                                                  kinds + style classes
+  tie   joined = pressed thing and new thing share a colour     tokens in the style sheets
+        near   = boxes between the pressed thing and the new    tree distance, 1 at 2 boxes,
+                                                                  0 from 10
+  move  seconds of a transition on old, new or pressed thing    css transition / animation;
+                                                                  owl: Revealer, Stack, Crossfade
+  a part that cannot be measured is left out, not 0; a teleport is capped at 39.
+```
+
+Pixel distances need a running window and are not measured.
+
+Built (all of the plan):
+
+```text
+  continuity_style.nim       a style sheet read per element: fill and edge colours, longest time
+  continuity_score.nim       kept, alike, joined, near, move -> stay, tie, move -> overall
+  continuity_types.nim       ContinuityScore, weights, the cap of 39, jumpBelow 50
+  continuity_page.nim        screen size, tree distance, the style rules of the repo
+  continuity_web.nim         the parts from html + css + js for every scored press
+  continuity_owl_read.nim    (split from continuity_owl) enums, builders with kinds, style
+                             classes and motion, click handlers
+  continuity_owl_model.nim   the model: who inserts whom, sizes, bags, motions
+  continuity_owl.nim         the questions and the parts for owlkettle
+  continuity.nim             score per press and per UI in the text and the JSON; JUMP lines
+  ui-hints.sh                TELEPORT rows carry the score; MAYBE JUMP; MAYBE SEED
+```
+
+Checked: test_ui_continuity.nim now has 34 tests (formulas, style reader, the example press by
+press, a page with no style sheet, hostile css), the shell regression has JUMP and SEED cases,
+and every cut of the three example files was read with the bounds checks on. That fuzz found a
+real bug in older code: `firstLiteral` sliced backwards when a quote was the last character of
+a cut-off script (fixed, pinned in the garbage test).
+
+The example scores: green opener beside its panel with a fade 80 (web) and 82 (owl); a tab swap
+with a hard cut 34; a button inside the view it replaces 23, capped at 39. Real repos, read-only:
+Atlas-Taskbar 33 (stay 63, tie 11, move 25), Hestia-NimUISetups 48.
 
 ## 2026-11-16 Continuity check (TELEPORT)
 
