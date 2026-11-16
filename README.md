@@ -1380,7 +1380,8 @@ The shared WebUI now uses qlacier-style floating menu shells: repo root search o
   (`code_stats/continuity_types.nim`): a file over 1 000 000 bytes is skipped, a
   file is asked each question at most 4000 times, a bracket is followed for at
   most 20 000 characters, and 200 ways up through the builders are tried per
-  button. A file that hits one gives fewer answers, never a hang or a crash
+  button. A style sheet is read for at most 20 000 rules, and each element's
+  look is worked out once, so thousands of presses cost no more than one. A file that hits one gives fewer answers, never a hang or a crash
   (`test_ui_continuity.nim`, suite "files written by a stranger").
 - `continuity` treats a thing as big from 12 elements or widgets (`bigSize` in
   `code_stats/continuity_types.nim`). A view picked by a string or a number

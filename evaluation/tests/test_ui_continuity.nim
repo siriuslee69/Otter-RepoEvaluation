@@ -557,3 +557,36 @@ suite "continuity: the example, press by press":
     check r.presses[0].score.move == -1
     check r.presses[0].score.stay >= 0
     removeDir(root)
+
+  # {.testKind: tkFuzz.}
+  test "a big page with a big style sheet and many presses is scored in bounded time":
+    ## pins: each press looked every element up in every rule again, which
+    ## took 11 s for 300 presses on a 20 000-element page. A look is now
+    ## worked out once per element.
+    var
+      html: string = "<div id=\"bar\">"
+      sheet: string = ""
+      script: string = ""
+      root: string = ""
+      began: float = epochTime()
+      r: ContinuityReport = ContinuityReport()
+    for i in 1 .. 150:
+      html.add("<button id=\"b" & $i & "\">B</button>")
+      script.add("document.getElementById('b" & $i & "').addEventListener(" &
+        "'click', () => { document.getElementById('a').hidden = true; " &
+        "document.getElementById('z').hidden = false; });\n")
+    html.add("</div><section id=\"a\">")
+    for i in 1 .. 3000:
+      html.add("<i class=\"c" & $(i mod 800) & "\">x</i>")
+      sheet.add(".c" & $(i mod 800) & " { background: #" & $(100 + i mod 800) &
+        "; }\n")
+    html.add("</section><section id=\"z\" hidden><p>1</p><p>2</p><p>3</p>" &
+      "</section><script src=\"a.js\"></script>")
+    root = tree("bigscored", @[(path: "index.html", text: html),
+      (path: "a.css", text: sheet), (path: "a.js", text: script)])
+    began = epochTime()
+    r = continuityOf(root, listAllSourceFiles(root))
+    check r.presses.len == 150
+    check r.scoredPresses == 150
+    check epochTime() - began < 15.0
+    removeDir(root)

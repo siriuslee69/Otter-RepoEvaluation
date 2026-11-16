@@ -60,7 +60,7 @@ Built (all of the plan):
   ui-hints.sh                TELEPORT rows carry the score; MAYBE JUMP; MAYBE SEED
 ```
 
-Checked: test_ui_continuity.nim now has 34 tests (formulas, style reader, the example press by
+Checked: test_ui_continuity.nim now has 35 tests (formulas, style reader, the example press by
 press, a page with no style sheet, hostile css), the shell regression has JUMP and SEED cases,
 and every cut of the three example files was read with the bounds checks on. That fuzz found a
 real bug in older code: `firstLiteral` sliced backwards when a quote was the last character of

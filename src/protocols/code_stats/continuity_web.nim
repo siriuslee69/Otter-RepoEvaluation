@@ -71,6 +71,7 @@ type
     hideClasses: HashSet[string]
     rules: seq[StyleRule]
     screens: Table[string, int]
+    looks: seq[Look]
 
   Reach = object
     hide: seq[int]
@@ -590,10 +591,19 @@ proc verdictOf(C: WebContext, R: Reach, p, x: int): tuple[v: ContinuityVerdict,
   else:
     result.v = (if result.taker >= 0: cvGoes else: cvClose)
 
+proc looksOfElements(C: WebContext): seq[Look] {.role: parser, tag: "stats".} =
+  ## C: the page and its style sheets. What the style sheets say about every
+  ## element, worked out once: a press asks for the same elements again and
+  ## again, and a page can have thousands of presses.
+  result = @[]
+  if C.rules.len > 0:
+    for e in C.E:
+      result.add(lookOf(C.rules, e.tag, e.id, e.classes))
+
 proc lookOfElement(C: WebContext, i: int): Look {.role: parser, tag: "stats".} =
   ## C: the page and its style sheets   i: one element.
-  ## What the style sheets say about it.
-  result = lookOf(C.rules, C.E[i].tag, C.E[i].id, C.E[i].classes)
+  ## What the style sheets say about it (nothing known when there is no sheet).
+  result = (if i < C.looks.len: C.looks[i] else: emptyLook(false))
 
 proc faceOf(C: WebContext, i: int): Look {.role: parser, tag: "stats".} =
   ## C: the page and its style sheets   i: one element.
@@ -721,7 +731,7 @@ proc contextOf(dir: string, files: seq[string]): tuple[C: WebContext,
     rel: string = ""
   result.C = WebContext(E: @[], vars: initTable[string, string](),
     funcs: initTable[string, JsFunction](), hideClasses: hidden, rules: @[],
-    screens: initTable[string, int]())
+    screens: initTable[string, int](), looks: @[])
   result.scripts = @[]
   for w in hideWords:
     result.C.hideClasses.incl(w)
@@ -740,6 +750,7 @@ proc contextOf(dir: string, files: seq[string]): tuple[C: WebContext,
   sizesOf(result.C.E)
   result.C.screens = screensOf(result.C.E)
   result.C.rules = styleRulesOf(files)
+  result.C.looks = looksOfElements(result.C)
   for s in result.scripts:
     result.C.noteNames(s.text)
 
