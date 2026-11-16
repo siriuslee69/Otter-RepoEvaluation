@@ -79,10 +79,10 @@ An item that is done is removed here and named in PROGRESS.md.
   needs: nobody
   plan: in continuity_page.nim also read template strings (`innerHTML = `<section id="x">...``) and `createElement` chains into elements, then resolve ids against them.
 
-- [ ] `nimble runExamples` fails to link: two examples are both called pipeline.nim (examples/blast/src and examples/visibility/src), so the parallel build writes one program and one nim cache for both.
+- [ ] `nimble runExamples` fails to link now and then: two examples are both called pipeline.nim (examples/blast/src and examples/visibility/src), so the parallel build can write one program and one nim cache for both. Seen once in a done-check run; the next run was clean.
   why: `done-check.sh` shows `examples FIX` for every task in this repo, so a real example failure hides behind it.
   start: nimble runExamples 2>&1 | grep -B2 -A3 'echoBinSafe'
-  done when: done-check.sh prints `examples ok`.
+  done when: ten runs of `nimble runExamples` in a row print no link error.
   needs: nobody
   plan: rename one of them (examples/visibility/src/pipeline.nim -> visibility_pipeline.nim) and its three "nim c -r src/pipeline.nim" lines in its own header; nothing else names it.
 
