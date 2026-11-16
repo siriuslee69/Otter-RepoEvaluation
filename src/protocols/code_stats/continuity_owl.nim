@@ -167,6 +167,14 @@ proc fieldsAt(t: string): seq[tuple[name, typeName: string]] {.role: parser,
     if leadingIdent(n.strip()).len > 0 and typeName.len > 0:
       result.add((name: leadingIdent(n.strip()), typeName: typeName))
 
+proc noteEnum(T: var ViewTypes, name: string, members: seq[string])
+    {.role: actor, tag: "stats".} =
+  ## T: the views found so far   name: an enum   members: its members.
+  ## The first member is the start; every member remembers its enum.
+  T.homes[name] = members[0]
+  for m in members:
+    T.members[m] = name
+
 proc noteFile(T: var ViewTypes, raw: var Table[string, string],
     L: seq[string]) {.role: actor, tag: "stats".} =
   ## T: the views found so far   raw: field -> its type name, every field
@@ -176,9 +184,7 @@ proc noteFile(T: var ViewTypes, raw: var Table[string, string],
   for i in 0 ..< L.len:
     e = enumAt(L, i)
     if e.name.len > 0 and e.members.len > 0:
-      T.homes[e.name] = e.members[0]
-      for m in e.members:
-        T.members[m] = e.name
+      T.noteEnum(e.name, e.members)
     for f in fieldsAt(cutComment(L[i]).strip()):
       raw[f.name] = f.typeName
 
@@ -210,19 +216,23 @@ proc isWidgetLine(t: string): bool {.role: parser, tag: "stats".} =
     (rest == "" or rest == ":" or rest.startsWith("{") or
       (rest.startsWith("(") and rest.endsWith(":")))
 
+proc nameBefore(t: string, i: int): string {.role: parser, tag: "stats".} =
+  ## t: one statement   i: index of a `(`. The name written just in front of it.
+  var
+    start: int = i
+  while start > 0 and (t[start - 1].isAlphaNumeric() or t[start - 1] == '_'):
+    start = start - 1
+  result = t[start ..< i]
+
 proc callsIn(t: string): seq[string] {.role: parser, tag: "stats".} =
   ## t: one statement. The name in front of every `(`.
   var
-    start: int = 0
+    name: string = ""
   result = @[]
   for i in 0 ..< t.len:
-    if t[i] == '(' and i > 0:
-      start = i
-      while start > 0 and (t[start - 1].isAlphaNumeric() or
-          t[start - 1] == '_'):
-        start = start - 1
-      if start < i:
-        result.add(t[start ..< i])
+    name = (if t[i] == '(' and i > 0: nameBefore(t, i) else: "")
+    if name.len > 0:
+      result.add(name)
 
 proc localOf(t: string): tuple[name, expr: string] {.role: parser,
     tag: "stats".} =
@@ -259,6 +269,15 @@ proc assignedFields(L: seq[string], T: ViewTypes): HashSet[string]
     if lhs.contains('.') and lhs.split('.')[^1] in T.fieldEnum:
       result.incl(lhs.split('.')[^1])
 
+proc inclusionsIn(g: GuardedLine, names: HashSet[string], self: string):
+    seq[Inclusion] {.role: parser, tag: "stats".} =
+  ## g: one statement with its conditions   names: every builder's name
+  ## self: the routine it stands in. The builders it inserts.
+  result = @[]
+  for c in callsIn(g.text):
+    if c in names and c != self:
+      result.add(Inclusion(callee: c, guards: g.guards))
+
 proc builderOf(f: FunctionInfo, names: HashSet[string], T: ViewTypes): Builder
     {.role: truthBuilder, tag: "stats".} =
   ## f: one routine   names: every builder's name   T: the views.
@@ -274,9 +293,7 @@ proc builderOf(f: FunctionInfo, names: HashSet[string], T: ViewTypes): Builder
     local = localOf(g.text)
     if local.name.len > 0 and local.name notin result.locals:
       result.locals[local.name] = local.expr
-    for c in callsIn(g.text):
-      if c in names and c != f.name:
-        result.includes.add(Inclusion(callee: c, guards: g.guards))
+    result.includes.add(inclusionsIn(g, names, f.name))
 
 proc isBuilder(f: FunctionInfo): bool {.role: parser, tag: "stats".} =
   ## f: one routine. True when it draws widgets.
@@ -361,6 +378,15 @@ proc effectsOfMember(T: ViewTypes, assigns: HashSet[string], m: string):
     if T.fieldEnum[f] == T.members[m]:
       result.add(Effect(field: f, member: m))
 
+proc effectsOfCall(T: ViewTypes, assigns: HashSet[string], args: string):
+    seq[Effect] {.role: parser, tag: "stats".} =
+  ## T: the views   assigns: the view fields a routine writes   args: the text
+  ## after its `(`. What the call sets: every member in the arguments, in each
+  ## field of its enum the routine writes.
+  result = @[]
+  for m in membersIn(args, T):
+    result.add(effectsOfMember(T, assigns, m))
+
 proc effectsOfLine(line: string, T: ViewTypes, B: seq[Builder],
     byName: Table[string, int]): seq[Effect] {.role: parser, tag: "stats".} =
   ## line: one statement of a click handler   T: the views
@@ -378,8 +404,7 @@ proc effectsOfLine(line: string, T: ViewTypes, B: seq[Builder],
     k = byName.getOrDefault(c, -1)
     open = line.find(c & "(")
     if k >= 0 and open >= 0:
-      for m in membersIn(line[open + c.len .. ^1], T):
-        result.add(effectsOfMember(T, B[k].assigns, m))
+      result.add(effectsOfCall(T, B[k].assigns, line[open + c.len .. ^1]))
 
 proc effectsIn(text: string, T: ViewTypes, B: seq[Builder],
     byName: Table[string, int]): seq[Effect] {.role: parser, tag: "stats".} =
@@ -668,16 +693,21 @@ proc judge(M: Model, s: PressSite, DA: DropsAppears): tuple[ok: bool,
 
 # --- the whole tree ------------------------------------------------------------------------------
 
+proc fileMentions(p: string): bool {.role: dataFetcher, tag: "stats".} =
+  ## p: one Nim file. True when it names owlkettle; false when it cannot be read.
+  result = false
+  try:
+    result = "owlkettle" in readFile(p)
+  except OSError, IOError:
+    result = false
+
 proc mentionsOwlkettle(files: seq[string]): bool {.role: dataFetcher,
     tag: "stats".} =
   ## files: the Nim files. True when any of them is written for owlkettle.
   result = false
   for p in files:
-    try:
-      if "owlkettle" in readFile(p):
-        return true
-    except OSError, IOError:
-      continue
+    if fileMentions(p):
+      return true
 
 proc owlPressesOf*(dir: string, files: seq[string]): tuple[
     presses: seq[ContinuityPress], handlers: int]

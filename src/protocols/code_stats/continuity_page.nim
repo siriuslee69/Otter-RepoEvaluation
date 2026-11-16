@@ -105,14 +105,16 @@ proc popTo(stack: var seq[int], E: seq[Element], tagName: string)
   if k >= 0:
     stack.setLen(k)
 
-proc noteScript(S: var seq[Script], srcs: var seq[string], tagText, path, html: string,
-    line, a, b: int)
+proc noteScript(S: var seq[Script], srcs: var seq[string], tagName, tagText, path,
+    html: string, line, a, b: int)
     {.role: actor, tag: "stats".} =
-  ## S: scripts so far   tagText: the `<script ...` tag   path, line: where
+  ## S: scripts so far   tagName: script or style   tagText: the tag   path, line: where
   ## html: the page   a, b: the span between the tags.
   ## Keeps the text of a script written inside the page. One with a `src` is
   ## read from its own file; only its address is kept, so the file can be
   ## matched to the pages that load it.
+  if tagName != "script":
+    return
   if "src=" in tagText:
     srcs.add(attributeOf(tagText, "src"))
   else:
@@ -159,9 +161,8 @@ proc pageOf*(html, path: string, hidden: HashSet[string]): tuple[
     tagName = tagText.split({' ', '\t', '\n', '/'})[0].toLowerAscii()
     if tagName in ["script", "style"]:
       skip = skipTo(html, i, "</" & tagName)
-      if tagName == "script":
-        noteScript(result.scripts, result.srcs, tagText, path, html, line, i,
-          skip.next - tagName.len - 2)
+      noteScript(result.scripts, result.srcs, tagName, tagText, path, html, line,
+        i, skip.next - tagName.len - 2)
       line = line + skip.lines
       i = skip.next
       continue
