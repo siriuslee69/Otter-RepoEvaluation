@@ -78,3 +78,17 @@ An item that is done is removed here and named in PROGRESS.md.
   done when: a test page whose view is built with innerHTML / createElement gives the same verdicts as the static example in examples/ui_continuity/web.
   needs: nobody
   plan: in continuity_page.nim also read template strings (`innerHTML = `<section id="x">...``) and `createElement` chains into elements, then resolve ids against them.
+
+- [ ] `nimble runExamples` fails to link: two examples are both called pipeline.nim (examples/blast/src and examples/visibility/src), so the parallel build writes one program and one nim cache for both.
+  why: `done-check.sh` shows `examples FIX` for every task in this repo, so a real example failure hides behind it.
+  start: nimble runExamples 2>&1 | grep -B2 -A3 'echoBinSafe'
+  done when: done-check.sh prints `examples ok`.
+  needs: nobody
+  plan: rename one of them (examples/visibility/src/pipeline.nim -> visibility_pipeline.nim) and its three "nim c -r src/pipeline.nim" lines in its own header; nothing else names it.
+
+- [ ] test_test_ui "missing orchestrator pings abort an active test process tree" failed once inside done-check with `cannot open: /tmp/otter-ui-orchestrator-lease-*/jobs/...command.pid.tmp-*`; it passes when run alone.
+  why: a test that fails now and then teaches agents to ignore red lines.
+  start: nim c --path:src -r evaluation/tests/test_test_ui.nim   (run it several times under load, for example beside `nimble test`)
+  done when: twenty runs in a row pass.
+  needs: nobody
+  plan: look at atomicWrite in src/protocols/test_ui/jobs.nim: the temp file name ends in a counter or pid, and the lease folder may be removed by the previous test while the next one still writes into it.
