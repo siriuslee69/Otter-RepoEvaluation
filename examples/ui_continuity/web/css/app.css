@@ -1,0 +1,4 @@
+/* The page hides things with the `hidden` attribute and with this class. */
+.hidden { display: none; }
+[hidden] { display: none; }
+.modal { position: fixed; inset: 20% 30%; }

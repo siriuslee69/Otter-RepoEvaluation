@@ -34,10 +34,14 @@
 #   NO GLYPH        buttons with and without a glyph side by side;  8. Glyphs
 #                   signs taken from the machine's font
 #   DEAD BUTTON     a control whose press does nothing              8. Settings
+#   TELEPORT        a press that hides the big thing its own        3. Continuity
+#                   button sits in (js/html and owlkettle; read
+#                   by Otter: `otter-repo-graph continuity`)
 #   PLATFORM DIALOG the system's alert, toast or spinner            8. The parts
 #   SETTINGS        the program has a thing (a password, data,      8. Settings
 #                   sync, roles) and no control for it
 set -uo pipefail
+here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
 root="${1:-$PWD}"
 root=$(git -C "$root" rev-parse --show-toplevel 2>/dev/null) || exit 2
@@ -214,6 +218,20 @@ hint "NO GLYPH" "glyphs may be missing: some buttons have one and their neighbou
 js=$(git ls-files 'src/*.js' 'assets/*.js' 2>/dev/null | grep -vE "$skip" | have)
 dead=$(printf '%s\n%s\n%s\n' "$kt" "$js" "$owl" | grep -v '^$' | xargs -r grep -HnE 'setOnClickListener *\{ *\}|onClick *= *\{ *\}|addEventListener\( *["\x27]click["\x27] *, *(\(\) *=> *\{ *\}|function *\(\) *\{ *\})|proc *\(\) *= *discard *$|onclick=""' 2>/dev/null | cut -c1-140)
 hint "DEAD BUTTON" "a control whose press does nothing. A setting or button is wired through, or it is not drawn (UI.md 8, Settings)." "$dead"
+
+# --- TELEPORT: a press that hides the big thing its own button sits in ---------------------------------------------
+#   Read by Otter (src/protocols/code_stats/continuity*.nim), not here: it needs the page's element tree and, for
+#   owlkettle, the `if` / `case` that decides what is drawn. Without a built Otter the hint is skipped and the rest
+#   of this file still prints.
+teleport=""
+if [ -n "$html$owl" ] && otterbin=$("$here/otter-build.sh" 2>/dev/null); then
+  teleport=$(timeout "${OTTER_TIMEOUT:-240}" "$otterbin" continuity "$root" 2>/dev/null | awk '
+    /^  TELEPORT/ { if (row != "") print row; row = substr($0, 13); next }
+    /what goes:/ { sub(/^ *what goes: /, ""); sub(/; the button stands inside it/, ""); sub(/, [^ ]*\)$/, ")"); row = row "  hides " $0; next }
+    /takes the room:/ { sub(/^ *takes the room: /, ""); row = row "  room: " $0; next }
+    END { if (row != "") print row }')
+fi
+hint TELEPORT "a press hides the big thing its own button sits in. The user loses the button just pressed and has to look around again. The pressed thing stays and the rest makes room (UI.md 3, Continuity)." "$teleport"
 
 # --- PLATFORM DIALOG ---------------------------------------------------------------------------------------
 plat=$(printf '%s\n%s\n' "$kt" "$js" | grep -v '^$' | xargs -r grep -HnE 'AlertDialog\.Builder|Toast\.makeText|ProgressDialog|(^|[^.A-Za-z_])(alert|confirm|prompt)\(' 2>/dev/null | grep -vE '^\S+:[0-9]+: *(//|\*)' | cut -c1-130)

@@ -246,18 +246,21 @@ proc hiddenClassesIn*(css: string): HashSet[string] {.role: parser,
       if t.len > 0:
         result.incl(t.toLowerAscii())
 
-proc attributeOf(tagText, name: string): string {.role: parser,
+proc attributeOf*(tagText, name: string): string {.role: parser,
     tag: "stats".} =
   ## tagText: one opening tag as written   name: which attribute.
   ## Its value, or "" when the tag does not carry it.
+  ## The name must stand after a space: `id` is not found inside `data-id`.
   var
-    at: int = tagText.toLowerAscii().find(name & "=")
+    flat: string = tagText.toLowerAscii().multiReplace(("\n", " "),
+      ("\t", " "))
+    at: int = flat.find(" " & name & "=")
     quote: char = '"'
     stop: int = 0
   result = ""
   if at < 0:
     return
-  at = at + name.len + 1
+  at = at + name.len + 2
   if at >= tagText.len:
     return
   if tagText[at] == '"' or tagText[at] == '\'':

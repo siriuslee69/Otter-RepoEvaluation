@@ -95,6 +95,16 @@ ui=$(bash "$hooks/ui-check.sh" "$r" || true)
 for h in "MAYBE CONTRAST" "MAYBE SMALL TEXT" "MAYBE SLOW" "MAYBE HOVER ONLY"; do
   printf '%s' "$ui" | grep -q "$h" || { echo "ui-hints missed: $h"; printf '%s\n' "$ui"; exit 1; }
 done
+# A press that hides the big thing its own button sits in is named TELEPORT, and
+# a press whose button is outside what it hides is not.
+cells=$(printf '<i>x</i>%.0s' $(seq 12))
+printf '<section id="a"><button id="go">Go</button>%s</section><section id="b" hidden><p>1</p><p>2</p></section><button id="out">Out</button><script src="tele.js"></script>\n' "$cells" > src/clients/webui/tele.html
+printf "document.getElementById('go').addEventListener('click', () => {\n  document.getElementById('a').hidden = true;\n  document.getElementById('b').hidden = false;\n});\n" > src/clients/webui/tele.js
+git add -A . && git commit -qm teleport
+ui=$(bash "$hooks/ui-check.sh" "$r" || true)
+printf '%s' "$ui" | grep -q "MAYBE TELEPORT" || { echo "ui-hints missed: TELEPORT"; printf '%s\n' "$ui"; exit 1; }
+printf '%s' "$ui" | grep -q "#go" || { echo "TELEPORT did not name the button"; printf '%s\n' "$ui"; exit 1; }
+if printf '%s' "$ui" | grep -q "#out"; then echo "TELEPORT named a button that stays"; exit 1; fi
 rc=0; bash "$hooks/done-check.sh" --quick "$r" > "$fx/done" || rc=$?
 [ "$rc" -eq 0 ] || { echo "hints stopped a hand-over"; cat "$fx/done"; exit 1; }
 

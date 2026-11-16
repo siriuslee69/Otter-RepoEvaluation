@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><link rel="stylesheet" href="css/app.css"></head>
+<body>
+  <!-- The frame: it is never hidden. A press here swaps what is under it. -->
+  <header id="frame">
+    <button id="tab-reports" aria-label="Reports">Reports</button>
+    <button id="tab-overview" aria-label="Overview">Overview</button>
+  </header>
+
+  <main>
+    <!-- On screen at the start. Twelve or more elements: a BIG thing. -->
+    <section id="overview">
+      <h2>Overview</h2>
+      <ul>
+        <li>Rent</li><li>Food</li><li>Travel</li><li>Books</li>
+        <li>Sport</li><li>Music</li>
+      </ul>
+      <!-- WRONG: this button sits inside #overview, and its press hides #overview. -->
+      <button id="open-settings" aria-label="Settings">Settings</button>
+      <!-- A small note the user may dismiss: small, so it is not a finding. -->
+      <p id="note"><span>Tip</span><button id="dismiss-note" aria-label="Dismiss">x</button></p>
+    </section>
+
+    <!-- Hidden at the start. Its Back button is a return, never a finding. -->
+    <section id="settings" hidden>
+      <h2>Settings</h2>
+      <ul>
+        <li>Name</li><li>Theme</li><li>Language</li><li>Backup</li>
+        <li>Alarms</li><li>Units</li><li>Sound</li><li>Mail</li><li>Keys</li>
+      </ul>
+      <button id="back" aria-label="Back">Back</button>
+    </section>
+
+    <!-- Hidden at the start. Reached from the frame, which stays. -->
+    <section id="reports" hidden>
+      <h2>Reports</h2>
+      <ol>
+        <li>Week</li><li>Month</li><li>Year</li><li>Total</li>
+        <li>Tax</li><li>Trend</li><li>Debt</li><li>Saved</li><li>Goals</li>
+      </ol>
+    </section>
+  </main>
+
+  <!-- A floating box: closing it is not a view swap. -->
+  <div class="modal" id="about-box" hidden>
+    <p>About</p><button id="close-about" aria-label="Close">x</button>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -812,6 +812,78 @@ is a group of routines that are one routine with a knob on it.
 names which, because a comment written on those lines has to be
 written the way *that* language writes one.
 
+### Continuity: does a press take its own button along? 🪟
+
+```sh
+./bin/otter-repo-graph continuity <dir> [--json]   # exit 1 when one does
+```
+
+Agent-Conventions/UI.md, "Continuity: nothing teleports", asks that a press
+which changes the view keeps the pressed thing on screen and makes room
+around it. A user who presses a button and sees that button vanish with
+everything else has been moved to a new place and has to look around again.
+This command finds the one sign of that which source text shows.
+
+**Def. 1 (press).** A click handler: `addEventListener('click', ...)`,
+`.onclick = ...`, `onclick="..."` (web), `proc clicked()` (owlkettle).
+**Def. 2 (big).** A thing that holds 12 or more elements (web) or widgets
+(owlkettle). Twelve is a column of a menu; a small note stays under it.
+**Def. 3 (teleport).** A press hides a big thing, its own button is inside
+that thing, the button was on screen when the page opened, and something else
+takes the room.
+
+```text
+  press ──▶ hides something BIG? ──no──▶ not asked again
+               │yes
+               ▼
+  is the pressed button inside it?
+     │no                     │yes
+     ▼                       ▼
+   stays          on screen at the start, and something else takes the room?
+   (a tab bar,         │no                         │yes
+    a frame)           ▼                           ▼
+                  returns / closes / small       GOES  = teleport
+                  (Back, a close button,
+                   a small note)
+```
+
+```text
+  continuity: 10 press(es) hide something big, 3 of them take their own button along
+    TELEPORT  web/js/app.js:16  #open-settings  hides #overview
+        what goes: #overview (13 elements, web/index.html:13); the button stands inside it
+        takes the room: #settings
+    the rest: 3 stay (the frame is outside what is hidden), 2 return, 1 close, 1 small
+```
+
+**How the web is read.** The page is read as a tree of boxes (html), the
+hidden classes come from the style sheets (css), and each click handler (js)
+is read for what it hides and shows: `.hidden = true`, `.style.display`,
+`.classList.add/remove/toggle`, `.setAttribute('hidden')`, `.remove()`, a
+`forEach` that hides every `.page`, and one level of named functions with
+their string argument filled in (`showPage('b')`). A script is matched only
+to the pages that load it, so two copies of one example do not mix.
+
+**How owlkettle is read.** There is no box to hide: the menu is drawn again
+from a state. So the reading runs the other way round:
+
+```text
+  button "Report"  --click-->  M.view = vReport              (what a click sets)
+                                    │
+  menu(M):  var bare = M.view in {vReport}                    (what is drawn)
+            if not bare: insert(headerBar(M))   <- false for vReport
+                                    │
+  headerBar holds the "Report" button  ──▶  the button goes with its view
+```
+
+`if`, `elif`, `else`, `case`/`of` and an early `return` above an `insert(...)`
+are written down (`continuity_walk.nim`) and worked out with the view set to
+what the click sets (`continuity_guard.nim`; three answers: true, false,
+unknown). A condition on something else (a search text, a flag) is unknown and
+never counts as "hidden".
+
+`ui-check.sh` prints the same finding as `MAYBE TELEPORT`. It is a guess: a
+login screen that gives way to the app is reported too, and may be right.
+
 ### Constant time: does a secret steer the machine code? 🔐
 
 ```sh
@@ -1161,12 +1233,12 @@ The shared WebUI now uses qlacier-style floating menu shells: repo root search o
 
 ## Commands
 - `nimble test`
-  - run all 20 selected test programs and, on POSIX, the shell-hook regressions.
+  - run all 21 selected test programs and, on POSIX, the shell-hook regressions.
     Deliberate crash/failure examples are launched only by the isolation tests.
 - `nimble runTests`
   - run the same selected suite as `nimble test`.
 - `nimble buildtests`
-  - compile the same 20 programs in release mode.
+  - compile the same 21 programs in release mode.
 - `nimble runStatistics`
   - check Otter's own file conventions and write full findings to
     `evaluation/statistics/conventions.json`.
@@ -1241,6 +1313,17 @@ The shared WebUI now uses qlacier-style floating menu shells: repo root search o
     `--noinline` builds of Tyr's `expandKey128` (Nim's error flag);
   - an `object` parameter is taken to arrive as an address; a small one
     travelling by value needs `--routine` with `s` words instead.
+- `continuity` sees the end of a press, not its motion: it cannot tell whether
+  the pressed thing slides to its place or jumps. A finding is a strong sign of
+  a teleport; no finding is no promise of a smooth one.
+- `continuity` cannot see boxes a script builds (`createElement`, `innerHTML`),
+  a listener on the whole page that reads `event.target`, a function whose name
+  comes from a variable, or an owlkettle button built by a helper that is handed
+  the click as a parameter. Those presses are not counted; the report says how
+  many handlers it did read.
+- `continuity` treats a thing as big from 12 elements or widgets (`bigSize` in
+  `code_stats/continuity_types.nim`). A view picked by a string or a number
+  instead of an enum is not read.
 - `ct` does not look inside called routines for findings: a leak inside
   a callee is reported only when that callee is checked by name.
 - `ct` reads x86-64, System V (Linux) only; Windows' calling convention

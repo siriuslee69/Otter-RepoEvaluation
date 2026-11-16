@@ -19,6 +19,8 @@ import ./code_stats/diff_review
 import ./code_stats/checks
 import ./code_stats/conventions
 import ./code_stats/ui_depth
+import ./code_stats/continuity_types
+import ./code_stats/continuity
 import ./code_stats/nesting
 import ./code_stats/test_scan
 import ./code_stats/pipeline
@@ -40,6 +42,8 @@ export diff_review
 export checks
 export conventions
 export ui_depth
+export continuity_types
+export continuity
 export nesting
 export test_scan
 export pipeline

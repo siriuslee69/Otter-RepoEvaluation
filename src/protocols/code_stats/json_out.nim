@@ -17,6 +17,7 @@ import ./state_writes
 import ./yields
 import ./diff_review
 import ./ui_depth
+import ./continuity_types
 import runePragmas
 
 proc fileJson*(f: FileStat): JsonNode {.role: dataWriter,
@@ -592,4 +593,20 @@ proc diffJson*(r: DiffReview): JsonNode {.role: dataWriter,
     "hunks": r.hunks, "added": r.added, "removed": r.removed,
     "yours": yours, "nearby": nearby, "orphaned": orphaned,
     "reach": reach, "hotFiles": hot, "notes": r.notes, "error": r.error
+  }
+
+proc continuityJson*(r: ContinuityReport): JsonNode {.role: dataWriter,
+    tag: "stats".} =
+  ## r: every press that hides something big, and where its button stands.
+  var
+    presses: JsonNode = newJArray()
+  for p in r.presses:
+    presses.add(%*{"kind": p.kind, "path": p.path, "line": p.line,
+      "control": p.control, "action": p.action, "hidden": p.hidden,
+      "hiddenAt": p.hiddenAt, "hiddenSize": p.hiddenSize,
+      "replacedBy": p.replacedBy, "verdict": verdictName(p.verdict)})
+  result = %*{
+    "presses": presses, "teleports": r.teleports().len,
+    "webHandlers": r.webPresses, "owlHandlers": r.owlPresses,
+    "error": r.error
   }

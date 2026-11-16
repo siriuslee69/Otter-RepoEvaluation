@@ -63,11 +63,13 @@ proc printUsage() {.role: helper, tag: "graph|execution".} =
   echo "  otter_repo_graph stats [repoRoot] [--json]"
   echo "  otter_repo_graph blast [repoRoot] <name> [--callers:n] [--feeders:m] [--json]"
   echo "  otter_repo_graph ui [repoRoot] [--json]"
+  echo "  otter_repo_graph continuity [repoRoot] [--json]"
+  echo "      a press that hides the big thing its own button sits in (js/html, owlkettle)"
   echo "  otter_repo_graph state [repoRoot] [typeName] [--json]"
   echo "  otter_repo_graph yields [repoRoot] <name> [--json]"
   echo "  otter_repo_graph diff [repoRoot] [rev] [--json] [--out:FILE]"
   echo "  otter_repo_graph checks [repoRoot] <check> [check...] [--parallel]"
-  echo "      checks: stats  state[:Type]  yields:name  blast:name  ui"
+  echo "      checks: stats  state[:Type]  yields:name  blast:name  ui  continuity"
   echo "  otter_repo_graph ct <binary|file.nim> [--routine:name:args] [--noinline] [--json]"
   echo "      secret-dependent branches, addresses and divisions in machine code"
   echo "      args per parameter: s p | s[] p[] (openArray) | s@ p@ (seq) | s* p* | sf pf"
@@ -227,6 +229,27 @@ proc runUi(args: seq[string]) {.role: actor,
   for line in uiDepthLines(r):
     echo line
   if r.error.len > 0:
+    quit(1)
+
+proc runContinuity(args: seq[string]) {.role: actor,
+    tag: "graph|stats|execution".} =
+  ## args: the words after `continuity`. The presses of a front end that hide
+  ## the very button that was pressed (js/html and owlkettle). Exit 1 when
+  ## there is one.
+  var
+    items: seq[string] = @[]
+    rootDir: string = "."
+    r: ContinuityReport = default(ContinuityReport)
+  items = positionalArgs(args)
+  if items.len > 0:
+    rootDir = items[0]
+  r = continuityOf(rootDir, listAllSourceFiles(rootDir))
+  if flagPresent(args, "--json"):
+    echo continuityJson(r)
+  else:
+    for line in continuityLines(r):
+      echo line
+  if r.error.len > 0 or r.teleports().len > 0:
     quit(1)
 
 proc runState(args: seq[string]) {.role: actor,
@@ -389,6 +412,8 @@ proc runCli*() {.role: orchestrator, tag: "graph|execution".} =
     runBlast(rest)
   of "ui":
     runUi(rest)
+  of "continuity":
+    runContinuity(rest)
   of "state":
     runState(rest)
   of "yields":

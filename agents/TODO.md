@@ -71,3 +71,10 @@ An item that is done is removed here and named in PROGRESS.md.
   done when: the README names a file that repo-check does not call a test, and the repos that still use the old name (grep -rl test_otter_catalog ../*/evaluation/tests) are renamed.
   needs: nobody
   plan: the test window walks the whole evaluation/tests folder for the `otterUiTest` marker (src/protocols/test_ui/catalog.nim, discoverOtterUiTests), so any file name there works. Write `evaluation/tests/otter_catalog.nim` in the README (not outside evaluation/tests: the window would find nothing). Bifrost did this on 2026-11-12: `discoverOtterUiTests` still finds all five entries of its catalog at the new name (checked by calling it; the window itself was not opened).
+
+- [ ] `continuity` cannot see boxes a script builds (createElement, innerHTML), so Eris-Messenger's web UI shows 37 click handlers and no finding.
+  why: a teleport in a script-built UI is not reported; "no finding" reads as "fine".
+  start: tools/agent_hooks/otter-build.sh, then `$(...) continuity ../Eris-Messenger`
+  done when: a test page whose view is built with innerHTML / createElement gives the same verdicts as the static example in examples/ui_continuity/web.
+  needs: nobody
+  plan: in continuity_page.nim also read template strings (`innerHTML = `<section id="x">...``) and `createElement` chains into elements, then resolve ids against them.

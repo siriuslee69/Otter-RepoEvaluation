@@ -31,6 +31,7 @@
 ##   yields     the routines             how a routine can end
 ##   blast      the routines             what a change can reach
 ##   ui         the files                how far away a control is
+##   continuity the files                a press that hides its own button
 ##
 ## Two things are built at most once each, and only when something
 ## asks for them, so `checks . ui` never parses a routine at all.
@@ -46,6 +47,7 @@ import ./state_writes
 import ./yields
 import ./blast
 import ./ui_depth
+import ./continuity
 import ../fylgia_threads
 import runePragmas
 
@@ -55,7 +57,8 @@ type
     ckState,
     ckYields,
     ckBlast,
-    ckUi
+    ckUi,
+    ckContinuity
 
   CheckRequest* {.role: configurator, tag: "stats".} = object
     ## One question to ask, and what to ask it about.
@@ -106,6 +109,8 @@ proc parseCheck*(word: string): tuple[ok: bool, req: CheckRequest]
     result = (ok: true, req: CheckRequest(kind: ckBlast, arg: arg))
   of "ui":
     result = (ok: true, req: CheckRequest(kind: ckUi, arg: arg))
+  of "continuity":
+    result = (ok: true, req: CheckRequest(kind: ckContinuity, arg: arg))
   else:
     result.ok = false
 
@@ -118,6 +123,7 @@ proc checkName*(r: CheckRequest): string {.role: helper,
   of ckYields: result = "yields"
   of ckBlast: result = "blast"
   of ckUi: result = "ui"
+  of ckContinuity: result = "continuity"
   if r.arg.len > 0:
     result = result & " " & r.arg
 
@@ -189,6 +195,9 @@ proc answer*(inputs: CheckInputs, r: CheckRequest): seq[string]
     result = blastLines(blastRadius(inputs.graph, r.arg))
   of ckUi:
     result = uiDepthLines(uiDepthOf(inputs.rootDir,
+      listAllSourceFiles(inputs.rootDir)))
+  of ckContinuity:
+    result = continuityLines(continuityOf(inputs.rootDir,
       listAllSourceFiles(inputs.rootDir)))
 
 proc answerTimed(T: tuple[inputs: ptr CheckInputs, R: ptr seq[CheckRequest]],

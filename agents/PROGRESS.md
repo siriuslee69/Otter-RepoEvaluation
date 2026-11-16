@@ -1,6 +1,73 @@
 # Progress
 
-Commit Message: ui-hints.sh: MAYBE hints for web, owlkettle and Kotlin UIs; PLAN wants a table
+Commit Message: continuity: a press that hides the big thing its own button sits in (TELEPORT), for js/html and owlkettle
+
+## 2026-11-16 Continuity check (TELEPORT)
+
+Asked: UI.md now has "Continuity: nothing teleports" (Agent-Conventions). Make Otter
+find the places that break it, for owlkettle AND js/html: flag a routine that hides
+something big, then say whether the pressed button's wrapper stays or goes with it.
+
+Plan (what goes where):
+
+```text
+  part                                          where
+  ────────────────────────────────────────────  ──────────────────────────────────────
+  readers: continuity_types / _web / _owl       src/protocols/code_stats/ (Otter only reads repos)
+  one answer, one text form, one JSON form      continuity.nim, json_out.nim
+  command  `otter continuity <repo> [--json]`   src/clients/cli/otter_repo_graph.nim
+  MAYBE TELEPORT line                           tools/agent_hooks/ui-hints.sh (calls the command)
+  examples first: a page and a menu that        examples/ui_continuity/
+    teleport, and ones that do not
+  tests                                         evaluation/tests/test_ui_continuity.nim
+  one line in UI.md section 11, one in TOOLS.md Agent-Conventions
+```
+
+How it decides (plain words):
+
+```text
+  1. BIG       the thing a press hides holds 12 or more elements (web) / widgets (owlkettle)
+  2. HOME      the pressed button is on screen when the page or menu first opens
+  3. GOES      the press hides a big thing that CONTAINS the button      -> TELEPORT
+     STAYS     the button is outside what is hidden (a tab bar, a frame)  -> fine
+  4. A press that only closes (Back, close button, nothing replaces it) is never flagged.
+```
+
+web: element tree of the html + click handlers of the js (also onclick="", one level of
+helper functions, querySelectorAll('.page') hide-all loops).
+owlkettle: what a click assigns (`M.view = vX`, or `M.toggleView(vX)` through a helper)
+read against the `if` / `case` / early-return guards that decide which builder procs are
+inserted; guards are evaluated for view = vX with a small three-valued evaluator.
+
+Built (all of the plan):
+
+```text
+  continuity_types.nim   the answer: one press, one verdict (goes, stays, returns, closes, small)
+  continuity_page.nim    html as a list of elements: size, hidden at the start, onclick text
+  continuity_web.nim     css + js: handlers, what they hide and show, which pages a script loads
+  continuity_guard.nim   an `if` worked out for view = vX: true, false or unknown
+  continuity_walk.nim    the conditions over each line (if, elif, else, case/of, early return)
+  continuity_owl.nim     enums + view fields, builders, click handlers, verdicts
+  continuity.nim         the two readers together; text form; `otter-repo-graph continuity`
+```
+
+Checked: evaluation/tests/test_ui_continuity.nim (17 tests, in the nimble list), the shell
+regression gained a TELEPORT case, and the command was run read-only on every UI repo of the
+workspace (no crash, under a second each).
+
+What it found in the workspace (read-only; those repos were not changed):
+
+```text
+  Atlas-Taskbar   3 teleports: the profile button hides personalBar (pvPerformance); two chips of
+                  the start menu hide startColumns (svGithub). The calendar button stays: it
+                  now sits in the day plate, which is not hidden.
+  Hestia-NimUISetups  2: the login button of two copies of one example hides the login box.
+  others          none; Eris builds its boxes in js, which the reader cannot see (TODO.md).
+```
+
+One shared fix on the way: `attributeOf` (ui_depth.nim) found `id=` inside `data-id=`; it now
+needs a space in front, and is exported so the page reader uses the same one.
+Known limits are written in the module headers and the README issue playbook.
 
 ## 2026-11-12 UI hints (ui-hints.sh) and the stricter plan
 
