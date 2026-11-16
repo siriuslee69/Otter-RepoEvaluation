@@ -94,12 +94,9 @@ proc triAnd*(a, b: Tri): Tri {.role: math, tag: "stats".} =
 
 proc triOr*(a, b: Tri): Tri {.role: math, tag: "stats".} =
   ## a, b: two answers. Either may hold; one true settles it.
-  if a == tTrue or b == tTrue:
-    result = tTrue
-  elif a == tFalse and b == tFalse:
-    result = tFalse
-  else:
-    result = tUnknown
+  ## Written through `triAnd` (not a second copy of its logic): a or b is
+  ## not (not a and not b).
+  result = triNot(triAnd(triNot(a), triNot(b)))
 
 # --- text expansion: names and helpers become plain conditions ------------------
 

@@ -18,7 +18,7 @@
 ##   menu  homeColumns [Settings] homeColumns yes              goes
 ##   menu  frameTabs [Settings]  homeColumns  no               stays
 
-import std/[os, sets, strutils, tables, unittest]
+import std/[os, sets, strutils, tables, times, unittest]
 
 import ../../src/protocols/code_stats/continuity_types
 import ../../src/protocols/code_stats/continuity_guard
@@ -270,3 +270,82 @@ suite "continuity: an owlkettle menu read from its states":
     check r.owlPresses == 0
     check r.presses.len == 0
     removeDir(root)
+
+suite "continuity: files written by a stranger":
+
+  # {.testKind: tkFuzz.}
+  test "cut-off and broken text in every kind of file does not raise":
+    ## Each piece ends where a reader would hope for more: a tag, a bracket,
+    ## a quote, a keyword with nothing after it.
+    var
+      pages: seq[string] = @["<", "<a", "</", "<!--", "<script>", "<div id=\"",
+        "<button id=x onclick=\"", "<p><p><p></div></div>", "<section hidden>",
+        repeat("<div>", 2000), "<script src=", "<div class=\"a\" class=\"b\">"]
+      scripts: seq[string] = @[".addEventListener(", ".addEventListener('click',",
+        ".addEventListener('click', () => {", ".hidden=true", "x.hidden=",
+        "document.getElementById(", "forEach(", ".forEach(p =>", "=>",
+        "function (", "function a(", ".onclick", ".onclick =",
+        repeat("(", 5000), repeat("=> {", 3000), "a.classList.add(",
+        "'", "\"\\", "const x = ", "const = ;", ".style.display="]
+      nims: seq[string] = @["import owlkettle\nproc clicked(", "= enum",
+        "import owlkettle\ntype\n  V = enum", "import owlkettle\nif", "of",
+        "import owlkettle\ncase", "import owlkettle\nproc clicked() = M.v =",
+        "import owlkettle\n" & repeat("  if a:\n", 300), ":\n:\n:",
+        "import owlkettle\ntype V = enum a, b\nproc f(M: V) =\n  proc clicked() =\n"]
+      files: seq[tuple[path, text: string]] = @[]
+      root: string = ""
+    for i in 0 ..< pages.len:
+      files.add((path: "p" & $i & ".html", text: pages[i]))
+    for i in 0 ..< scripts.len:
+      files.add((path: "s" & $i & ".js", text: scripts[i]))
+    for i in 0 ..< nims.len:
+      files.add((path: "n" & $i & ".nim", text: nims[i]))
+    root = tree("garbage", files)
+    var r = continuityOf(root, listAllSourceFiles(root))
+    check r.error.len == 0
+    removeDir(root)
+
+  # {.testKind: tkFuzz.}
+  test "a big file of arrows and unclosed brackets is read in bounded time":
+    ## pins: every `=>` looked for the end of its body, and with no closing
+    ## bracket anywhere that is the rest of the file, once per arrow.
+    var
+      body: string = repeat("a => { ", 40000)
+      root: string = tree("bigjs", @[(path: "a.js", text: body),
+        (path: "a.html", text: "<button id=\"x\">x</button>")])
+      began: float = epochTime()
+      r = continuityOf(root, listAllSourceFiles(root))
+    check r.error.len == 0
+    check epochTime() - began < 20.0
+    removeDir(root)
+
+  # {.testKind: tkFuzz.}
+  test "the example files cut off at every eleventh byte do not raise":
+    ## A file that stops in the middle of a tag, a name or a bracket is what a
+    ## half-saved edit looks like. Every cut is read, with the bounds checks on.
+    var
+      html: string = readFile(exampleRoot() / "web" / "index.html")
+      js: string = readFile(exampleRoot() / "web" / "js" / "app.js")
+      nim: string = readFile(exampleRoot() / "owl" / "menu.nim")
+      root: string = ""
+      r: ContinuityReport = ContinuityReport()
+      reads: int = 0
+    for cut in countup(0, html.len, 11):
+      root = tree("cuthtml", @[(path: "a.html", text: html[0 ..< cut]),
+        (path: "a.js", text: js)])
+      r = continuityOf(root, listAllSourceFiles(root))
+      reads = reads + 1
+    for cut in countup(0, js.len, 11):
+      root = tree("cutjs", @[(path: "a.html", text: html),
+        (path: "a.js", text: js[0 ..< cut])])
+      r = continuityOf(root, listAllSourceFiles(root))
+      reads = reads + 1
+    for cut in countup(0, nim.len, 11):
+      root = tree("cutnim", @[(path: "a.nim", text: nim[0 ..< cut])])
+      r = continuityOf(root, listAllSourceFiles(root))
+      reads = reads + 1
+    check reads > 100
+    check r.error.len == 0
+    removeDir(getTempDir() / "otter_continuity_cuthtml")
+    removeDir(getTempDir() / "otter_continuity_cutjs")
+    removeDir(getTempDir() / "otter_continuity_cutnim")

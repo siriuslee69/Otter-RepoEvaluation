@@ -51,7 +51,9 @@ Built (all of the plan):
   continuity.nim         the two readers together; text form; `otter-repo-graph continuity`
 ```
 
-Checked: evaluation/tests/test_ui_continuity.nim (17 tests, in the nimble list), the shell
+Checked: evaluation/tests/test_ui_continuity.nim (20 tests, in the nimble list), three of them
+garbage and size tests (cut-off text of every kind, a 280 KB file of unclosed arrows, every
+eleventh-byte cut of the three example files), the shell
 regression gained a TELEPORT case, and the command was run read-only on every UI repo of the
 workspace (no crash, under a second each).
 

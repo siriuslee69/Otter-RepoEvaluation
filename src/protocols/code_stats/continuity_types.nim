@@ -35,6 +35,16 @@ const
   bigSize*: int = 12
     ## From this many elements (web) or widgets (owlkettle) a hidden
     ## thing is a view. Below it the user does not lose their place.
+  maxFileBytes*: int = 1_000_000
+    ## A file bigger than this is not read: the reader is for hand-written
+    ## front ends, and a megabyte is a very large one.
+  maxMatches*: int = 4000
+    ## How many times one file may be asked the same question (arrows,
+    ## listeners, hides). More than this is not a front end.
+  maxSpan*: int = 20_000
+    ## How far a bracket is followed to find its other half.
+  maxTrails*: int = 200
+    ## How many ways up through the builders are followed for one button.
   floatingWords*: array[7, string] = [
     "modal", "dialog", "popover", "dropdown", "tooltip", "toast", "popup"
   ]

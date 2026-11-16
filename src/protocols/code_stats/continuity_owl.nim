@@ -93,6 +93,9 @@ type
     callee: string
     guards: seq[string]
 
+  DropsAppears = tuple[dropped, appears: seq[tuple[name: string, size: int]]]
+    ## What setting one view takes off the screen and what it brings,
+    ## as builders with their sizes.
   Model = object
     T: ViewTypes
     B: seq[Builder]
@@ -557,7 +560,7 @@ proc climb(M: Model, name: string, trail: seq[Edge], seen: seq[string],
   var
     ups: seq[Edge] = M.up.getOrDefault(name)
     open: seq[Edge] = @[]
-  if trail.len >= searchDepth:
+  if trail.len >= searchDepth or O.len >= maxTrails:
     return
   for e in ups:
     if e.parent notin seen:
@@ -579,8 +582,7 @@ proc topHidden(M: Model, trail: seq[Edge], assign: Table[string, string]): int
       return i
 
 proc dropsAndAppears(M: Model, atHome, atV: Table[string, string]):
-    tuple[dropped, appears: seq[tuple[name: string, size: int]]]
-    {.role: parser, tag: "stats".} =
+    DropsAppears {.role: parser, tag: "stats".} =
   ## M: the menu's parts   atHome, atV: two assumptions about the views.
   ## The big builders that stand at the start and are gone at atV, and the
   ## big builders that are not there at the start and are at atV.
@@ -617,9 +619,10 @@ proc assignments(M: Model, s: PressSite): tuple[home, away: Table[string,
   result.home[s.effect.field] = M.T.homes[M.T.fieldEnum[s.effect.field]]
   result.away[s.effect.field] = s.effect.member
 
-proc judge(M: Model, s: PressSite): tuple[ok: bool, p: ContinuityPress]
-    {.role: parser, tag: "stats".} =
-  ## M: the menu's parts   s: one click handler that sets a view.
+proc judge(M: Model, s: PressSite, DA: DropsAppears): tuple[ok: bool,
+    p: ContinuityPress] {.role: parser, tag: "stats".} =
+  ## M: the menu's parts   s: one click handler that sets a view
+  ## DA: what the view it sets drops and brings (from dropsAndAppears).
   ## Where the button stands to what its press hides. Not ok when the press
   ## hides nothing big at all.
   var
@@ -628,8 +631,6 @@ proc judge(M: Model, s: PressSite): tuple[ok: bool, p: ContinuityPress]
     goneAll: bool = true
     shownHome: bool = false
     wrapper: string = ""
-    DA: tuple[dropped, appears: seq[tuple[name: string, size: int]]] =
-      dropsAndAppears(M, A.home, A.away)
     seen: seq[string] = @[s.owner]
     top: int = -1
     big: tuple[name: string, size: int] = (name: "", size: 0)
@@ -672,8 +673,11 @@ proc mentionsOwlkettle(files: seq[string]): bool {.role: dataFetcher,
   ## files: the Nim files. True when any of them is written for owlkettle.
   result = false
   for p in files:
-    if "owlkettle" in readFile(p):
-      return true
+    try:
+      if "owlkettle" in readFile(p):
+        return true
+    except OSError, IOError:
+      continue
 
 proc owlPressesOf*(dir: string, files: seq[string]): tuple[
     presses: seq[ContinuityPress], handlers: int]
@@ -686,15 +690,23 @@ proc owlPressesOf*(dir: string, files: seq[string]): tuple[
     M: Model = Model()
     j: tuple[ok: bool, p: ContinuityPress] = (ok: false,
       p: ContinuityPress())
+    cache: Table[string, DropsAppears] = initTable[string, DropsAppears]()
+    key: string = ""
+    A: tuple[home, away: Table[string, string]] = (
+      home: initTable[string, string](), away: initTable[string, string]())
   result = (presses: @[], handlers: 0)
   for p in files:
-    if extensionOf(p) == "nim":
+    if extensionOf(p) == "nim" and getFileSize(p) <= maxFileBytes:
       nim.add(p)
   if nim.len == 0 or not mentionsOwlkettle(nim):
     return
   M = modelOf(dir, nim)
   result.handlers = M.presses.len
   for s in M.presses:
-    j = judge(M, s)
+    key = s.effect.field & ":" & s.effect.member
+    if key notin cache:
+      A = assignments(M, s)
+      cache[key] = dropsAndAppears(M, A.home, A.away)
+    j = judge(M, s, cache[key])
     if j.ok:
       result.presses.add(j.p)

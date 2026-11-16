@@ -1250,6 +1250,9 @@ The shared WebUI now uses qlacier-style floating menu shells: repo root search o
   - build `bin/otter-nim`.
 - `nimble buildCli`
   - build `bin/otter-repo-graph`.
+- `./bin/otter-repo-graph continuity <dir> [--json]`
+  - a press that hides the big thing its own button sits in (js/html and owlkettle);
+    exit 1 when there is one. The hint `MAYBE TELEPORT` of `ui-check.sh` calls it.
 - `./bin/otter-repo-graph ct <binary|file.nim> [--routine:name:args] [--noinline] [--json]`
   - secret-dependent branches, addresses and divisions in machine code.
 - `nimble buildWebui`
@@ -1321,6 +1324,12 @@ The shared WebUI now uses qlacier-style floating menu shells: repo root search o
   comes from a variable, or an owlkettle button built by a helper that is handed
   the click as a parameter. Those presses are not counted; the report says how
   many handlers it did read.
+- `continuity` reads files written by strangers, so every limit has a number
+  (`code_stats/continuity_types.nim`): a file over 1 000 000 bytes is skipped, a
+  file is asked each question at most 4000 times, a bracket is followed for at
+  most 20 000 characters, and 200 ways up through the builders are tried per
+  button. A file that hits one gives fewer answers, never a hang or a crash
+  (`test_ui_continuity.nim`, suite "files written by a stranger").
 - `continuity` treats a thing as big from 12 elements or widgets (`bigSize` in
   `code_stats/continuity_types.nim`). A view picked by a string or a number
   instead of an enum is not read.

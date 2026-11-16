@@ -22,6 +22,7 @@ import std/[os, sets, strutils, tables]
 import runePragmas
 import ../repo_graph/io_utils
 import ./ui_depth
+import ./continuity_types
 
 const
   voidTags: array[14, string] = ["input", "img", "br", "hr", "meta", "link",
@@ -213,10 +214,12 @@ proc nameOf*(e: Element): string {.role: helper, tag: "stats".} =
 
 
 proc readText*(path: string): string {.role: dataFetcher, tag: "stats".} =
-  ## path: one file. Its text, or "" when it cannot be read.
+  ## path: one file. Its text, or "" when it cannot be read or is bigger than
+  ## `maxFileBytes`.
   result = ""
   try:
-    result = readFile(path)
+    if getFileSize(path) <= maxFileBytes:
+      result = readFile(path)
   except OSError, IOError:
     result = ""
 

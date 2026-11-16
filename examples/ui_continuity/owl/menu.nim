@@ -21,7 +21,7 @@ import runePragmas
 type
   Widget = object
 
-template gui(body: untyped): Widget =
+template gui(body: untyped): Widget {.role: helper.} =
   Widget()
 
 type

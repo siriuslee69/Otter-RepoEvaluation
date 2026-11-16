@@ -108,7 +108,7 @@ proc matchClose(S: string, open: int): int {.role: parser, tag: "stats".} =
     depth: int = 0
     i: int = open
   result = -1
-  while i < S.len:
+  while i < min(S.len, open + maxSpan):
     if S[i] in {'\'', '"', '`'}:
       i = skipQuoted(S, i)
       continue
@@ -172,11 +172,12 @@ proc isIdent(S: string): bool {.role: parser, tag: "stats".} =
       result = false
 
 proc findAll(S, key: string): seq[int] {.role: parser, tag: "stats".} =
-  ## S: text   key: what to look for. Every index where it starts.
+  ## S: text   key: what to look for. Every index where it starts, up to
+  ## `maxMatches` of them.
   var
     at: int = S.find(key)
   result = @[]
-  while at >= 0:
+  while at >= 0 and result.len < maxMatches:
     result.add(at)
     at = S.find(key, at + 1)
 
@@ -209,8 +210,9 @@ proc bodyFrom(js: string, at: int): string {.role: parser, tag: "stats".} =
   ## js: one script   at: index to look from.
   ## The text inside the next `{ ... }`, or "" when a `;` comes first.
   var
-    open: int = js.find('{', at)
-    semi: int = js.find(';', at)
+    last: int = min(js.high, at + maxSpan)
+    open: int = js.find('{', at, last)
+    semi: int = js.find(';', at, last)
     stop: int = 0
   result = ""
   if open < 0 or (semi >= 0 and semi < open):
@@ -230,16 +232,18 @@ proc arrowName(before: string): string {.role: parser, tag: "stats".} =
   if T.len >= 2 and T[^1] == "=" and isIdent(T[^2]):
     result = T[^2]
 
-proc arrowAt(js: string, at: int): tuple[name: string, fn: JsFunction]
+proc arrowAt(js: string, at: int): tuple[name: string, params: string]
     {.role: parser, tag: "stats".} =
   ## js: one script   at: index of a `=>`.
-  ## The function it belongs to, when it is given a name.
+  ## The name it is given (empty when it has none) and its parameter text.
+  ## The body is not read here: most arrows have no name, and following a
+  ## bracket to its end for each of them is the slow part.
   var
     head: string = js[max(0, at - 160) ..< at].strip()
     open: int = head.rfind('(')
     before: string = ""
     params: string = ""
-  result = (name: "", fn: JsFunction(params: @[], body: ""))
+  result = (name: "", params: "")
   if head.len == 0:
     return
   if head.endsWith(")") and open >= 0:
@@ -248,8 +252,7 @@ proc arrowAt(js: string, at: int): tuple[name: string, fn: JsFunction]
   else:
     params = head.splitWhitespace()[^1]
     before = head[0 ..< head.len - params.len]
-  result.name = arrowName(before)
-  result.fn = JsFunction(params: paramsOf(params), body: bodyFrom(js, at))
+  result = (name: arrowName(before), params: params)
 
 proc declaredFunctions(js: string): Table[string, JsFunction] {.role: parser,
     tag: "stats".} =
@@ -259,8 +262,7 @@ proc declaredFunctions(js: string): Table[string, JsFunction] {.role: parser,
     open: int = 0
     stop: int = 0
     name: string = ""
-    arrow: tuple[name: string, fn: JsFunction] = (name: "",
-      fn: JsFunction(params: @[], body: ""))
+    arrow: tuple[name: string, params: string] = (name: "", params: "")
   result = initTable[string, JsFunction]()
   for at in findAll(js, "function "):
     open = js.find('(', at)
@@ -272,7 +274,8 @@ proc declaredFunctions(js: string): Table[string, JsFunction] {.role: parser,
   for at in findAll(js, "=>"):
     arrow = arrowAt(js, at)
     if isIdent(arrow.name):
-      result[arrow.name] = arrow.fn
+      result[arrow.name] = JsFunction(params: paramsOf(arrow.params),
+        body: bodyFrom(js, at))
 
 # --- selectors -> elements -----------------------------------------------------
 
@@ -500,16 +503,20 @@ proc listenersIn(C: WebContext, s: Script): seq[Handler]
   ## Every `x.addEventListener('click', ...)`.
   var
     js: string = s.text
+    prev: int = 0
+    line: int = s.line
     lit: tuple[text: string, next: int] = (text: "", next: -1)
     close: int = 0
     comma: int = 0
   result = @[]
   for at in findAll(js, ".addEventListener("):
+    line = line + js[prev ..< at].count('\n')
+    prev = at
     lit = firstLiteral(js, at + 18, 24)
     close = matchClose(js, at + 17)
     comma = js.find(',', max(0, lit.next))
     if lit.text in pressEvents and close > 0 and comma > 0 and comma < close:
-      result.add(Handler(path: s.path, line: s.line + js[0 ..< at].count('\n'),
+      result.add(Handler(path: s.path, line: line,
         pages: s.pages,
         body: callbackBody(C, js, comma + 1, close),
         pressed: resolve(C, js, at, receiverBefore(js, at),
@@ -521,12 +528,16 @@ proc assignedIn(C: WebContext, s: Script): seq[Handler]
   ## Every `x.onclick = ...`.
   var
     js: string = s.text
+    prev: int = 0
+    line: int = s.line
     start: int = 0
   result = @[]
   for at in findAll(js, ".onclick"):
-    start = js.find('=', at)
+    line = line + js[prev ..< at].count('\n')
+    prev = at
+    start = js.find('=', at, min(js.high, at + 12))
     if start > 0 and start - at < 12:
-      result.add(Handler(path: s.path, line: s.line + js[0 ..< at].count('\n'),
+      result.add(Handler(path: s.path, line: line,
         pages: s.pages,
         body: callbackBody(C, js, start + 1, start + 2000),
         pressed: resolve(C, js, at, receiverBefore(js, at),
