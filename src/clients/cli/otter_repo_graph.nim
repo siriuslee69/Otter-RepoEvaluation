@@ -65,6 +65,10 @@ proc printUsage() {.role: helper, tag: "graph|execution".} =
   echo "  otter_repo_graph ui [repoRoot] [--json]"
   echo "  otter_repo_graph continuity [repoRoot] [--json]"
   echo "      a press that hides the big thing its own button sits in (js/html, owlkettle)"
+  echo "  otter_repo_graph similar <folder>... [--across] [--by:shape|words|both] [--max-dist:0.15]"
+  echo "      [--min-lines:10] [--max-lines:400] [--top:30] [--pairs:N] [--max-bucket:3000] [--json]"
+  echo "      code that is alike across folders and languages (js ts rs go py c java), as vector"
+  echo "      distances and clusters; each folder counts as one repo"
   echo "  otter_repo_graph state [repoRoot] [typeName] [--json]"
   echo "  otter_repo_graph yields [repoRoot] <name> [--json]"
   echo "  otter_repo_graph diff [repoRoot] [rev] [--json] [--out:FILE]"
@@ -88,6 +92,30 @@ proc positionalArgs(args: seq[string]): seq[string] {.role: helper, tag: "graph|
       continue
     result.add(a)
 
+
+proc flagText(args: seq[string], flag, d: string): string {.role: helper, tag: "graph|execution".} =
+  ## args: the words   flag: "--by:"   d: the value when the flag is absent.
+  ## The text after the colon of the first word that starts with `flag`.
+  result = d
+  for a in args:
+    if a.startsWith(flag):
+      return a[flag.len .. ^1]
+
+proc flagInt(args: seq[string], flag: string, d: int): int {.role: helper, tag: "graph|execution".} =
+  ## args: the words   flag: "--top:"   d: the value when absent or not a number.
+  result = d
+  try:
+    result = parseInt(flagText(args, flag, $d))
+  except ValueError:
+    result = d
+
+proc flagFloat(args: seq[string], flag: string, d: float): float {.role: helper, tag: "graph|execution".} =
+  ## args: the words   flag: "--max-dist:"   d: the value when absent or not a number.
+  result = d
+  try:
+    result = parseFloat(flagText(args, flag, $d))
+  except ValueError:
+    result = d
 
 proc cliArgs(): seq[string] {.role: helper, tag: "graph|execution".} =
   var
@@ -252,6 +280,44 @@ proc runContinuity(args: seq[string]) {.role: actor,
   if r.error.len > 0 or r.teleports().len > 0:
     quit(1)
 
+proc similarOptionsOf(args: seq[string]): SimilarOptions {.role: parser,
+    tag: "graph|execution".} =
+  ## args: the words after `similar`. The options they ask for; every
+  ## flag that is absent keeps its start value.
+  var
+    o: SimilarOptions = defaultSimilarOptions()
+  o.minLines = flagInt(args, "--min-lines:", o.minLines)
+  o.maxLines = flagInt(args, "--max-lines:", o.maxLines)
+  o.maxDist = flagFloat(args, "--max-dist:", o.maxDist)
+  o.by = flagText(args, "--by:", o.by)
+  o.top = flagInt(args, "--top:", o.top)
+  o.pairsTop = flagInt(args, "--pairs:", o.pairsTop)
+  o.maxBucket = flagInt(args, "--max-bucket:", o.maxBucket)
+  o.across = flagPresent(args, "--across")
+  result = o
+
+proc runSimilar(args: seq[string]) {.role: actor,
+    tag: "graph|stats|execution".} =
+  ## args: the words after `similar`. Code that is alike across folders and
+  ## languages. Exit 2 on a wrong folder or option, else 0.
+  var
+    roots: seq[string] = positionalArgs(args)
+    o: SimilarOptions = similarOptionsOf(args)
+    r: SimilarReport = SimilarReport()
+  if roots.len == 0:
+    roots = @["."]
+  if o.by notin ["shape", "words", "both"]:
+    echo "similar: --by must be shape, words or both"
+    quit(2)
+  r = similarOf(roots, o)
+  if flagPresent(args, "--json"):
+    echo similarJson(r, o)
+  else:
+    for line in similarLines(r, o):
+      echo line
+  if r.error.len > 0:
+    quit(2)
+
 proc runState(args: seq[string]) {.role: actor,
     tag: "graph|stats|execution".} =
   ## args: the words after `state`. Who may change each entry of a
@@ -414,6 +480,8 @@ proc runCli*() {.role: orchestrator, tag: "graph|execution".} =
     runUi(rest)
   of "continuity":
     runContinuity(rest)
+  of "similar":
+    runSimilar(rest)
   of "state":
     runState(rest)
   of "yields":

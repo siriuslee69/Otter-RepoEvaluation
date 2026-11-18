@@ -1298,6 +1298,10 @@ The shared WebUI now uses qlacier-style floating menu shells: repo root search o
 - `./bin/otter-repo-graph continuity <dir> [--json]`
   - a press that hides the big thing its own button sits in (js/html and owlkettle);
     exit 1 when there is one. The hint `MAYBE TELEPORT` of `ui-check.sh` calls it.
+- `./bin/otter-repo-graph similar <folder>... [--across] [--by:shape|words|both] [--max-dist:0.15] [--min-lines:10] [--max-lines:400] [--top:30] [--pairs:N] [--max-bucket:3000] [--json]`
+  - code that is alike across folders and languages (js ts rs go py c java), as
+    distances and clusters; every folder counts as one repo (`--across` keeps only
+    pairs from different folders). See "Finding alike code" below.
 - `./bin/otter-repo-graph ct <binary|file.nim> [--routine:name:args] [--noinline] [--json]`
   - secret-dependent branches, addresses and divisions in machine code.
 - `nimble buildWebui`
@@ -1308,6 +1312,46 @@ The shared WebUI now uses qlacier-style floating menu shells: repo root search o
   - verify the VS Code extension source files exist.
 - `nimble find`
   - switch submodule URLs to local sibling clones when available.
+
+## Finding alike code
+
+`similar` answers: which code, in which folders and languages, is built alike? It is a
+hint for people deciding what to share, not a proof.
+
+```
+  folders ─► files ─► chunks ─► two vectors ─► candidates ─► pairs ─► clusters
+             js ts    one        SHAPE: how     SimHash      exact     joined
+             rs go    routine    it is built    buckets      distance  groups
+             py c     each       WORDS: what
+                                 its names say
+```
+
+Words used here:
+
+- **chunk**: one routine, method or type definition, cut out of a file by a plain scanner
+  (comments and strings blanked, the matching brace or the indent ends it). No real parser,
+  so a wrong cut gives a worse hint, never a crash.
+- **shape**: the chunk read as a stream of small classes. Every name becomes `I` (or `C`
+  when called), numbers `N`, strings `S`; `for`, `loop`, `while` all count as one LOOP and
+  `fn`, `function`, `def`, `func` as one FUNC; type annotations and `let`/`const` are left
+  out. So `blendRows` in TypeScript and `blend_rows` in Rust read almost the same.
+- **words**: the names inside the chunk cut into words (`retypeText` -> retype, text).
+- **distance**: 1 minus the cosine of two vectors: 0 the same, 1 nothing in common. Each
+  vector is weighed by how rare its parts are across ALL chunks, so what every routine has
+  counts for little.
+- **type definitions and tables of values** have no shape to speak of; they are compared by
+  words only and never against routines.
+- **cluster**: pairs joined into groups (single linkage). A cluster that spans many
+  repos is a routine that wants one home. Its mean distances say how loose it is.
+
+```sh
+otter-repo-graph similar ../Repo1 ../Repo2 ../Repo3 --across --top:20
+otter-repo-graph similar ../Repo1 ../Repo2 --across --by:words --max-dist:0.3 --pairs:15
+otter-repo-graph similar ../Repo1 ../Repo2 --across --json
+```
+
+Measured on 26 repos (34 231 chunks in 8 363 files): 23 s, one core. `examples/similar/` holds
+the same routine in four languages; `evaluation/tests/test_similar.nim` reads its answers.
 
 ## Issue Playbook
 - Source reports are best-effort readings, not compiler proofs. Unused-import
@@ -1396,6 +1440,21 @@ The shared WebUI now uses qlacier-style floating menu shells: repo root search o
 - An instruction missing from `machine_code/instructions.nim` is read
   cautiously and counted under "not in the table"; add it there when
   one shows up often.
+
+- `similar` cuts files with a scanner, not a parser. A routine whose first line it does
+  not recognise (an unusual declaration style) is missed; a regex literal or a macro that
+  holds a stray brace can end a chunk early. Both give fewer or worse hints, never a crash.
+  Look at the file and line printed beside each member before acting on a cluster.
+- `similar` joins pairs by single linkage: A~B and B~C put A, B and C together even when
+  A and C are far apart. A cluster whose mean shape is near `--max-dist` is a chain.
+  Lower `--max-dist` (0.05 keeps only near copies) or read it as a family, not a copy.
+- Across languages the shape distance is larger than inside one (a Rust loop over a range is
+  not a JavaScript loop with a counter). The same routine in two languages usually lands
+  between 0.15 and 0.35; read the words distance beside it.
+- Very common code fills one bucket with thousands of chunks. Those buckets are skipped and
+  counted (`--max-bucket`); raising the limit makes the run slower and the hints no better.
+- Chunks under `--min-lines` (10) are not compared; one-line getters would all look alike.
+  Minified files (a line over 1 500 characters) and files over 1 MB are skipped.
 
 ## License
 Released under [The Unlicense](LICENSE.txt).

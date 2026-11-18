@@ -24,7 +24,7 @@ const
   cliEntry: string = "src/clients/cli/otter_repo_graph.nim"
 
 const
-  testPrograms: array[21, string] = [
+  testPrograms: array[22, string] = [
     "test_evaluation",
     "test_smoke",
     "test_repo_graph",
@@ -37,6 +37,7 @@ const
     "test_blast",
     "test_ui_depth",
     "test_ui_continuity",
+    "test_similar",
     "test_state_writes",
     "test_yields",
     "test_diff_review",

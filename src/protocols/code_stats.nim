@@ -21,6 +21,8 @@ import ./code_stats/conventions
 import ./code_stats/ui_depth
 import ./code_stats/continuity_types
 import ./code_stats/continuity
+import ./code_stats/similar_types
+import ./code_stats/similar
 import ./code_stats/nesting
 import ./code_stats/test_scan
 import ./code_stats/pipeline
@@ -44,6 +46,8 @@ export conventions
 export ui_depth
 export continuity_types
 export continuity
+export similar_types
+export similar
 export nesting
 export test_scan
 export pipeline

@@ -1,6 +1,63 @@
 # Progress
 
-Commit Message: continuity score (stay, tie, move) per press and for a UI; MAYBE SEED and MAYBE JUMP hints
+Commit Message: similar: fuzzy likeness of code across repos and languages (js ts rs py go c), as vector distances and clusters
+
+## 2026-11-19 `otter_repo_graph similar`
+
+Asked: a module that finds similar code heuristically, not with a perfect parser, and
+gives the answer as vector distances. Use: the Mimic rewrite of the 28 FormAI repos goes
+"compression first", so the shared parts must come from measured likeness, not from
+guessing. Works on any folders, so it also serves the whole workspace.
+
+Plan (what goes where):
+
+```text
+  part                                           where
+  ---------------------------------------------  ----------------------------------------
+  chunks: one routine / class / impl per piece,   src/protocols/code_stats/similar_chunks.nim
+    cut by a heuristic (brace depth or indent)
+  two vectors per chunk: SHAPE (what it is built  similar_vector.nim
+    like: keywords, operators, 3-token runs) and
+    WORDS (names split into words), hashed into
+    fixed-size lists; distance = 1 - cosine
+  candidates without comparing everything:        similar_index.nim
+    SimHash bands (LSH), then the exact distance
+  clusters: pairs under the limit joined into     similar_cluster.nim
+    groups; a group that spans many repos is a
+    candidate for one shared module
+  text + json                                     similar.nim, json_out.nim
+  command                                         src/clients/cli/otter_repo_graph.nim: similar
+  example first                                   examples/similar/ (two small "repos")
+  tests                                           evaluation/tests/test_similar.nim
+```
+
+Words: chunk = one routine-sized piece of a file. SHAPE vector = counts of token runs with
+all names and values replaced by a class letter, so renamed copies match. WORDS vector =
+counts of the words inside names (`retypeText` -> retype, text), so the same idea written
+with other keywords still matches. Distance is 0 for the same, 1 for nothing in common.
+
+Not perfect on purpose: strings and comments are cut by a simple scanner, a chunk end is the
+matching brace (or the indent for Python). A wrong cut makes a worse hint, never a crash.
+
+
+Done (2026-11-19):
+- `otter_repo_graph similar <folder>...` with `--across`, `--by`, `--max-dist`, `--min-lines`,
+  `--max-lines`, `--top`, `--pairs`, `--max-bucket`, `--json`; five modules
+  `similar_types`, `similar_chunks`, `similar_vector`, `similar_index`, `similar_cluster`, plus
+  `similar.nim` (pipeline and output); `evaluation/tests/test_similar.nim` (19 tests, in the
+  test list); `examples/similar/`; README sections "Finding alike code" and playbook entries.
+- Measured on the 26 FormAI repos: 34 231 chunks, 8 363 files, 23 s on one core, 881 clusters,
+  324 of them across 3 or more repos. The widest clusters are platform code copied nearly
+  verbatim into 10 to 22 repos (reveal.rs, host-bridge.ts, local_guard.py, terminal.py ...).
+- Problem met: 743 struct and interface definitions formed one cluster of "nothing in common"
+  (words 0.94). Cause: after type annotations are dropped, a bare field list has no shape left.
+  Fix: type definitions and tables of values are compared by their words only, never against
+  routines. Pairs fell from 38 684 to 7 620.
+- Problem met: across languages the shape of a short routine was as far from its twin as from
+  an unrelated one (0.22 against 0.25). Fix: type annotations, generics, `let`/`const`/`new`
+  and `await` are left out of the shape, and every vector is weighed by how rare its parts are
+  across all chunks (IDF); the SimHash is taken from the weighed vector.
+---
 
 ## 2026-11-16 Continuity score and the seed
 
