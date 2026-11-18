@@ -1341,7 +1341,7 @@ Words used here:
   counts for little.
 - **type definitions and tables of values** have no shape to speak of; they are compared by
   words only and never against routines.
-- **cluster**: pairs joined into groups (single linkage). A cluster that spans many
+- **cluster**: a centre chunk and the chunks within the limit of it (busiest centre first; no chains). A cluster that spans many
   repos is a routine that wants one home. Its mean distances say how loose it is.
 
 ```sh
@@ -1445,9 +1445,9 @@ the same routine in four languages; `evaluation/tests/test_similar.nim` reads it
   not recognise (an unusual declaration style) is missed; a regex literal or a macro that
   holds a stray brace can end a chunk early. Both give fewer or worse hints, never a crash.
   Look at the file and line printed beside each member before acting on a cluster.
-- `similar` joins pairs by single linkage: A~B and B~C put A, B and C together even when
-  A and C are far apart. A cluster whose mean shape is near `--max-dist` is a chain.
-  Lower `--max-dist` (0.05 keeps only near copies) or read it as a family, not a copy.
+- `similar` groups by centre, not by chains: every member is within `--max-dist` of the
+  group's centre, so two members can be up to twice that apart. A group whose mean shape
+  is near `--max-dist` is a loose family. Lower `--max-dist` (0.05 keeps only near copies).
 - Across languages the shape distance is larger than inside one (a Rust loop over a range is
   not a JavaScript loop with a counter). The same routine in two languages usually lands
   between 0.15 and 0.35; read the words distance beside it.

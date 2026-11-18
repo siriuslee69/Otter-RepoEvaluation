@@ -153,13 +153,19 @@ proc pairLine(r: SimilarReport, p: Pair): string {.role: dataWriter.} =
   result = fmt2(p.shapeDist) & " " & fmt2(p.wordsDist) & "  " &
     placeOf(r.chunks[p.a]) & "  <->  " & placeOf(r.chunks[p.b])
 
+proc totalLines*(r: SimilarReport): int {.role: math.} =
+  ## r: the answer. How many lines of code all chunks hold together.
+  result = 0
+  for c in r.chunks:
+    result = result + c.lines
+
 proc similarLines*(r: SimilarReport, o: SimilarOptions): seq[string] {.
     role: dataWriter, tag: "graph|stats".} =
   ## r: the answer   o: the options. The report as printable lines.
   result = @[]
   if r.error.len > 0:
     return @["SIMILAR - " & r.error]
-  result.add("SIMILAR - " & $r.chunks.len & " chunks in " & $r.repos & " folder(s) (" & $r.files &
+  result.add("SIMILAR - " & $r.chunks.len & " chunks (" & $totalLines(r) & " lines) in " & $r.repos & " folder(s) (" & $r.files &
     " files); " & $r.pairs.len & " pairs within " & fmt2(o.maxDist) & " by " & o.by &
     "; " & $r.clusters.len & " clusters")
   if r.skippedBuckets > 0:
@@ -204,6 +210,6 @@ proc similarJson*(r: SimilarReport, o: SimilarOptions): string {.
   for i in 0 ..< min(max(o.pairsTop, 0), r.pairs.len):
     P.add(%*{"shape": r.pairs[i].shapeDist, "words": r.pairs[i].wordsDist,
       "a": chunkJson(r.chunks[r.pairs[i].a]), "b": chunkJson(r.chunks[r.pairs[i].b])})
-  result = pretty(%*{"error": r.error, "chunks": r.chunks.len, "folders": r.repos,
+  result = pretty(%*{"error": r.error, "chunks": r.chunks.len, "chunkLines": totalLines(r), "folders": r.repos,
     "files": r.files, "pairs": r.pairs.len, "skippedBuckets": r.skippedBuckets,
     "maxDist": o.maxDist, "by": o.by, "clusters": K, "closest": P})

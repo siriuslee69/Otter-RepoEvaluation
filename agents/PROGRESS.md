@@ -53,6 +53,8 @@ Done (2026-11-19):
   (words 0.94). Cause: after type annotations are dropped, a bare field list has no shape left.
   Fix: type definitions and tables of values are compared by their words only, never against
   routines. Pairs fell from 38 684 to 7 620.
+- Problem met: single-linkage clusters chained: at --max-dist:0.25 one cluster held 11 348 chunks from 26 repos. Fix: centre-star groups (a centre chunk and the chunks within the limit of IT, busiest centre first), so a group is at most twice the limit wide. Measured on the 26 FormAI repos at 0.15: 18.5 % of 946 689 chunk lines sit in alike groups (10.7 % inside one repo, 2.9 % across 2, 4.8 % across 3 or more); at 0.25: 46.6 %.
+
 - Problem met: across languages the shape of a short routine was as far from its twin as from
   an unrelated one (0.22 against 0.25). Fix: type annotations, generics, `let`/`const`/`new`
   and `await` are left out of the shape, and every vector is weighed by how rare its parts are

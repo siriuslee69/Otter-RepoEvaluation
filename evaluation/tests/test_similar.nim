@@ -19,6 +19,7 @@ import std/[json, os, strutils, unittest]
 import ../../src/protocols/code_stats/similar_types
 import ../../src/protocols/code_stats/similar_chunks
 import ../../src/protocols/code_stats/similar_vector
+import ../../src/protocols/code_stats/similar_cluster
 import ../../src/protocols/code_stats/similar
 import runePragmas
 
@@ -220,3 +221,39 @@ suite "similar - type definitions":
     r = similarOf(@[root / "one", root / "two"], o)
     removeDir(root)
     check r.pairs.len == 0
+
+suite "similar - groups do not chain":
+  # {.testKind: tkProperty.}
+  test "a long chain of close pairs never becomes one big group":
+    var
+      C: seq[Chunk] = @[]
+      P: seq[Pair] = @[]
+      K: seq[Cluster] = @[]
+      widest: int = 0
+    for i in 0 ..< 12:
+      C.add(Chunk(repo: "r" & $i, path: "f" & $i, name: "n" & $i, lines: 10))
+    for i in 0 ..< 11:
+      P.add(Pair(a: i, b: i + 1, shapeDist: 0.1, wordsDist: 0.1, twin: false, byWords: false))
+    K = clustersOf(C, P, "shape")
+    for k in K:
+      widest = max(widest, k.members.len)
+    check K.len >= 3
+    check widest <= 3
+
+  # {.testKind: tkUnit.}
+  test "a centre and its partners form one group with its numbers":
+    var
+      C: seq[Chunk] = @[]
+      P: seq[Pair] = @[]
+      K: seq[Cluster] = @[]
+    for i in 0 ..< 4:
+      C.add(Chunk(repo: (if i < 2: "a" else: "b"), path: "f" & $i, name: "n", lines: 10))
+    P.add(Pair(a: 0, b: 1, shapeDist: 0.0, wordsDist: 0.2, twin: true, byWords: false))
+    P.add(Pair(a: 0, b: 2, shapeDist: 0.1, wordsDist: 0.4, twin: false, byWords: false))
+    P.add(Pair(a: 0, b: 3, shapeDist: 0.1, wordsDist: 0.6, twin: false, byWords: false))
+    K = clustersOf(C, P, "shape")
+    check K.len == 1
+    check K[0].centre == 0
+    check K[0].members == @[0, 1, 2, 3]
+    check K[0].repos == @["a", "b"]
+    check K[0].twins == 1
