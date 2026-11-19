@@ -106,3 +106,10 @@ An item that is done is removed here and named in PROGRESS.md.
   done when: a `const` string that holds a style sheet is read like a .css file, and the Atlas-Taskbar tie shows its real colours.
   needs: nobody
   plan: in continuity_page.styleRulesOf also take every Nim string constant with 3 or more `{ ... }` rules and a `.class` selector; keep the 20 000 rule cap.
+
+- [ ] Otter's own door findings: 3 RE-READ (conventions.nim:332 checkNaming, secrets.nim:370 scoreValue, repo_graph/io_utils.nim:115 isScannablePath) and 3 NO DEADLINE (waitForExit() in test_ui/app.nim:310, test_ui/jobs.nim:427 and :661).
+  why: the tool that tells other repos "every wait has a deadline" waits for a child program with none; a hung test child would hold the test UI forever.
+  start: tools/agent_hooks/door-check.sh .
+  done when: door-check prints nothing for this repo (a site that is right carries `# otter: door <word> <reason>`).
+  needs: nobody
+  plan: the three waitForExit() calls get a timeout (the job's own limit, then terminate); the three RE-READ sites are reviewed one by one: a plain character or extension test followed by a use of the same text is mostly fine and gets a written reason, a real check-then-decode is folded into one routine.

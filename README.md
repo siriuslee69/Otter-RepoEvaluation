@@ -929,6 +929,55 @@ glyph, `FloatingActionButton`). It does not look at lists; it counts plus button
 `ui-check.sh` prints the same finding as `MAYBE TELEPORT`. It is a guess: a
 login screen that gives way to the app is reported too, and may be right.
 
+### Doors: what may a stranger's number or text do before it is checked? 🚪
+
+```sh
+./bin/otter-repo-graph doors <repo> [--json]      # exit 1 when a rule is broken
+tools/agent_hooks/door-check.sh <repo>            # the same, for agents (done-check runs it)
+```
+
+Five rules from Nebel's `docs/attack_classes.md` (108 attacks, eight habits). They read the
+SOURCE of `src/`, line by line, with no types. What they name is a place to look, with the
+line and the reason in words:
+
+```text
+  heading         class  what it found
+  --------------  -----  -----------------------------------------------------------------
+  OUTSIDE NUMBER    1    a number returned by a reader (readU16, readU32Le, parseInt ...) or
+                         computed from one reaches newSeq, newString, setLen, alloc, repeat,
+                         sleep, a `for` bound or a `while` condition, and no `if` that refuses
+                         (return, raise, continue, break) or `bounded`, `min`, `clamp` came first
+  OPEN DOOR         2    a type with `tag: "doored"` is taken as `var` by a routine with no
+                         `Admitted` parameter; or `admit(` is called from a routine that is not
+                         tagged `door` (only in files that import Fylgia's intake)
+  RE-READ           3    a parameter that holds a text or bytes is asked about (isX, validX,
+                         checkX, okX, allowedX, safeX, looksLikeX) and a later call takes the
+                         same parameter as it was
+  SECRET BRANCH     4    a name that reads like a secret (mac, psk, secret, password, cookie,
+                         expectedTag ...) is compared with == or !=, indexed in an `if`, or
+                         looped over with a break/return inside
+  NO DEADLINE       6    recv, recvFrom, recvLine, accept, acceptAddr, connect or waitForExit
+                         with no word that names a time (timeout, deadline, ...Ms); `connect`
+                         with three arguments, `s.recv(n, 500)` and `waitForExit(2000)` count
+```
+
+A site that is right for a reason says so on its line or the line above, and the reason is
+required (three characters or more):
+
+```nim
+# otter: door deadline the socket is non-blocking; wait_readable answered first
+let n = recvFrom(...)
+```
+
+The word after `door` is one of `number open reread secret deadline`. Such a site is counted
+(`allowed` in the report) and not listed. `done-check.sh` turns a finding into FIX only for
+a file changed in the branch; the other findings of the repo are a note with their number.
+Tests, examples, benchmarks and `tools/` are not read.
+
+What it cannot see: a number that travels through a field or a call; a secret under another
+name; a wait on a socket that was made non-blocking elsewhere. Those stay with the lab runs
+(`evaluation/stress`) and with review.
+
 ### Constant time: does a secret steer the machine code? 🔐
 
 ```sh
@@ -1278,12 +1327,12 @@ The shared WebUI now uses qlacier-style floating menu shells: repo root search o
 
 ## Commands
 - `nimble test`
-  - run all 21 selected test programs and, on POSIX, the shell-hook regressions.
+  - run all 23 selected test programs and, on POSIX, the shell-hook regressions.
     Deliberate crash/failure examples are launched only by the isolation tests.
 - `nimble runTests`
   - run the same selected suite as `nimble test`.
 - `nimble buildtests`
-  - compile the same 21 programs in release mode.
+  - compile the same 23 programs in release mode.
 - `nimble runStatistics`
   - check Otter's own file conventions and write full findings to
     `evaluation/statistics/conventions.json`.
@@ -1304,6 +1353,9 @@ The shared WebUI now uses qlacier-style floating menu shells: repo root search o
     pairs from different folders). See "Finding alike code" below.
 - `./bin/otter-repo-graph ct <binary|file.nim> [--routine:name:args] [--noinline] [--json]`
   - secret-dependent branches, addresses and divisions in machine code.
+- `./bin/otter-repo-graph doors <repo> [--json]`
+  - OUTSIDE NUMBER, OPEN DOOR, RE-READ, SECRET BRANCH, NO DEADLINE (see "Doors" above);
+    exit 1 when one is found. `tools/agent_hooks/door-check.sh` runs it for agents.
 - `nimble buildWebui`
   - build `bin/otter-repo-graph-webui`.
 - `nimble runWebui`

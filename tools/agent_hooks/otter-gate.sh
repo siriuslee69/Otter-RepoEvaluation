@@ -182,7 +182,7 @@ queryStatus=$?
 
 # What a single file and the call graph cannot show: borders, pins, leftovers,
 # copies, open ends (repo-check.sh), and the UI rules (ui-check.sh).
-extra=$(OTTER_REPORT_LOG=off "$here/repo-check.sh" "$root" 2>/dev/null; OTTER_REPORT_LOG=off "$here/ui-check.sh" "$root" 2>/dev/null)
+extra=$(OTTER_REPORT_LOG=off "$here/repo-check.sh" "$root" 2>/dev/null; OTTER_REPORT_LOG=off "$here/ui-check.sh" "$root" 2>/dev/null; OTTER_REPORT_LOG=off "$here/door-check.sh" "$root" 2>/dev/null | head -40)
 [ -n "${extra//[[:space:]]/}" ] && report="$report
 
 $extra"

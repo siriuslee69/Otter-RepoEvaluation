@@ -1,6 +1,38 @@
 # Progress
 
-Commit Message: similar: fuzzy likeness of code across repos and languages (js ts rs py go c), as vector distances and clusters
+Commit Message: doors: five rules about what a stranger's bytes may do (OUTSIDE NUMBER, OPEN DOOR, RE-READ, SECRET BRANCH, NO DEADLINE), as a command and a hook
+
+## 2026-11-19 (evening) `otter_repo_graph doors`
+
+Asked (user, via Nebel's attack classes): "where possible deterministically in Otter, not just as
+guidance". The five rules of docs/attack_classes.md that the SOURCE can show became findings:
+
+```text
+  part                                           where
+  ---------------------------------------------  ---------------------------------------------
+  the reading of one line (calls with their       src/protocols/code_stats/doors_text.nim
+    arguments, whole-word search); comment and     (reuses codeOf / withoutStrings of
+    string blanking is Otter's existing code)      state_writes.nim and indentOf / firstWord
+                                                   of nesting.nim: no second copy)
+  the five checks, the report, the JSON           src/protocols/code_stats/doors.nim
+  the command                                     `otter-repo-graph doors <repo> [--json]`
+  the hook                                        tools/agent_hooks/door-check.sh, called by
+                                                  done-check.sh (FIX only for files changed in
+                                                  the branch, else a note) and otter-gate.sh
+  the test: a bad and a good sample per rule      evaluation/tests/test_doors.nim (9 OK)
+```
+
+Measured on the workspace the first time, and what the first run taught: the "two parsers on one
+text" form flagged decoders that read DIFFERENT FIELDS of one buffer (17 hits in Bifrost, nearly all
+noise): dropped. A bare `tag` and the `-Token` suffix are public words in Bifrost (a slot number, an
+algorithm name): no longer secret names. `tools/`, `evaluation/`, `examples/` are not shipped code:
+skipped. An `admit` of a repo's own (Nebel, Fjord) is not Fylgia's: only files that import the intake
+module are asked. A literal timeout (`connect(h, p, 1000)`, `s.recv(n, 500)`) counts as a deadline.
+After that: Bifrost 19, Nebel 11, Fjord 23, Geist 38, Otter 27, Torii 9, Eir 7, Fylgia 2, Tyr 1.
+
+Known limits, said in the README ("Doors"): it follows a number only through plain assignments in
+one routine; a secret under another name or a wait on a socket made non-blocking elsewhere is not
+seen. A site that is right says so on its line (`# otter: door <word> <reason>`) and is counted.
 
 ## 2026-11-19 `otter_repo_graph similar`
 

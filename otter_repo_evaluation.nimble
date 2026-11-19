@@ -24,7 +24,7 @@ const
   cliEntry: string = "src/clients/cli/otter_repo_graph.nim"
 
 const
-  testPrograms: array[22, string] = [
+  testPrograms: array[23, string] = [
     "test_evaluation",
     "test_smoke",
     "test_repo_graph",
@@ -46,7 +46,8 @@ const
     "test_visibility",
     "test_machine_code",
     "test_source_scans",
-    "test_tracing"]
+    "test_tracing",
+    "test_doors"]
 
 task test, "Run the complete test list, excluding deliberate failure examples":
   for name in testPrograms:

@@ -13,6 +13,12 @@
 #                                                (pins and older error style: a note)
 #   ui          ui-check.sh (UI repos only)      colours, focus, stretch, ...
 #   files       nim-check.sh on changed files    single-file convention rules
+#   doors       door-check.sh                    a number from outside sizing something,
+#                                                a table with no Admitted, a text checked
+#                                                then used as it was, a secret compared
+#                                                with ==, a wait with no deadline. FIX
+#                                                only for files changed here; elsewhere
+#                                                a note with the count.
 #   otter       otter-gate.sh --force            nesting, placeholders, dead code
 #   tests       nimble test                      a test failed, or none ran
 #   examples    nimble runExamples               an example no longer runs
@@ -66,6 +72,17 @@ if [ -n "$changed" ]; then
   elif [ $rc -eq 1 ]; then line files note "$(wc -l < "$log/files") finding(s) in changed test files"; keep files "$log/files" 12
   else line files ok "$(printf '%s\n' "$changed" | wc -l) changed file(s) clean"; fi
 fi
+
+OTTER_REPORT_LOG=off "$here/door-check.sh" "$root" > "$log/doors" 2>&1; rc=$?
+if [ $rc -eq 1 ]; then
+  # A door finding in a file changed here stops the hand-over: you touched the
+  # file, you leave it door-clean. Elsewhere in the repo it is a note with the count.
+  total=$(grep -cE '^  [^ ]+:[0-9]+  ' "$log/doors" 2>/dev/null || true)
+  mine=0
+  for f in $changed; do mine=$((mine + $(grep -cF "  $f:" "$log/doors" 2>/dev/null || true))); done
+  if [ "$mine" -gt 0 ]; then line doors FIX "$mine finding(s) in files changed here ($total in the repo): $(grep -oE '^(OUTSIDE NUMBER|OPEN DOOR|RE-READ|SECRET BRANCH|NO DEADLINE)' "$log/doors" | sort -u | tr '\n' ' ')"; keep doors "$log/doors" 40
+  else line doors note "$total place(s) in files not changed here — fix them when you touch the file (otter-repo-graph doors .)"; fi
+elif [ $rc -eq 0 ]; then line doors ok "no unchecked number, open door, re-read, secret branch or wait without deadline"; fi
 
 if [ "$quick" = 0 ]; then
   OTTER_REPORT_LOG=off "$here/otter-gate.sh" --force "$root" > "$log/otter" 2>&1

@@ -9,6 +9,7 @@ import runePragmas
 import ../../otter_repo_evaluation
 import ../../protocols/trace_run
 import ../../protocols/machine_code
+import ../../protocols/code_stats/doors
 
 proc runTraceCmd(A: seq[string]) {.role: orchestrator, tag: "tracing".} =
   ## otter trace <repoRoot> <testFile> [--keep] [--timeout:SEC]
@@ -65,6 +66,9 @@ proc printUsage() {.role: helper, tag: "graph|execution".} =
   echo "  otter_repo_graph ui [repoRoot] [--json]"
   echo "  otter_repo_graph continuity [repoRoot] [--json]"
   echo "      a press that hides the big thing its own button sits in (js/html, owlkettle)"
+  echo "  otter_repo_graph doors [repoRoot] [--json]"
+  echo "      five rules about what a stranger's bytes may do: OUTSIDE NUMBER, OPEN DOOR, RE-READ,"
+  echo "      SECRET BRANCH, NO DEADLINE (Nebel docs/attack_classes.md); exit 1 when something is found"
   echo "  otter_repo_graph similar <folder>... [--across] [--by:shape|words|both] [--max-dist:0.15]"
   echo "      [--min-lines:10] [--max-lines:400] [--top:30] [--pairs:N] [--max-bucket:3000] [--json]"
   echo "      code that is alike across folders and languages (js ts rs go py c java), as vector"
@@ -343,6 +347,26 @@ proc runState(args: seq[string]) {.role: actor,
   if r.error.len > 0:
     quit(1)
 
+proc runDoors(args: seq[string]) {.role: actor,
+    tag: "graph|execution".} =
+  ## args: the words after `doors`. The five rules about what a stranger's bytes
+  ## may do (docs: src/protocols/code_stats/doors.nim). Exit 1 when one is broken.
+  var
+    items: seq[string] = @[]
+    rootDir: string = "."
+    r: DoorReport = default(DoorReport)
+  items = positionalArgs(args)
+  if items.len > 0:
+    rootDir = items[0]
+  r = doorReport(analyzeRepo(rootDir), rootDir)
+  if flagPresent(args, "--json"):
+    echo doorJson(r)
+  else:
+    for line in doorLines(r):
+      echo line
+  if r.findings.len > 0:
+    quit(1)
+
 proc runYields(args: seq[string]) {.role: actor,
     tag: "graph|execution".} =
   ## args: the words after `yields`. Every way one routine can end,
@@ -482,6 +506,8 @@ proc runCli*() {.role: orchestrator, tag: "graph|execution".} =
     runContinuity(rest)
   of "similar":
     runSimilar(rest)
+  of "doors":
+    runDoors(rest)
   of "state":
     runState(rest)
   of "yields":
