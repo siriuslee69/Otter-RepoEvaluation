@@ -32,7 +32,7 @@ type
 
 proc decodeBad(A: openArray[byte]): seq[int] {.role: parser.} =
   var
-    n: int = readU16(A, 0)
+    n: int = readU32(A, 0)
   result = newSeq[int](n)
 
 proc loopBad(A: openArray[byte]) {.role: parser.} =
@@ -44,28 +44,54 @@ proc loopBad(A: openArray[byte]) {.role: parser.} =
 
 proc decodeGuarded(A: openArray[byte]): seq[int] {.role: parser.} =
   var
-    n: int = readU16(A, 0)
+    n: int = readU32(A, 0)
   if n > 1000:
     return @[]
   result = newSeq[int](n)
 
 proc decodeBounded(A: openArray[byte]): seq[int] {.role: parser.} =
   var
-    c: BoundedResult = bounded(readU16(A, 0), entryLimit)
+    c: BoundedResult = bounded(readU32(A, 0), entryLimit)
   if not c.ok:
     return @[]
   result = boundedSeq[int](c.value)
 
 proc decodeMin(A: openArray[byte]): seq[int] {.role: parser.} =
   var
-    n: int = min(readU16(A, 0), 100)
+    n: int = min(readU32(A, 0), 100)
   result = newSeq[int](n)
 
 proc decodeAllowed(A: openArray[byte]): seq[int] {.role: parser.} =
   var
-    n: int = readU16(A, 0)
+    n: int = readU32(A, 0)
   # otter: door number a datagram is 1200 bytes, so 600 entries at most
   result = newSeq[int](n)
+
+proc decodeShort(A: openArray[byte]): seq[int] {.role: parser.} =
+  var
+    n: int = int(readU16(A, 0))
+  result = newSeq[int](n)
+
+proc decodeChecked(A: openArray[byte]): seq[int] {.role: parser.} =
+  var
+    n: int = checkedWireLen(readU32(A, 0), 4096'u32, "entries")
+  result = newSeq[int](n)
+
+proc decodeExact(A: openArray[byte]): seq[int] {.role: parser.} =
+  var
+    n: int = int(readU32(A, 1))
+  if A.len != 3 + n * 4:
+    raise newException(ValueError, "wrong size")
+  result = newSeq[int](n)
+
+proc decodeHint(body: openArray[byte]): int {.role: parser.} =
+  var
+    h: int = decodeDacRepairHint(body)
+    answers: seq[int] = answerHint(h)
+    i: int = 0
+  while i < answers.len:
+    i = i + 1
+  result = i
 
 proc addRow(S: var Slots, key: string) {.role: actor.} =
   S.n = S.n + 1

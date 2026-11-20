@@ -89,9 +89,16 @@ const
     "seq[uint8]"]
   checkPrefixes: array[7, string] = ["is", "valid", "check", "ok", "allowed",
     "safe", "looksLike"]
-  quietCalls: array[16, string] = ["len", "high", "low", "echo", "debugEcho",
+  quietCalls: array[35, string] = ["len", "high", "low", "echo", "debugEcho",
     "newException", "fmt", "format", "repr", "raise", "error", "fail", "err",
-    "refuse", "deny", "log"]
+    "refuse", "deny", "log", "add", "addAscii", "toLowerAscii", "toUpperAscii",
+    "strip", "startsWith", "endsWith", "contains", "find", "rfind", "join",
+    "setLen", "insert", "cmp", "substr", "repeat", "newString", "move",
+    "stringToBytes"]
+    ## Calls that are not a second reading of a checked text: messages, lengths
+    ## and plain string operations that copy or look at it without taking its
+    ## format apart. A parser, a decoder, a path join or a read of the file
+    ## named by it is not on the list.
 
 proc kindHeading*(k: DoorKind): string {.role: helper.} =
   ## k: a kind. Its heading in the report.
@@ -203,23 +210,34 @@ proc splitAssign(code: string): Assign {.role: parser.} =
       return
     i = i + 1
 
-proc isNumberReader(name: string): bool {.role: parser.} =
-  ## name: a routine name. True when it reads a number out of bytes or text.
+proc camelWords(name: string): seq[string] {.role: parser.} =
+  ## name: a routine name. Its words, lower case, cut where a capital starts:
+  ## readU16Le -> read u16 le, decodeDacRepairHint -> decode dac repair hint.
   var
-    n: string = name.toLowerAscii()
+    cur: string = ""
+  result = @[]
+  for c in name:
+    if c.isUpperAscii() and cur.len > 0:
+      result.add(cur.toLowerAscii())
+      cur = ""
+    cur.add(c)
+  if cur.len > 0:
+    result.add(cur.toLowerAscii())
+
+proc isNumberReader(name: string): bool {.role: parser.} =
+  ## name: a routine name. True when it reads a number that can be BIG out of
+  ## bytes or text: a 32 or 64 bit field, a count, a size, parseInt. An 8 or 16
+  ## bit field cannot name more than 65 535 things, so it is not read as one.
+  var
+    W: seq[string] = camelWords(name)
   result = false
-  if n in ["parseint", "parseuint", "parsebiggestint", "parsebiggestuint",
-      "parsehexint"]:
-    return true
-  for p in ["read", "decode", "parse", "extract", "load"]:
-    if n.startsWith(p):
-      for w in ["u8", "u16", "u32", "u64", "int", "varint", "len", "count",
-          "size", "length"]:
-        if w in n:
-          return true
-  for w in ["le16", "le32", "le64", "be16", "be32", "be64", "fromle",
-      "fromb"]:
-    if w in n:
+  if W.len == 0 or W[0] notin ["read", "decode", "parse", "extract", "load",
+      "take"]:
+    return false
+  for w in W[1 .. ^1]:
+    if w in ["u32", "u64", "le32", "le64", "be32", "be64", "int", "uint",
+        "biggestint", "biggestuint", "varint", "len", "count", "size",
+        "length"]:
       return true
 
 proc readerIn(rhs: string): string {.role: parser.} =
@@ -231,10 +249,15 @@ proc readerIn(rhs: string): string {.role: parser.} =
 
 proc isCleanRhs(rhs: string): bool {.role: parser.} =
   ## rhs: the right side of an assignment. True when it passes the number
-  ## through a check: `bounded`, `toInt` of a Bounded, `min`, `clamp`.
+  ## through a check: `bounded`, `toInt` of a Bounded, `min`, `clamp`, or any
+  ## routine called checked... or bounded... (Bifrost's `checkedAmeWireLen(x,
+  ## limit, what)` is such a door already).
   result = false
   for w in ["bounded", "toInt", "min", "clamp"]:
     if hasIdent(rhs, w):
+      return true
+  for c in callsOf(rhs):
+    if c.name.startsWith("checked") or c.name.startsWith("bounded"):
       return true
 
 proc firstTainted(s: string, T: Table[string, string],
@@ -283,7 +306,7 @@ proc noteGuard(v: View, i: int, T: Table[string, string],
     c: string = v.code[i].strip()
   if not (c.startsWith("if ") or c.startsWith("elif ")):
     return
-  if '<' notin c and '>' notin c:
+  if '<' notin c and '>' notin c and "!=" notin c:
     return
   if not refusesBelow(v, i) and " = " notin c:
     return

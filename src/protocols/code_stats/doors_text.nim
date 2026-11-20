@@ -134,9 +134,11 @@ proc callsOf*(s: string): seq[Call] {.role: parser.} =
       if e > 0:
         k = e + 1
     e = if k < s.len and s[k] == '(': balancedEnd(s, k) else: -1
-    if e > 0:
+    if k < s.len and s[k] == '(':
+      ## A call whose closing bracket is on a later line keeps what this line
+      ## has of its arguments.
       one.name = s[i ..< j]
-      one.args = s[k + 1 ..< e]
+      one.args = if e > 0: s[k + 1 ..< e] else: s[k + 1 .. ^1]
       one.recv = receiverOf(s, i)
       result.add(one)
     i = j
