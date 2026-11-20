@@ -40,3 +40,11 @@ nimble.paths
 !meta/.local*.template
 CONVENTIONS.md
 evaluation/statistics/*.json
+
+# migration top-up 2026-11-20
+build/
+builds/
+nimcache*/
+*.trash
+.otter/
+.local/
